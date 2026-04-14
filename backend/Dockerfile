@@ -16,7 +16,7 @@ RUN go mod tidy && go mod download
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /kinktube ./cmd/server
 
 # Runtime stage
-FROM alpine:3.20
+FROM alpine:3.19
 
 WORKDIR /app
 

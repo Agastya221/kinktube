@@ -143,7 +143,7 @@ func (c *EpornerClient) SearchVideos(ctx context.Context, query string, page, pe
 	params.Set("lq", "0") // Exclude low quality
 	params.Set("format", "json")
 
-	requestURL := fmt.Sprintf("%s/videos/search?%s", c.baseURL, params.Encode())
+	requestURL := fmt.Sprintf("%s/video/search/?%s", c.baseURL, params.Encode())
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
@@ -167,6 +167,14 @@ func (c *EpornerClient) SearchVideos(ctx context.Context, query string, page, pe
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if len(body) > 0 && body[0] == '<' {
+		snippet := strings.TrimSpace(string(body))
+		if len(snippet) > 200 {
+			snippet = snippet[:200]
+		}
+		return nil, fmt.Errorf("API returned HTML instead of JSON: %s", snippet)
 	}
 
 	var result EpornerResponse
