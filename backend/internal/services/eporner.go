@@ -206,7 +206,7 @@ var enhancedQueryOverrides = map[string]string{
 	"pony play":            "pony play bdsm",
 	"kitten play":          "kitten play bdsm",
 	"chastity":             "chastity bdsm",
-	"chasity":              "chastity bdsm",
+	"chasity":              "chastity belt bdsm",
 	"orgasm control":       "orgasm control bdsm",
 	"tease and denial":     "tease and denial bdsm",
 	"tease denial":         "tease denial bdsm",
