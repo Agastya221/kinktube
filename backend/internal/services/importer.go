@@ -111,6 +111,9 @@ type keywordStats struct {
 func (i *Importer) importKeyword(ctx context.Context, keyword string) keywordStats {
 	stats := keywordStats{}
 
+	// Importer wants latest content for fresh imports
+	opts := &SearchOptions{Order: "latest"}
+
 	// Fetch multiple pages per keyword for thorough coverage
 	maxPages := 3
 	for page := 1; page <= maxPages; page++ {
@@ -120,7 +123,7 @@ func (i *Importer) importKeyword(ctx context.Context, keyword string) keywordSta
 		default:
 		}
 
-		response, err := i.eporner.SearchVideos(ctx, keyword, page, i.perPage)
+		response, err := i.eporner.SearchVideosWithOptions(ctx, keyword, page, i.perPage, opts)
 		if err != nil {
 			log.Printf("Error fetching keyword %q page %d: %v", keyword, page, err)
 			stats.errors++
@@ -134,7 +137,7 @@ func (i *Importer) importKeyword(ctx context.Context, keyword string) keywordSta
 		stats.found += len(response.Videos)
 
 		for _, ev := range response.Videos {
-			if !IsRelevantBDSMVideo(&ev) {
+			if !MatchesTopicAndBDSM(&ev, keyword) {
 				stats.skipped++
 				continue
 			}
@@ -281,7 +284,9 @@ func (i *Importer) RunLight(ctx context.Context) *ImportStats {
 func (i *Importer) importKeywordLight(ctx context.Context, keyword string) keywordStats {
 	stats := keywordStats{}
 
-	response, err := i.eporner.SearchVideos(ctx, keyword, 1, i.perPage)
+	// Importer wants latest content
+	opts := &SearchOptions{Order: "latest"}
+	response, err := i.eporner.SearchVideosWithOptions(ctx, keyword, 1, i.perPage, opts)
 	if err != nil {
 		log.Printf("Error fetching keyword %q: %v", keyword, err)
 		stats.errors++
@@ -295,7 +300,7 @@ func (i *Importer) importKeywordLight(ctx context.Context, keyword string) keywo
 	stats.found = len(response.Videos)
 
 	for _, ev := range response.Videos {
-		if !IsRelevantBDSMVideo(&ev) {
+		if !MatchesTopicAndBDSM(&ev, keyword) {
 			stats.skipped++
 			continue
 		}

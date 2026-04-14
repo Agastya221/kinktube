@@ -84,14 +84,14 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 		// For BDSM queries, only include relevant results
 		// For non-BDSM queries, heavily filter (show fewer results)
 		if isBDSMQuery {
-			if services.IsRelevantBDSMVideo(&ev) {
+			if services.MatchesTopicAndBDSM(&ev, query) {
 				video := services.ConvertToVideo(&ev, query)
 				videos = append(videos, *video)
 			}
 		} else {
 			// Non-BDSM query: only include if it's actually BDSM content
 			// This gives limited results for off-topic searches
-			if services.IsRelevantBDSMVideo(&ev) && services.IsStrongBDSMMatch(&ev) {
+			if services.MatchesQueryIntent(&ev, query) && services.IsRelevantBDSMVideo(&ev) && services.IsStrongBDSMMatch(&ev) {
 				video := services.ConvertToVideo(&ev, query)
 				videos = append(videos, *video)
 			}

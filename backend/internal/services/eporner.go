@@ -199,12 +199,57 @@ var bdsmEnhancementTerms = []string{
 	"objectification", "furniture", "trampling", "smothering",
 }
 
+var enhancedQueryOverrides = map[string]string{
+	"pet play":             "pet play bdsm",
+	"petplay":              "pet play bdsm",
+	"puppy play":           "puppy play bdsm",
+	"pony play":            "pony play bdsm",
+	"kitten play":          "kitten play bdsm",
+	"chastity":             "chastity bdsm",
+	"chasity":              "chastity bdsm",
+	"orgasm control":       "orgasm control bdsm",
+	"tease and denial":     "tease and denial bdsm",
+	"tease denial":         "tease denial bdsm",
+	"edging":               "edging bdsm",
+	"wax play":             "wax play bdsm",
+	"electro play":         "electro play bdsm",
+	"sensory deprivation":  "sensory deprivation bdsm",
+	"breath play":          "breath play bdsm",
+	"medical bondage":      "medical bondage bdsm",
+	"vacbed":               "vacbed bdsm",
+	"spreader bar":         "spreader bar bdsm",
+}
+
+var queryIntentTerms = map[string][]string{
+	"pet play":            {"pet play", "puppy play", "pony play", "kitten play", "human pet"},
+	"chastity":            {"chastity", "orgasm control", "tease denial", "tease and denial", "edging", "ruined orgasm", "forced orgasm", "keyholder"},
+	"wax play":            {"wax play", "candle wax", "hot wax"},
+	"electro play":        {"electro play", "electro torture", "violet wand", "estim"},
+	"sensory deprivation": {"sensory deprivation", "blindfold", "hood", "isolation"},
+	"breath play":         {"breath play", "breath control"},
+	"medical bondage":     {"medical bondage", "medical", "clinical", "vacbed", "spreader bar"},
+	"mummification":       {"mummification", "mummified", "encased", "wrapped"},
+	"shibari":             {"shibari", "kinbaku", "suspension"},
+}
+
+func normalizeSearchQuery(query string) string {
+	query = strings.ToLower(strings.TrimSpace(query))
+	query = strings.ReplaceAll(query, "-", " ")
+	query = strings.Join(strings.Fields(query), " ")
+	query = strings.TrimSuffix(query, " bdsm")
+	return strings.TrimSpace(query)
+}
+
 // EnhanceQueryForBDSM appends "bdsm" to niche terms that benefit from it
 func EnhanceQueryForBDSM(query string) string {
-	queryLower := strings.ToLower(strings.TrimSpace(query))
+	queryLower := normalizeSearchQuery(query)
+
+	if exact, ok := enhancedQueryOverrides[queryLower]; ok {
+		return exact
+	}
 
 	// Skip if already contains BDSM-related terms
-	if strings.Contains(queryLower, "bdsm") ||
+	if strings.Contains(strings.ToLower(strings.TrimSpace(query)), "bdsm") ||
 		strings.Contains(queryLower, "bondage") ||
 		strings.Contains(queryLower, "femdom") ||
 		strings.Contains(queryLower, "dominat") {
@@ -241,8 +286,18 @@ func NewEpornerClient(baseURL string) *EpornerClient {
 	}
 }
 
-// SearchVideos searches for videos with given query
+// SearchOptions contains optional parameters for Eporner search
+type SearchOptions struct {
+	Order string // "latest", "longest", "shortest", "top-rated", "most-popular", "top-weekly", "top-monthly"
+}
+
+// SearchVideos searches for videos with given query (minimal params for best results)
 func (c *EpornerClient) SearchVideos(ctx context.Context, query string, page, perPage int) (*EpornerResponse, error) {
+	return c.SearchVideosWithOptions(ctx, query, page, perPage, nil)
+}
+
+// SearchVideosWithOptions searches with optional parameters (use sparingly - only when needed)
+func (c *EpornerClient) SearchVideosWithOptions(ctx context.Context, query string, page, perPage int, opts *SearchOptions) (*EpornerResponse, error) {
 	// Apply rate limiting
 	if err := c.rateLimiter.acquire(ctx); err != nil {
 		return nil, fmt.Errorf("rate limiter error: %w", err)
@@ -251,15 +306,17 @@ func (c *EpornerClient) SearchVideos(ctx context.Context, query string, page, pe
 	// Enhance query for better BDSM results
 	enhancedQuery := EnhanceQueryForBDSM(query)
 
+	// Build minimal params - only what's strictly needed
 	params := url.Values{}
 	params.Set("query", enhancedQuery)
 	params.Set("page", strconv.Itoa(page))
 	params.Set("per_page", strconv.Itoa(perPage))
-	params.Set("thumbsize", "big")
-	params.Set("order", "latest")
-	params.Set("gay", "0")
-	params.Set("lq", "0") // Exclude low quality
 	params.Set("format", "json")
+
+	// Only add order if explicitly requested (e.g., importer wants "latest")
+	if opts != nil && opts.Order != "" {
+		params.Set("order", opts.Order)
+	}
 
 	requestURL := fmt.Sprintf("%s/video/search/?%s", c.baseURL, params.Encode())
 
@@ -314,6 +371,33 @@ func IsRelevantBDSMVideo(ev *EpornerVideo) bool {
 	}
 
 	return false
+}
+
+// MatchesQueryIntent ensures niche searches stay on-topic after enhancement.
+func MatchesQueryIntent(ev *EpornerVideo, query string) bool {
+	baseQuery := normalizeSearchQuery(query)
+	text := strings.ToLower(ev.Title + " " + ev.Keywords)
+
+	for key, terms := range queryIntentTerms {
+		if !strings.Contains(baseQuery, key) {
+			continue
+		}
+
+		for _, term := range terms {
+			if strings.Contains(text, term) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	return true
+}
+
+// MatchesTopicAndBDSM keeps imported/search results relevant to both the kink and BDSM focus.
+func MatchesTopicAndBDSM(ev *EpornerVideo, query string) bool {
+	return IsRelevantBDSMVideo(ev) && MatchesQueryIntent(ev, query)
 }
 
 // IsStrongBDSMMatch returns true if video has multiple BDSM indicators (stricter filter)
@@ -480,6 +564,10 @@ var categoryMap = map[string]string{
 	"puppy play":          "pet-play",
 	"pet play":            "pet-play",
 	"kitten play":         "pet-play",
+	"human pet":           "pet-play",
+	"keyholder":           "chastity",
+	"denial":              "chastity",
+	"clinical":            "medical-bondage",
 }
 
 // extractCategoriesWithKeyword extracts categories from keywords AND the import search term
