@@ -65,12 +65,20 @@ func GetDefaultCategories() []Category {
 		{Slug: "foot-fetish", Name: "Foot Fetish", Description: "Foot worship and fetish"},
 		{Slug: "facesitting", Name: "Facesitting", Description: "Facesitting and smothering"},
 		{Slug: "strapon", Name: "Strapon", Description: "Pegging and strapon play"},
+		// Extreme categories
+		{Slug: "extreme-bondage", Name: "Extreme Bondage", Description: "Intense and inescapable restraints"},
+		{Slug: "predicament", Name: "Predicament", Description: "Predicament bondage and forced choices"},
+		{Slug: "mummification", Name: "Mummification", Description: "Full body wrapping and encasement"},
+		{Slug: "sensory-deprivation", Name: "Sensory Deprivation", Description: "Hoods, blindfolds, and isolation"},
+		{Slug: "severe-discipline", Name: "Severe Discipline", Description: "Harsh punishment and correction"},
+		{Slug: "pet-play", Name: "Pet Play", Description: "Pony play, puppy play, and pet training"},
 	}
 }
 
 // SearchKeywords returns the search terms we use to import BDSM content
 func SearchKeywords() []string {
 	return []string{
+		// Core BDSM terms
 		"bdsm",
 		"femdom",
 		"female domination",
@@ -119,5 +127,51 @@ func SearchKeywords() []string {
 		"medical bondage",
 		"vacbed",
 		"spreader bar",
+		// Extreme bondage
+		"mummification",
+		"extreme bondage",
+		"tight bondage",
+		"inescapable bondage",
+		"breath control",
+		"sensory deprivation",
+		"straitjacket",
+		"armbinder",
+		"hood bondage",
+		// Intense discipline
+		"severe discipline",
+		"harsh punishment",
+		"corporal punishment",
+		"judicial caning",
+		"hard caning",
+		// Heavy femdom
+		"cruel mistress",
+		"strict mistress",
+		"brutal femdom",
+		"extreme femdom",
+		"forced feminization",
+		"sissification",
+		"human furniture",
+		"boot worship",
+		// Japanese BDSM
+		"kinbaku",
+		"predicament shibari",
+		"torture bondage",
+		// Rubber/enclosure
+		"rubber bondage",
+		"heavy rubber",
+		"gas mask fetish",
+		// Pet play
+		"pony play",
+		"pet play",
+		"puppy play",
+		// Electrical
+		"electro torture",
+		"violet wand",
+		// Orgasm control
+		"ruined orgasm",
+		"forced orgasm",
+		"orgasm torture",
+		"edging denial",
+		"tease and denial",
 	}
 }

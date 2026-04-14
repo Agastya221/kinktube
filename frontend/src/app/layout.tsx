@@ -16,13 +16,25 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "KinkTube - Free BDSM & Fetish Videos",
+    default: "KinkTube - Extreme BDSM & Hardcore Fetish Videos",
     template: "%s | KinkTube",
   },
   description:
-    "The premier destination for free BDSM, kink, and fetish video content. Browse thousands of femdom, bondage, slave training, and fetish videos. 100% free, no signup required.",
+    "The underground destination for extreme BDSM, hardcore femdom, intense bondage, and severe fetish content. Explore mummification, predicament bondage, brutal discipline, and more. 100% free.",
   keywords: [
-    "BDSM",
+    "extreme BDSM",
+    "hardcore femdom",
+    "intense bondage",
+    "severe discipline",
+    "brutal domination",
+    "predicament bondage",
+    "sensory deprivation",
+    "mummification",
+    "tight bondage",
+    "harsh punishment",
+    "cruel mistress",
+    "extreme fetish",
+    "torture",
     "BDSM videos",
     "fetish",
     "bondage",
@@ -31,12 +43,6 @@ export const metadata: Metadata = {
     "dominatrix",
     "submission",
     "slave",
-    "free BDSM",
-    "fetish videos",
-    "bondage videos",
-    "femdom videos",
-    "mistress",
-    "domination",
   ],
   robots: {
     index: true,
@@ -50,15 +56,15 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     siteName: "KinkTube",
-    title: "KinkTube - Free BDSM & Fetish Videos",
+    title: "KinkTube - Extreme BDSM & Hardcore Fetish Videos",
     description:
-      "The premier destination for free BDSM, kink, and fetish video content.",
+      "The underground destination for extreme BDSM, hardcore femdom, intense bondage, and severe fetish content.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "KinkTube - Free BDSM & Fetish Videos",
+    title: "KinkTube - Extreme BDSM & Hardcore Fetish Videos",
     description:
-      "The premier destination for free BDSM, kink, and fetish video content.",
+      "The underground destination for extreme BDSM, hardcore femdom, intense bondage, and severe fetish content.",
   },
   verification: {
     // Add your verification codes here

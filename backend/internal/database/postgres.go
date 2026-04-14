@@ -192,7 +192,10 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 	}
 
 	if search != "" {
-		conditions = append(conditions, fmt.Sprintf("to_tsvector('english', title) @@ plainto_tsquery('english', $%d)", argIndex))
+		// Search in both title and tags for better BDSM content discovery
+		conditions = append(conditions, fmt.Sprintf(
+			"(to_tsvector('english', title || ' ' || array_to_string(tags, ' ')) @@ websearch_to_tsquery('english', $%d))",
+			argIndex))
 		args = append(args, search)
 		argIndex++
 	}
@@ -213,11 +216,26 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 		orderClause = "ORDER BY duration DESC"
 	case "oldest":
 		orderClause = "ORDER BY added_at ASC"
+	case "extreme":
+		// Prioritize videos with extreme/intense keywords in title
+		orderClause = `ORDER BY
+			(CASE WHEN lower(title) ~* 'extreme|severe|brutal|intense|harsh|strict|cruel|torture|punishment' THEN 3 ELSE 0 END +
+			 CASE WHEN lower(title) ~* 'tight|heavy|hard|discipline|predicament|inescapable|mummification' THEN 2 ELSE 0 END +
+			 CASE WHEN cardinality(categories) >= 3 THEN 1 ELSE 0 END) DESC,
+			views DESC`
 	}
 
-	// On the homepage, push generic "bdsm only" matches behind more specifically tagged content.
+	// On the homepage, prioritize extreme/niche content over generic "bdsm only" matches
 	if category == "" && search == "" && sortBy == "latest" {
-		orderClause = "ORDER BY CASE WHEN cardinality(categories) = 1 AND 'bdsm' = ANY(categories) THEN 1 ELSE 0 END ASC, added_at DESC"
+		orderClause = `ORDER BY
+			CASE WHEN cardinality(categories) = 1 AND 'bdsm' = ANY(categories) THEN 100 ELSE 0 END +
+			CASE
+				WHEN lower(title) ~* 'extreme|severe|brutal|intense|harsh|torture|punishment' THEN -20
+				WHEN lower(title) ~* 'tight|heavy|discipline|predicament|mummification' THEN -10
+				WHEN cardinality(categories) >= 3 THEN -5
+				ELSE 0
+			END ASC,
+			added_at DESC`
 	}
 
 	// Count total

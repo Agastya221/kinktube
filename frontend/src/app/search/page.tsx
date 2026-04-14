@@ -30,7 +30,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const query = params.q || "";
   const page = parseInt(params.page || "1", 10);
-  const sort = (params.sort as "latest" | "views" | "rating") || "latest";
+  const sort = (params.sort as "latest" | "views" | "rating" | "extreme") || "latest";
 
   // Fetch search results
   let videosData;
@@ -104,7 +104,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             <p className="text-foreground-muted text-sm w-full mb-2">
               Popular searches:
             </p>
-            {["femdom", "bondage", "latex", "spanking", "strapon"].map((term) => (
+            {["extreme bondage", "brutal femdom", "predicament", "mummification", "severe discipline", "tight bondage", "torture"].map((term) => (
               <a
                 key={term}
                 href={`/search?q=${term}`}

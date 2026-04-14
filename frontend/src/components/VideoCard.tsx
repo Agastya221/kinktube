@@ -20,6 +20,9 @@ export default function VideoCard({ video, priority = false }: VideoCardProps) {
     ? "/placeholder-video.svg"
     : video.thumbnail_lg || video.thumbnail;
 
+  // Check if video has extreme content based on title
+  const isExtreme = /extreme|severe|brutal|intense|harsh|torture|punishment|tight bondage|predicament|mummification/i.test(video.title);
+
   return (
     <Link
       href={`/video/${video.id}`}
@@ -58,8 +61,15 @@ export default function VideoCard({ video, priority = false }: VideoCardProps) {
           {video.duration_str || formatDuration(video.duration)}
         </span>
 
-        {/* Rating Badge (if high rating) */}
-        {video.rating >= 4.5 && (
+        {/* Extreme Badge */}
+        {isExtreme && (
+          <span className="absolute top-2 left-2 bg-red-600/95 text-white text-xs px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+            Extreme
+          </span>
+        )}
+
+        {/* Rating Badge (if high rating and not extreme) */}
+        {!isExtreme && video.rating >= 4.5 && (
           <span className="absolute top-2 left-2 bg-yellow-500/90 text-black text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5">
             <Star className="w-3 h-3 fill-current" />
             {video.rating.toFixed(1)}

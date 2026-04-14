@@ -215,3 +215,106 @@ func (i *Importer) RunSingle(ctx context.Context, keyword string) *ImportStats {
 
 	return stats
 }
+
+// RunLight executes a lighter import (1 page per keyword) for startup refresh
+// This is faster than a full import and good for getting fresh content on restart
+func (i *Importer) RunLight(ctx context.Context) *ImportStats {
+	if !i.running.CompareAndSwap(false, true) {
+		log.Println("Import already running, skipping light import")
+		return nil
+	}
+	defer i.running.Store(false)
+
+	stats := &ImportStats{
+		StartTime: time.Now(),
+	}
+
+	keywords := models.SearchKeywords()
+
+	// Shuffle and limit to first 20 keywords for speed
+	shuffledKeywords := make([]string, len(keywords))
+	copy(shuffledKeywords, keywords)
+	rand.Shuffle(len(shuffledKeywords), func(i, j int) {
+		shuffledKeywords[i], shuffledKeywords[j] = shuffledKeywords[j], shuffledKeywords[i]
+	})
+	if len(shuffledKeywords) > 20 {
+		shuffledKeywords = shuffledKeywords[:20]
+	}
+
+	log.Printf("Starting light import with %d keywords (1 page each)", len(shuffledKeywords))
+
+	for _, keyword := range shuffledKeywords {
+		select {
+		case <-ctx.Done():
+			log.Println("Light import cancelled")
+			stats.EndTime = time.Now()
+			return stats
+		default:
+		}
+
+		keywordStats := i.importKeywordLight(ctx, keyword)
+		stats.KeywordsQueried++
+		stats.VideosFound += keywordStats.found
+		stats.VideosImported += keywordStats.imported
+		stats.VideosSkipped += keywordStats.skipped
+		stats.Errors += keywordStats.errors
+
+		// Small delay between keywords
+		time.Sleep(300 * time.Millisecond)
+	}
+
+	stats.EndTime = time.Now()
+
+	log.Printf("Light import complete: %d keywords, %d found, %d imported, %d skipped, %d errors (took %v)",
+		stats.KeywordsQueried, stats.VideosFound, stats.VideosImported,
+		stats.VideosSkipped, stats.Errors, stats.EndTime.Sub(stats.StartTime))
+
+	// Invalidate cache after import
+	if err := i.invalidateCache(ctx); err != nil {
+		log.Printf("Warning: failed to invalidate cache: %v", err)
+	}
+
+	return stats
+}
+
+// importKeywordLight fetches only 1 page per keyword for faster startup refresh
+func (i *Importer) importKeywordLight(ctx context.Context, keyword string) keywordStats {
+	stats := keywordStats{}
+
+	response, err := i.eporner.SearchVideos(ctx, keyword, 1, i.perPage)
+	if err != nil {
+		log.Printf("Error fetching keyword %q: %v", keyword, err)
+		stats.errors++
+		return stats
+	}
+
+	if len(response.Videos) == 0 {
+		return stats
+	}
+
+	stats.found = len(response.Videos)
+
+	for _, ev := range response.Videos {
+		if !IsRelevantBDSMVideo(&ev) {
+			stats.skipped++
+			continue
+		}
+
+		video := ConvertToVideo(&ev, keyword)
+
+		err := i.db.UpsertVideo(ctx, video)
+		if err != nil {
+			log.Printf("Error upserting video %s: %v", video.ExternalID, err)
+			stats.errors++
+			continue
+		}
+
+		if video.AddedAt.IsZero() {
+			stats.skipped++
+		} else {
+			stats.imported++
+		}
+	}
+
+	return stats
+}

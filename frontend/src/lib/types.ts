@@ -78,7 +78,7 @@ export interface VideoWithAffiliates {
 export interface VideoQueryParams {
   page?: number;
   per_page?: number;
-  sort?: "latest" | "views" | "rating" | "duration" | "oldest";
+  sort?: "latest" | "views" | "rating" | "duration" | "oldest" | "extreme";
   category?: string;
   q?: string;
 }

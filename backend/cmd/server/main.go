@@ -100,13 +100,30 @@ func main() {
 		}
 	}
 
-	// Run initial import if database is empty
+	// Run startup tasks (initial import or cache refresh)
 	go func() {
-		time.Sleep(5 * time.Second) // Wait for server to start
+		time.Sleep(time.Duration(cfg.StartupRefreshDelay) * time.Second)
+
 		count, err := db.GetTotalVideoCount(ctx)
-		if err == nil && count == 0 {
+		if err != nil {
+			log.Printf("Error checking video count: %v", err)
+			return
+		}
+
+		if count == 0 {
 			log.Println("Database empty, running initial import...")
 			importer.Run(ctx)
+		} else if cfg.RefreshOnStartup {
+			log.Println("Running startup cache refresh and light import...")
+			// Clear stale cache first
+			if err := cache.DeletePattern(ctx, "videos:*"); err != nil {
+				log.Printf("Warning: failed to clear video cache: %v", err)
+			}
+			if err := cache.DeletePattern(ctx, "categories:*"); err != nil {
+				log.Printf("Warning: failed to clear category cache: %v", err)
+			}
+			// Run light import to get fresh content
+			importer.RunLight(ctx)
 		}
 	}()
 

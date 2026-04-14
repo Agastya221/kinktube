@@ -10,7 +10,7 @@ interface SearchBarProps {
 }
 
 export default function SearchBar({
-  placeholder = "Search videos...",
+  placeholder = "Search extreme BDSM, bondage, femdom...",
   className = "",
 }: SearchBarProps) {
   const router = useRouter();

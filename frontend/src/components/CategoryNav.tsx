@@ -19,16 +19,16 @@ export default function CategoryNav({ categories }: CategoryNavProps) {
     : null;
 
   const featuredSlugs = [
+    "extreme-bondage",
     "femdom",
     "bondage",
-    "bdsm",
-    "submission",
-    "spanking",
+    "predicament",
+    "mummification",
+    "severe-discipline",
+    "sensory-deprivation",
+    "shibari",
     "latex",
     "dominatrix",
-    "strapon",
-    "shibari",
-    "chastity",
   ];
 
   const categoryMap = new Map(categories.map((category) => [category.slug, category]));
@@ -110,5 +110,16 @@ export const defaultCategories: Category[] = [
   { slug: "latex", name: "Latex", video_count: 0 },
   { slug: "leather", name: "Leather", video_count: 0 },
   { slug: "dominatrix", name: "Dominatrix", video_count: 0 },
+  { slug: "whipping", name: "Whipping", video_count: 0 },
+  { slug: "cbt", name: "CBT", video_count: 0 },
+  { slug: "foot-fetish", name: "Foot Fetish", video_count: 0 },
+  { slug: "facesitting", name: "Facesitting", video_count: 0 },
   { slug: "strapon", name: "Strapon", video_count: 0 },
+  // Extreme categories
+  { slug: "extreme-bondage", name: "Extreme Bondage", video_count: 0 },
+  { slug: "predicament", name: "Predicament", video_count: 0 },
+  { slug: "mummification", name: "Mummification", video_count: 0 },
+  { slug: "sensory-deprivation", name: "Sensory Deprivation", video_count: 0 },
+  { slug: "severe-discipline", name: "Severe Discipline", video_count: 0 },
+  { slug: "pet-play", name: "Pet Play", video_count: 0 },
 ];
