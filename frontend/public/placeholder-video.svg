@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+  <rect width="320" height="180" fill="#1a1a1a"/>
+  <rect x="130" y="65" width="60" height="50" rx="5" fill="#3f3f46"/>
+  <polygon points="150,78 150,102 170,90" fill="#71717a"/>
+  <text x="160" y="145" text-anchor="middle" fill="#52525b" font-family="system-ui" font-size="12">Video Unavailable</text>
+</svg>

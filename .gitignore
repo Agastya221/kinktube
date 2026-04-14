@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+backend/kinktube
+frontend/.next/
+frontend/out/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+nginx/logs/
+
+# SSL certificates
+nginx/ssl/*.pem
+nginx/ssl/*.key
+
+# Docker
+*.tar
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# TypeScript
+*.tsbuildinfo
+
+# Misc
+coverage/
+.nyc_output/

@@ -1,0 +1,190 @@
+# =============================================================================
+# KinkTube Production Docker Compose
+# =============================================================================
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Before running:
+#   1. Copy .env.example to .env and configure all variables
+#   2. Set up SSL certificates in nginx/ssl/
+#   3. Update SITE_URL and API_URL in .env
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Optional: custom PostgreSQL config for performance tuning
+      # - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+    # Don't expose port in production - internal network only
+    ports: []
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ---------------------------------------------------------------------------
+  # Redis Cache
+  # ---------------------------------------------------------------------------
+  redis:
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    # Don't expose port in production
+    ports: []
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 768M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # Go Backend API
+  # ---------------------------------------------------------------------------
+  backend:
+    restart: always
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "8080"
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+      REDIS_URL: "redis://redis:6379"
+      FRONTEND_URL: "${SITE_URL}"
+      IMPORT_ENABLED: "true"
+      IMPORT_SCHEDULE: "0 */4 * * *"
+      CACHE_TTL: "600"
+      EPORNER_PER_PAGE: "100"
+      # Affiliate IDs
+      AFFILIATE_KINKYDOLLARS_ID: "${AFFILIATE_KINKYDOLLARS_ID}"
+      AFFILIATE_CLUBDOMCASH_ID: "${AFFILIATE_CLUBDOMCASH_ID}"
+      AFFILIATE_FEMDOMEMPIRE_ID: "${AFFILIATE_FEMDOMEMPIRE_ID}"
+      AFFILIATE_DEVICEBONDAGE_ID: "${AFFILIATE_DEVICEBONDAGE_ID}"
+      AFFILIATE_HOGTIED_ID: "${AFFILIATE_HOGTIED_ID}"
+      AFFILIATE_WHIPPEDASS_ID: "${AFFILIATE_WHIPPEDASS_ID}"
+      AFFILIATE_SADISTICROPE_ID: "${AFFILIATE_SADISTICROPE_ID}"
+      AFFILIATE_DEFAULT_ID: "${AFFILIATE_DEFAULT_ID:-default}"
+    # Don't expose port directly - nginx handles external traffic
+    ports: []
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+  # ---------------------------------------------------------------------------
+  # Next.js Frontend
+  # ---------------------------------------------------------------------------
+  frontend:
+    restart: always
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "${API_URL}"
+        NEXT_PUBLIC_AD_NETWORK: "${NEXT_PUBLIC_AD_NETWORK:-exoclick}"
+        NEXT_PUBLIC_AD_ZONE_BANNER: "${NEXT_PUBLIC_AD_ZONE_BANNER}"
+        NEXT_PUBLIC_AD_ZONE_SIDEBAR: "${NEXT_PUBLIC_AD_ZONE_SIDEBAR}"
+        NEXT_PUBLIC_AD_ZONE_NATIVE: "${NEXT_PUBLIC_AD_ZONE_NATIVE}"
+        NEXT_PUBLIC_AD_ZONE_POPUNDER: "${NEXT_PUBLIC_AD_ZONE_POPUNDER}"
+        NEXT_PUBLIC_AD_ZONE_VIDEO_BANNER: "${NEXT_PUBLIC_AD_ZONE_VIDEO_BANNER}"
+        NEXT_PUBLIC_AD_ZONE_MOBILE_BANNER: "${NEXT_PUBLIC_AD_ZONE_MOBILE_BANNER}"
+        NEXT_PUBLIC_GA_ID: "${NEXT_PUBLIC_GA_ID}"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: "http://backend:8080"
+    # Don't expose port directly
+    ports: []
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ---------------------------------------------------------------------------
+  # Nginx Reverse Proxy
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: kinktube-nginx
+    restart: always
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+      - ./nginx/cache:/var/cache/nginx
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    name: kinktube-network
+    driver: bridge
