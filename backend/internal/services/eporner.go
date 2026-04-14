@@ -104,6 +104,53 @@ type EpornerThumb struct {
 	Src    string `json:"src"`
 }
 
+var bdsmRelevanceTerms = []string{
+	"bdsm",
+	"bondage",
+	"femdom",
+	"female domination",
+	"dominatrix",
+	"mistress",
+	"domme",
+	"goddess",
+	"slave",
+	"submission",
+	"submissive",
+	"shibari",
+	"suspension",
+	"hogtie",
+	"hogtied",
+	"predicament",
+	"rope",
+	"device bondage",
+	"medical bondage",
+	"vacbed",
+	"spreader bar",
+	"spanking",
+	"caning",
+	"crop",
+	"whipping",
+	"latex",
+	"rubber",
+	"catsuit",
+	"leather",
+	"gag",
+	"handcuffs",
+	"blindfold",
+	"foot worship",
+	"facesitting",
+	"smothering",
+	"strapon",
+	"pegging",
+	"cbt",
+	"ball busting",
+	"cock torture",
+	"chastity",
+	"orgasm control",
+	"wax play",
+	"electro play",
+}
+
 // NewEpornerClient creates a new Eporner API client
 func NewEpornerClient(baseURL string) *EpornerClient {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -185,6 +232,19 @@ func (c *EpornerClient) SearchVideos(ctx context.Context, query string, page, pe
 	return &result, nil
 }
 
+// IsRelevantBDSMVideo filters out generic porn results that slip into broad searches.
+func IsRelevantBDSMVideo(ev *EpornerVideo) bool {
+	text := strings.ToLower(ev.Title + " " + ev.Keywords)
+
+	for _, term := range bdsmRelevanceTerms {
+		if strings.Contains(text, term) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // ConvertToVideo converts an Eporner video to our internal model
 func ConvertToVideo(ev *EpornerVideo, keyword string) *models.Video {
 	views, _ := ev.Views.Int64()
@@ -246,8 +306,8 @@ func extractCategories(keywords string) []string {
 		"bondage":            "bondage",
 		"rope":               "bondage",
 		"tied":               "bondage",
-		"shibari":            "bondage",
-		"suspension":         "bondage",
+		"shibari":            "shibari",
+		"suspension":         "shibari",
 		"hogtie":             "bondage",
 		"hogtied":            "bondage",
 		"predicament":        "bondage",
@@ -259,10 +319,10 @@ func extractCategories(keywords string) []string {
 		"submission":         "submission",
 		"submissive":         "submission",
 		"slave training":     "submission",
-		"orgasm control":     "submission",
-		"chastity":           "submission",
+		"orgasm control":     "chastity",
+		"chastity":           "chastity",
 		"spanking":           "spanking",
-		"caning":             "spanking",
+		"caning":             "caning",
 		"paddling":           "spanking",
 		"crop":               "spanking",
 		"whipping":           "whipping",
@@ -282,9 +342,9 @@ func extractCategories(keywords string) []string {
 		"ball busting":       "cbt",
 		"cock torture":       "cbt",
 		"device":             "device-bondage",
-		"medical bondage":    "device-bondage",
-		"vacbed":             "device-bondage",
-		"spreader bar":       "device-bondage",
+		"medical bondage":    "medical-bondage",
+		"vacbed":             "medical-bondage",
+		"spreader bar":       "medical-bondage",
 	}
 
 	for key, cat := range categoryMap {

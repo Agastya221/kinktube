@@ -134,6 +134,11 @@ func (i *Importer) importKeyword(ctx context.Context, keyword string) keywordSta
 		stats.found += len(response.Videos)
 
 		for _, ev := range response.Videos {
+			if !IsRelevantBDSMVideo(&ev) {
+				stats.skipped++
+				continue
+			}
+
 			video := ConvertToVideo(&ev, keyword)
 
 			err := i.db.UpsertVideo(ctx, video)

@@ -32,6 +32,10 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
     title: "Bondage Videos - Rope & Restraints",
     description: "Free bondage videos featuring rope bondage, restraints, and tie-up scenes. Watch the best bondage content online.",
   },
+  shibari: {
+    title: "Shibari Videos - Rope Art & Suspension",
+    description: "Watch free shibari videos featuring Japanese rope bondage, intricate ties, and suspension-focused scenes.",
+  },
   bdsm: {
     title: "BDSM Videos - Bondage Domination",
     description: "Explore free BDSM videos including bondage, domination, sadism, and masochism. Premium BDSM content curated for enthusiasts.",
@@ -44,6 +48,18 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
     title: "Submission Videos - Submissive Play",
     description: "Free submission videos featuring submissive partners, obedience training, and dom/sub relationships.",
   },
+  chastity: {
+    title: "Chastity Videos - Tease & Denial",
+    description: "Watch free chastity videos featuring tease and denial, orgasm control, and keyholder dynamics.",
+  },
+  "device-bondage": {
+    title: "Device Bondage Videos",
+    description: "Free device bondage videos featuring mechanical restraints, machines, and advanced bondage setups.",
+  },
+  "medical-bondage": {
+    title: "Medical Bondage Videos",
+    description: "Watch free medical bondage videos featuring clinical restraints, fetish exams, vacbeds, and medical play.",
+  },
   latex: {
     title: "Latex Fetish Videos",
     description: "Watch free latex fetish videos featuring rubber catsuits, shiny outfits, and latex fashion.",
@@ -55,6 +71,10 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
   spanking: {
     title: "Spanking Videos - Impact Play",
     description: "Watch free spanking videos featuring OTK spanking, paddling, and impact play scenes.",
+  },
+  caning: {
+    title: "Caning Videos - Intense Impact Play",
+    description: "Free caning videos featuring canes, crops, and harder impact play for BDSM fans who like heavier punishment scenes.",
   },
   strapon: {
     title: "Strapon & Pegging Videos",

@@ -215,6 +215,11 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 		orderClause = "ORDER BY added_at ASC"
 	}
 
+	// On the homepage, push generic "bdsm only" matches behind more specifically tagged content.
+	if category == "" && search == "" && sortBy == "latest" {
+		orderClause = "ORDER BY CASE WHEN cardinality(categories) = 1 AND 'bdsm' = ANY(categories) THEN 1 ELSE 0 END ASC, added_at DESC"
+	}
+
 	// Count total
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM videos %s", whereClause)
 	var total int64

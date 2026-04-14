@@ -50,11 +50,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       {/* Hero Section */}
       <section className="mb-8">
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">
-          <span className="text-accent">Premium</span> BDSM & Fetish Videos
+          <span className="text-accent">Curated</span> BDSM, Femdom & Fetish Videos
         </h1>
         <p className="text-foreground-muted text-lg mb-6 max-w-2xl">
-          Explore our curated collection of the best kink content — femdom, bondage,
-          latex, and more. 100% free, updated daily.
+          Explore a focused library of femdom, bondage, shibari, spanking, latex,
+          chastity, and medical bondage scenes. Built for kink-first browsing, updated daily.
         </p>
 
         {/* Search Bar */}
@@ -77,7 +77,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <section className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-semibold">
-            {sort === "latest" ? "Latest Videos" : sort === "views" ? "Most Viewed" : "Top Rated"}
+            {sort === "latest" ? "Latest Kink Videos" : sort === "views" ? "Most Viewed" : "Top Rated"}
           </h2>
           <p className="text-foreground-muted text-sm mt-1">
             {videosData.total.toLocaleString()} videos available
@@ -131,14 +131,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <h2 className="text-lg font-semibold mb-4">About KinkTube</h2>
         <div className="text-foreground-muted text-sm space-y-3 max-w-3xl">
           <p>
-            KinkTube is your premier destination for free BDSM, bondage, and fetish videos.
-            We curate the best content from around the web, featuring femdom, rope bondage,
-            latex, leather, and more.
+            KinkTube is built for viewers who want BDSM-first discovery instead of generic tube content.
+            We focus on femdom, rope bondage, latex, impact play, chastity, and other kink categories
+            that are often buried on mainstream sites.
           </p>
           <p>
-            Whether you&apos;re into dominant mistresses, submissive play, device bondage, or
-            exploring your kinks, you&apos;ll find thousands of high-quality videos here.
-            All content is free and updated daily.
+            Whether you&apos;re into dominant mistresses, shibari, caning, device bondage, or
+            clinical restraint scenes, you&apos;ll find a more curated mix here. All content is free
+            and new imports are filtered to stay closer to the site&apos;s BDSM focus.
           </p>
         </div>
       </section>
