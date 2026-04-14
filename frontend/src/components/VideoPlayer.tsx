@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Play, Maximize2, ExternalLink, RotateCcw } from "lucide-react";
+import { useState } from "react";
+import { Play, Maximize2, AlertTriangle } from "lucide-react";
 
 interface VideoPlayerProps {
   embedUrl: string;
@@ -20,7 +20,7 @@ export default function VideoPlayer({
 }: VideoPlayerProps) {
   const [isLoaded, setIsLoaded] = useState(autoplay);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showFallback, setShowFallback] = useState(false);
+  const [showBlockedNotice, setShowBlockedNotice] = useState(false);
 
   // Modify embed URL to include autoplay if needed
   const getEmbedUrl = () => {
@@ -33,13 +33,6 @@ export default function VideoPlayer({
 
   const handlePlay = () => {
     setIsLoaded(true);
-    setShowFallback(false);
-  };
-
-  const handleRetry = () => {
-    setIsLoaded(false);
-    setShowFallback(false);
-    window.setTimeout(() => setIsLoaded(true), 100);
   };
 
   const handleFullscreen = () => {
@@ -54,18 +47,6 @@ export default function VideoPlayer({
       }
     }
   };
-
-  useEffect(() => {
-    if (!isLoaded) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setShowFallback(true);
-    }, 8000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [isLoaded, embedUrl]);
 
   return (
     <div className="video-player-wrapper relative">
@@ -136,46 +117,48 @@ export default function VideoPlayer({
         <span>Powered by Eporner</span>
       </div>
 
+      {/* Blocked region notice */}
       {isLoaded && (
-        <div className="mt-3 rounded-xl border border-border bg-background-secondary p-3 sm:p-4">
-          <p className="text-sm text-foreground-muted">
-            If the embed stays black or times out on mobile, open the video directly in a new tab or retry the player.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleRetry}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-background-tertiary px-3 py-2 text-sm font-medium text-foreground hover:border-accent hover:text-accent transition-colors"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Retry player
-            </button>
-            <a
-              href={embedUrl}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-background-tertiary px-3 py-2 text-sm font-medium text-foreground hover:border-accent hover:text-accent transition-colors"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open embed
-            </a>
-            {sourceUrl && (
-              <a
-                href={sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-background-tertiary px-3 py-2 text-sm font-medium text-foreground hover:border-accent hover:text-accent transition-colors"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Open source page
-              </a>
-            )}
-          </div>
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setShowBlockedNotice(!showBlockedNotice)}
+            className="text-sm text-foreground-muted hover:text-accent transition-colors"
+          >
+            Video not loading? Click here
+          </button>
 
-          {showFallback && (
-            <p className="mt-3 text-sm text-amber-400">
-              The third-party embed is taking too long to respond. This is usually caused by the source site or local network restrictions, not your Railway backend.
-            </p>
+          {showBlockedNotice && (
+            <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <p className="text-sm text-foreground font-medium">
+                    Video blocked in your region?
+                  </p>
+                  <p className="text-sm text-foreground-muted">
+                    Eporner embeds are blocked in some countries (India, etc.). To watch videos:
+                  </p>
+                  <ul className="text-sm text-foreground-muted list-disc list-inside space-y-1">
+                    <li>Use a VPN to access the content</li>
+                    <li>Try a different browser or network</li>
+                    {sourceUrl && (
+                      <li>
+                        <a
+                          href={sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer nofollow"
+                          className="text-accent hover:underline"
+                        >
+                          Open video on Eporner directly
+                        </a>
+                        {" "}(may require VPN)
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}
