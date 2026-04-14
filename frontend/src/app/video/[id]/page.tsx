@@ -167,7 +167,6 @@ export default async function VideoPage({ params }: VideoPageProps) {
                 embedUrl={video.embed_url}
                 title={video.title}
                 thumbnailUrl={video.thumbnail_lg || video.thumbnail}
-                sourceUrl={video.source_url}
               />
             </div>
 

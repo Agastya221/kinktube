@@ -7,7 +7,6 @@ interface VideoPlayerProps {
   embedUrl: string;
   title: string;
   thumbnailUrl?: string;
-  sourceUrl?: string;
   autoplay?: boolean;
 }
 
@@ -15,7 +14,6 @@ export default function VideoPlayer({
   embedUrl,
   title,
   thumbnailUrl,
-  sourceUrl,
   autoplay = false,
 }: VideoPlayerProps) {
   const [isLoaded, setIsLoaded] = useState(autoplay);
@@ -112,9 +110,8 @@ export default function VideoPlayer({
       </div>
 
       {/* Video quality notice */}
-      <div className="mt-2 flex items-center justify-between text-xs text-foreground-muted">
+      <div className="mt-2 text-xs text-foreground-muted">
         <span>HD Quality Available</span>
-        <span>Powered by Eporner</span>
       </div>
 
       {/* Blocked region notice */}
@@ -137,24 +134,12 @@ export default function VideoPlayer({
                     Video blocked in your region?
                   </p>
                   <p className="text-sm text-foreground-muted">
-                    Eporner embeds are blocked in some countries (India, etc.). To watch videos:
+                    Some videos may be restricted in certain countries. To watch:
                   </p>
                   <ul className="text-sm text-foreground-muted list-disc list-inside space-y-1">
                     <li>Use a VPN to access the content</li>
                     <li>Try a different browser or network</li>
-                    {sourceUrl && (
-                      <li>
-                        <a
-                          href={sourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow"
-                          className="text-accent hover:underline"
-                        >
-                          Open video on Eporner directly
-                        </a>
-                        {" "}(may require VPN)
-                      </li>
-                    )}
+                    <li>Check your internet connection</li>
                   </ul>
                 </div>
               </div>
