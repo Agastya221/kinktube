@@ -19,31 +19,133 @@ func (h *Handler) ListVideos(c *fiber.Ctx) error {
 	category := c.Query("category", "")
 	search := c.Query("q", "")
 
-	// Enhance search for better BDSM results
+	// If there's a search query, use live Eporner search
 	if search != "" {
-		search = services.EnhanceQueryForBDSM(search)
+		return h.liveSearch(c, search, page, perPage)
 	}
 
-	// Try cache first
-	cacheKey := database.VideoListCacheKey(sortBy, page, perPage, category, search)
+	// For non-search requests (browsing), use database
+	cacheKey := database.VideoListCacheKey(sortBy, page, perPage, category, "")
 	var cached models.VideoListResponse
 	err := h.cache.Get(c.Context(), cacheKey, &cached)
 	if err == nil {
 		return c.JSON(cached)
 	}
 
-	// Fetch from database
-	result, err := h.db.ListVideos(c.Context(), page, perPage, sortBy, category, search)
+	result, err := h.db.ListVideos(c.Context(), page, perPage, sortBy, category, "")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch videos",
 		})
 	}
 
-	// Cache the result
 	_ = h.cache.Set(c.Context(), cacheKey, result)
 
 	return c.JSON(result)
+}
+
+// liveSearch queries Eporner API directly and filters for BDSM relevance
+func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) error {
+	// Enhance query for better BDSM results
+	enhancedQuery := services.EnhanceQueryForBDSM(query)
+
+	// Check if the query is BDSM-related
+	isBDSMQuery := services.IsBDSMRelatedQuery(query)
+
+	// Try cache first
+	cacheKey := database.VideoListCacheKey("search", page, perPage, "", enhancedQuery)
+	var cached models.VideoListResponse
+	err := h.cache.Get(c.Context(), cacheKey, &cached)
+	if err == nil {
+		return c.JSON(cached)
+	}
+
+	// Fetch more results from Eporner to account for filtering
+	fetchPerPage := perPage * 2
+	if fetchPerPage > 100 {
+		fetchPerPage = 100
+	}
+
+	response, err := h.eporner.SearchVideos(c.Context(), enhancedQuery, page, fetchPerPage)
+	if err != nil {
+		// Fallback to database search if Eporner fails
+		result, dbErr := h.db.ListVideos(c.Context(), page, perPage, "latest", "", query)
+		if dbErr != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to search videos",
+			})
+		}
+		return c.JSON(result)
+	}
+
+	// Filter and convert results
+	var videos []models.Video
+	for _, ev := range response.Videos {
+		// For BDSM queries, only include relevant results
+		// For non-BDSM queries, heavily filter (show fewer results)
+		if isBDSMQuery {
+			if services.IsRelevantBDSMVideo(&ev) {
+				video := services.ConvertToVideo(&ev, query)
+				videos = append(videos, *video)
+			}
+		} else {
+			// Non-BDSM query: only include if it's actually BDSM content
+			// This gives limited results for off-topic searches
+			if services.IsRelevantBDSMVideo(&ev) && services.IsStrongBDSMMatch(&ev) {
+				video := services.ConvertToVideo(&ev, query)
+				videos = append(videos, *video)
+			}
+		}
+
+		// Stop once we have enough results
+		if len(videos) >= perPage {
+			break
+		}
+	}
+
+	// Calculate pagination (estimated)
+	total := int64(response.Count)
+	if !isBDSMQuery {
+		// For non-BDSM queries, report fewer total results
+		total = int64(len(videos))
+	}
+
+	totalPages := int(total) / perPage
+	if int(total)%perPage > 0 {
+		totalPages++
+	}
+
+	result := &models.VideoListResponse{
+		Videos:     videos,
+		Total:      total,
+		Page:       page,
+		PerPage:    perPage,
+		TotalPages: totalPages,
+	}
+
+	// Cache for shorter time for live searches
+	_ = h.cache.Set(c.Context(), cacheKey, result)
+
+	return c.JSON(result)
+}
+
+// SearchVideos handles GET /api/search - dedicated live search endpoint
+func (h *Handler) SearchVideos(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	perPage, _ := strconv.Atoi(c.Query("per_page", "24"))
+	query := c.Query("q", "")
+
+	if query == "" {
+		return c.JSON(models.VideoListResponse{
+			Videos:     []models.Video{},
+			Total:      0,
+			Page:       page,
+			PerPage:    perPage,
+			TotalPages: 0,
+		})
+	}
+
+	return h.liveSearch(c, query, page, perPage)
 }
 
 // GetVideo handles GET /api/videos/:id

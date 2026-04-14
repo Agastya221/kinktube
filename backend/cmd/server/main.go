@@ -64,7 +64,7 @@ func main() {
 	log.Printf("Affiliate service initialized with %d programs", len(affiliateService.GetAllPrograms()))
 
 	// Initialize handlers
-	handler := handlers.NewHandler(cfg, db, cache, importer, affiliateService)
+	handler := handlers.NewHandler(cfg, db, cache, importer, affiliateService, epornerClient)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -171,6 +171,7 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 
 	// Public routes
 	api.Get("/videos", h.ListVideos)
+	api.Get("/search", h.SearchVideos) // Live search via Eporner
 	api.Get("/videos/:id", h.GetVideo)
 	api.Get("/videos/:id/full", h.GetVideoWithAffiliates)
 	api.Get("/videos/:id/related", h.GetRelatedVideos)

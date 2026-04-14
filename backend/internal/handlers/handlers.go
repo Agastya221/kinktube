@@ -13,15 +13,17 @@ type Handler struct {
 	cache     *database.RedisCache
 	importer  *services.Importer
 	affiliate *services.AffiliateService
+	eporner   *services.EpornerClient
 }
 
 // NewHandler creates a new handler with dependencies
-func NewHandler(cfg *config.Config, db *database.PostgresDB, cache *database.RedisCache, importer *services.Importer, affiliate *services.AffiliateService) *Handler {
+func NewHandler(cfg *config.Config, db *database.PostgresDB, cache *database.RedisCache, importer *services.Importer, affiliate *services.AffiliateService, eporner *services.EpornerClient) *Handler {
 	return &Handler{
 		config:    cfg,
 		db:        db,
 		cache:     cache,
 		importer:  importer,
 		affiliate: affiliate,
+		eporner:   eporner,
 	}
 }

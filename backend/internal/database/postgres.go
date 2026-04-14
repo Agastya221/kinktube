@@ -192,9 +192,9 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 	}
 
 	if search != "" {
-		// Search in both title and tags for better BDSM content discovery
+		// Search in title, tags, keywords, and categories for comprehensive BDSM content discovery
 		conditions = append(conditions, fmt.Sprintf(
-			"(to_tsvector('english', title || ' ' || array_to_string(tags, ' ')) @@ websearch_to_tsquery('english', $%d))",
+			"(to_tsvector('english', title || ' ' || array_to_string(tags, ' ') || ' ' || COALESCE(keywords, '') || ' ' || array_to_string(categories, ' ')) @@ websearch_to_tsquery('english', $%d))",
 			argIndex))
 		args = append(args, search)
 		argIndex++

@@ -316,6 +316,44 @@ func IsRelevantBDSMVideo(ev *EpornerVideo) bool {
 	return false
 }
 
+// IsStrongBDSMMatch returns true if video has multiple BDSM indicators (stricter filter)
+func IsStrongBDSMMatch(ev *EpornerVideo) bool {
+	text := strings.ToLower(ev.Title + " " + ev.Keywords)
+	matches := 0
+
+	for _, term := range bdsmRelevanceTerms {
+		if strings.Contains(text, term) {
+			matches++
+			if matches >= 2 {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// IsBDSMRelatedQuery checks if the search query is related to BDSM content
+func IsBDSMRelatedQuery(query string) bool {
+	queryLower := strings.ToLower(strings.TrimSpace(query))
+
+	// Check against BDSM relevance terms
+	for _, term := range bdsmRelevanceTerms {
+		if strings.Contains(queryLower, term) {
+			return true
+		}
+	}
+
+	// Check against enhancement terms
+	for _, term := range bdsmEnhancementTerms {
+		if strings.Contains(queryLower, term) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // ConvertToVideo converts an Eporner video to our internal model
 func ConvertToVideo(ev *EpornerVideo, keyword string) *models.Video {
 	views, _ := ev.Views.Int64()
@@ -336,8 +374,8 @@ func ConvertToVideo(ev *EpornerVideo, keyword string) *models.Video {
 	// Parse publish date
 	publishedAt, _ := time.Parse("2006-01-02 15:04:05", ev.AddedOn)
 
-	// Extract categories from keywords
-	categories := extractCategories(ev.Keywords)
+	// Extract categories from keywords AND the import search term
+	categories := extractCategoriesWithKeyword(ev.Keywords, keyword)
 
 	// Extract tags
 	tags := extractTags(ev.Keywords)
@@ -361,96 +399,109 @@ func ConvertToVideo(ev *EpornerVideo, keyword string) *models.Video {
 	}
 }
 
-// extractCategories extracts BDSM-related categories from keywords
-func extractCategories(keywords string) []string {
-	keywords = strings.ToLower(keywords)
-	var categories []string
-	seen := make(map[string]bool)
+// categoryMap maps keywords to category slugs
+var categoryMap = map[string]string{
+	// Core mappings
+	"femdom":              "femdom",
+	"female domination":  "femdom",
+	"domme":               "femdom",
+	"goddess":             "femdom",
+	"dominatrix":          "dominatrix",
+	"mistress":            "dominatrix",
+	"bondage":             "bondage",
+	"rope":                "bondage",
+	"tied":                "bondage",
+	"shibari":             "shibari",
+	"kinbaku":             "shibari",
+	"suspension":          "shibari",
+	"hogtie":              "bondage",
+	"hogtied":             "bondage",
+	"handcuffs":           "bondage",
+	"blindfold":           "bondage",
+	"gag":                 "bondage",
+	"bdsm":                "bdsm",
+	"slave":               "slave",
+	"submission":          "submission",
+	"submissive":          "submission",
+	"slave training":      "submission",
+	"orgasm control":      "chastity",
+	"chastity":            "chastity",
+	"ruined orgasm":       "chastity",
+	"forced orgasm":       "chastity",
+	"edging":              "chastity",
+	"tease denial":        "chastity",
+	"spanking":            "spanking",
+	"caning":              "caning",
+	"paddling":            "spanking",
+	"crop":                "spanking",
+	"whipping":            "whipping",
+	"latex":               "latex",
+	"rubber":              "latex",
+	"catsuit":             "latex",
+	"heavy rubber":        "latex",
+	"leather":             "leather",
+	"foot":                "foot-fetish",
+	"feet":                "foot-fetish",
+	"boot worship":        "foot-fetish",
+	"facesitting":         "facesitting",
+	"face sitting":        "facesitting",
+	"smothering":          "facesitting",
+	"strapon":             "strapon",
+	"strap-on":            "strapon",
+	"pegging":             "strapon",
+	"cbt":                 "cbt",
+	"ball busting":        "cbt",
+	"cock torture":        "cbt",
+	"device":              "device-bondage",
+	"medical bondage":     "medical-bondage",
+	"vacbed":              "medical-bondage",
+	"spreader bar":        "medical-bondage",
+	// Extreme category mappings
+	"mummification":       "mummification",
+	"mummified":           "mummification",
+	"encased":             "mummification",
+	"wrapped":             "mummification",
+	"predicament":         "predicament",
+	"predicament bondage": "predicament",
+	"sensory deprivation": "sensory-deprivation",
+	"hood":                "sensory-deprivation",
+	"isolation":           "sensory-deprivation",
+	"extreme bondage":     "extreme-bondage",
+	"tight bondage":       "extreme-bondage",
+	"inescapable":         "extreme-bondage",
+	"straitjacket":        "extreme-bondage",
+	"armbinder":           "extreme-bondage",
+	"severe":              "severe-discipline",
+	"harsh":               "severe-discipline",
+	"brutal":              "severe-discipline",
+	"corporal punishment": "severe-discipline",
+	"judicial":            "severe-discipline",
+	"pony play":           "pet-play",
+	"puppy play":          "pet-play",
+	"pet play":            "pet-play",
+	"kitten play":         "pet-play",
+}
 
-	categoryMap := map[string]string{
-		// Core mappings
-		"femdom":              "femdom",
-		"female domination":  "femdom",
-		"domme":               "femdom",
-		"goddess":             "femdom",
-		"dominatrix":          "dominatrix",
-		"mistress":            "dominatrix",
-		"bondage":             "bondage",
-		"rope":                "bondage",
-		"tied":                "bondage",
-		"shibari":             "shibari",
-		"kinbaku":             "shibari",
-		"suspension":          "shibari",
-		"hogtie":              "bondage",
-		"hogtied":             "bondage",
-		"handcuffs":           "bondage",
-		"blindfold":           "bondage",
-		"gag":                 "bondage",
-		"bdsm":                "bdsm",
-		"slave":               "slave",
-		"submission":          "submission",
-		"submissive":          "submission",
-		"slave training":      "submission",
-		"orgasm control":      "chastity",
-		"chastity":            "chastity",
-		"ruined orgasm":       "chastity",
-		"forced orgasm":       "chastity",
-		"edging":              "chastity",
-		"tease denial":        "chastity",
-		"spanking":            "spanking",
-		"caning":              "caning",
-		"paddling":            "spanking",
-		"crop":                "spanking",
-		"whipping":            "whipping",
-		"latex":               "latex",
-		"rubber":              "latex",
-		"catsuit":             "latex",
-		"heavy rubber":        "latex",
-		"leather":             "leather",
-		"foot":                "foot-fetish",
-		"feet":                "foot-fetish",
-		"boot worship":        "foot-fetish",
-		"facesitting":         "facesitting",
-		"face sitting":        "facesitting",
-		"smothering":          "facesitting",
-		"strapon":             "strapon",
-		"strap-on":            "strapon",
-		"pegging":             "strapon",
-		"cbt":                 "cbt",
-		"ball busting":        "cbt",
-		"cock torture":        "cbt",
-		"device":              "device-bondage",
-		"medical bondage":     "medical-bondage",
-		"vacbed":              "medical-bondage",
-		"spreader bar":        "medical-bondage",
-		// Extreme category mappings
-		"mummification":       "mummification",
-		"mummified":           "mummification",
-		"encased":             "mummification",
-		"wrapped":             "mummification",
-		"predicament":         "predicament",
-		"predicament bondage": "predicament",
-		"sensory deprivation": "sensory-deprivation",
-		"hood":                "sensory-deprivation",
-		"isolation":           "sensory-deprivation",
-		"extreme bondage":     "extreme-bondage",
-		"tight bondage":       "extreme-bondage",
-		"inescapable":         "extreme-bondage",
-		"straitjacket":        "extreme-bondage",
-		"armbinder":           "extreme-bondage",
-		"severe":              "severe-discipline",
-		"harsh":               "severe-discipline",
-		"brutal":              "severe-discipline",
-		"corporal punishment": "severe-discipline",
-		"judicial":            "severe-discipline",
-		"pony play":           "pet-play",
-		"puppy play":          "pet-play",
-		"pet play":            "pet-play",
-		"kitten play":         "pet-play",
+// extractCategoriesWithKeyword extracts categories from keywords AND the import search term
+// The import keyword is given priority to ensure videos are categorized by what we searched for
+func extractCategoriesWithKeyword(keywords string, importKeyword string) []string {
+	seen := make(map[string]bool)
+	var categories []string
+
+	// First, check the import keyword (highest priority)
+	// This ensures videos imported via "pet play" get the pet-play category
+	importKeywordLower := strings.ToLower(importKeyword)
+	for key, cat := range categoryMap {
+		if strings.Contains(importKeywordLower, key) && !seen[cat] {
+			categories = append(categories, cat)
+			seen[cat] = true
+		}
 	}
 
+	// Then check the video's own keywords
+	keywordsLower := strings.ToLower(keywords)
 	for key, cat := range categoryMap {
-		if strings.Contains(keywords, key) && !seen[cat] {
+		if strings.Contains(keywordsLower, key) && !seen[cat] {
 			categories = append(categories, cat)
 			seen[cat] = true
 		}
@@ -462,6 +513,11 @@ func extractCategories(keywords string) []string {
 	}
 
 	return categories
+}
+
+// extractCategories extracts BDSM-related categories from keywords (legacy, uses new function)
+func extractCategories(keywords string) []string {
+	return extractCategoriesWithKeyword(keywords, "")
 }
 
 // extractTags extracts individual tags from keywords string
