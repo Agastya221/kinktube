@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Play, Maximize2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Play, Maximize2, ExternalLink, RotateCcw } from "lucide-react";
 
 interface VideoPlayerProps {
   embedUrl: string;
   title: string;
   thumbnailUrl?: string;
+  sourceUrl?: string;
   autoplay?: boolean;
 }
 
@@ -14,10 +15,12 @@ export default function VideoPlayer({
   embedUrl,
   title,
   thumbnailUrl,
+  sourceUrl,
   autoplay = false,
 }: VideoPlayerProps) {
   const [isLoaded, setIsLoaded] = useState(autoplay);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
 
   // Modify embed URL to include autoplay if needed
   const getEmbedUrl = () => {
@@ -30,6 +33,13 @@ export default function VideoPlayer({
 
   const handlePlay = () => {
     setIsLoaded(true);
+    setShowFallback(false);
+  };
+
+  const handleRetry = () => {
+    setIsLoaded(false);
+    setShowFallback(false);
+    window.setTimeout(() => setIsLoaded(true), 100);
   };
 
   const handleFullscreen = () => {
@@ -44,6 +54,18 @@ export default function VideoPlayer({
       }
     }
   };
+
+  useEffect(() => {
+    if (!isLoaded) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShowFallback(true);
+    }, 8000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isLoaded, embedUrl]);
 
   return (
     <div className="video-player-wrapper relative">
@@ -113,6 +135,50 @@ export default function VideoPlayer({
         <span>HD Quality Available</span>
         <span>Powered by Eporner</span>
       </div>
+
+      {isLoaded && (
+        <div className="mt-3 rounded-xl border border-border bg-background-secondary p-3 sm:p-4">
+          <p className="text-sm text-foreground-muted">
+            If the embed stays black or times out on mobile, open the video directly in a new tab or retry the player.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-background-tertiary px-3 py-2 text-sm font-medium text-foreground hover:border-accent hover:text-accent transition-colors"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Retry player
+            </button>
+            <a
+              href={embedUrl}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-background-tertiary px-3 py-2 text-sm font-medium text-foreground hover:border-accent hover:text-accent transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open embed
+            </a>
+            {sourceUrl && (
+              <a
+                href={sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-background-tertiary px-3 py-2 text-sm font-medium text-foreground hover:border-accent hover:text-accent transition-colors"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open source page
+              </a>
+            )}
+          </div>
+
+          {showFallback && (
+            <p className="mt-3 text-sm text-amber-400">
+              The third-party embed is taking too long to respond. This is usually caused by the source site or local network restrictions, not your Railway backend.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

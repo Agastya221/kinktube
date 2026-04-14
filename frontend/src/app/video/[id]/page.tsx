@@ -163,7 +163,12 @@ export default async function VideoPage({ params }: VideoPageProps) {
           <div className="lg:col-span-2 space-y-6">
             {/* Video Player */}
             <div className="rounded-xl overflow-hidden shadow-2xl shadow-black/50">
-              <VideoPlayer embedUrl={video.embed_url} title={video.title} />
+              <VideoPlayer
+                embedUrl={video.embed_url}
+                title={video.title}
+                thumbnailUrl={video.thumbnail_lg || video.thumbnail}
+                sourceUrl={video.source_url}
+              />
             </div>
 
             {/* Affiliate Buttons - Primary CTA */}
