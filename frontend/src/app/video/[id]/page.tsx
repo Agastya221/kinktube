@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { Eye, Clock, Star, ExternalLink, Tag, Calendar } from "lucide-react";
+import { Eye, Clock, Star, Tag, Calendar } from "lucide-react";
 import VideoPlayer from "@/components/VideoPlayer";
 import VideoGrid from "@/components/VideoGrid";
 import { AffiliateButtons } from "@/components/affiliate";
@@ -260,20 +260,6 @@ export default async function VideoPage({ params }: VideoPageProps) {
                 </div>
               )}
 
-              {/* Source Link */}
-              {video.source_url && (
-                <div className="pt-4 border-t border-border">
-                  <a
-                    href={video.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className="inline-flex items-center gap-2 text-accent hover:text-accent-light transition-colors text-sm"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    View original on source site
-                  </a>
-                </div>
-              )}
             </div>
 
             {/* Ad Banner Below Video Info */}

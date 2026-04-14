@@ -8,6 +8,7 @@ import (
 
 	"kinktube/internal/database"
 	"kinktube/internal/models"
+	"kinktube/internal/services"
 )
 
 // ListVideos handles GET /api/videos
@@ -17,6 +18,11 @@ func (h *Handler) ListVideos(c *fiber.Ctx) error {
 	sortBy := c.Query("sort", "latest")
 	category := c.Query("category", "")
 	search := c.Query("q", "")
+
+	// Enhance search for better BDSM results
+	if search != "" {
+		search = services.EnhanceQueryForBDSM(search)
+	}
 
 	// Try cache first
 	cacheKey := database.VideoListCacheKey(sortBy, page, perPage, category, search)

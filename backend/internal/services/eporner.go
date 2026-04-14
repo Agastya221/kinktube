@@ -189,6 +189,36 @@ var bdsmRelevanceTerms = []string{
 	"wrapped",
 }
 
+// bdsmEnhancementTerms - niche terms that need "bdsm" appended for quality results
+var bdsmEnhancementTerms = []string{
+	"pet play", "puppy play", "pony play", "kitten play",
+	"chastity", "cage",
+	"wax play", "electro play", "orgasm control", "edging",
+	"tease denial", "breath play", "sensory deprivation",
+	"collar", "leash", "worship", "humiliation", "degradation",
+	"objectification", "furniture", "trampling", "smothering",
+}
+
+// EnhanceQueryForBDSM appends "bdsm" to niche terms that benefit from it
+func EnhanceQueryForBDSM(query string) string {
+	queryLower := strings.ToLower(strings.TrimSpace(query))
+
+	// Skip if already contains BDSM-related terms
+	if strings.Contains(queryLower, "bdsm") ||
+		strings.Contains(queryLower, "bondage") ||
+		strings.Contains(queryLower, "femdom") ||
+		strings.Contains(queryLower, "dominat") {
+		return query
+	}
+
+	for _, term := range bdsmEnhancementTerms {
+		if strings.Contains(queryLower, term) {
+			return query + " bdsm"
+		}
+	}
+	return query
+}
+
 // NewEpornerClient creates a new Eporner API client
 func NewEpornerClient(baseURL string) *EpornerClient {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -218,8 +248,11 @@ func (c *EpornerClient) SearchVideos(ctx context.Context, query string, page, pe
 		return nil, fmt.Errorf("rate limiter error: %w", err)
 	}
 
+	// Enhance query for better BDSM results
+	enhancedQuery := EnhanceQueryForBDSM(query)
+
 	params := url.Values{}
-	params.Set("query", query)
+	params.Set("query", enhancedQuery)
 	params.Set("page", strconv.Itoa(page))
 	params.Set("per_page", strconv.Itoa(perPage))
 	params.Set("thumbsize", "big")
