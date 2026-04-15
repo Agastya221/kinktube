@@ -18,7 +18,10 @@ export default function VideoGrid({ videos, loading }: VideoGridProps) {
     );
   }
 
-  if (!videos || videos.length === 0) {
+  // Filter out videos without thumbnails
+  const validVideos = videos?.filter((video) => video.thumbnail || video.thumbnail_lg) || [];
+
+  if (validVideos.length === 0) {
     return (
       <div className="text-center py-12">
         <p className="text-foreground-muted text-lg">No videos found</p>
@@ -31,7 +34,7 @@ export default function VideoGrid({ videos, loading }: VideoGridProps) {
 
   return (
     <div className="video-grid">
-      {videos.map((video) => (
+      {validVideos.map((video) => (
         <VideoCard key={getVideoIdentifier(video)} video={video} />
       ))}
     </div>

@@ -46,19 +46,30 @@ func normalizeSearchDedupText(value string) string {
 	return strings.Join(strings.Fields(value), " ")
 }
 
+func normalizeURL(rawURL string) string {
+	rawURL = strings.ToLower(strings.TrimSpace(rawURL))
+	// Remove protocol and www prefix for better matching
+	rawURL = strings.TrimPrefix(rawURL, "https://")
+	rawURL = strings.TrimPrefix(rawURL, "http://")
+	rawURL = strings.TrimPrefix(rawURL, "www.")
+	// Remove trailing slash
+	rawURL = strings.TrimSuffix(rawURL, "/")
+	return rawURL
+}
+
 func buildSearchDedupKeys(ev *services.EpornerVideo) []string {
-	keys := make([]string, 0, 5)
+	keys := make([]string, 0, 6)
 
 	if ev.ID != "" {
 		keys = append(keys, "id:"+ev.ID)
 	}
 
 	if ev.URL != "" {
-		keys = append(keys, "url:"+strings.ToLower(strings.TrimSpace(ev.URL)))
+		keys = append(keys, "url:"+normalizeURL(ev.URL))
 	}
 
 	if ev.Embed != "" {
-		keys = append(keys, "embed:"+strings.ToLower(strings.TrimSpace(ev.Embed)))
+		keys = append(keys, "embed:"+normalizeURL(ev.Embed))
 	}
 
 	titleKey := normalizeSearchDedupText(ev.Title)
@@ -66,7 +77,13 @@ func buildSearchDedupKeys(ev *services.EpornerVideo) []string {
 		return keys
 	}
 
+	// Title + duration is a strong match
 	keys = append(keys, "title-duration:"+titleKey+"|"+strconv.Itoa(ev.LengthSec))
+
+	// Also dedupe by just title if it's longer (unique enough)
+	if len(titleKey) > 40 {
+		keys = append(keys, "title-long:"+titleKey)
+	}
 
 	thumbKey := strings.ToLower(strings.TrimSpace(ev.DefaultThumb.Src))
 	if thumbKey != "" {
@@ -367,6 +384,12 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 			}
 
 			video := services.ConvertToVideo(&ev, query)
+
+			// Skip videos without thumbnails
+			if video.Thumbnail == "" && video.ThumbnailLg == "" {
+				continue
+			}
+
 			h.cacheVideoRecord(c.Context(), video)
 			markSearchResultSeen(seenResults, dedupKeys)
 			matches = append(matches, *video)

@@ -172,38 +172,37 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const meta = categoryMeta[slug];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-6">
       {/* Top Ad Banner */}
       <div className="mb-6 hidden md:block">
         <AdBanner position="top" />
       </div>
 
-      {/* Header */}
-      <section className="mb-8">
+      {/* Header - Hidden on mobile for content-first */}
+      <section className="hidden md:block mb-8">
         <h1 className="text-3xl sm:text-4xl font-bold mb-2">
           <span className="text-accent">{categoryName}</span> Videos
         </h1>
         {meta && (
           <p className="text-foreground-muted max-w-2xl">{meta.description}</p>
         )}
-        <p className="text-foreground-muted mt-2">
-          {videosData.total.toLocaleString()} videos in this category
-        </p>
+      </section>
+
+      {/* Mobile Header - Compact */}
+      <section className="md:hidden mb-3">
+        <h1 className="text-xl font-bold">
+          <span className="text-accent">{categoryName}</span>
+        </h1>
       </section>
 
       {/* Category Navigation */}
-      <section className="mb-8">
+      <section className="mb-4 md:mb-8">
         <CategoryNav categories={categories.categories} />
       </section>
 
-      {/* Mobile Ad */}
-      <div className="mb-6 md:hidden">
-        <AdBanner position="mobile" />
-      </div>
-
-      {/* Sort Options */}
-      <section className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">
+      {/* Sort Options - Compact on mobile */}
+      <section className="mb-4 md:mb-6 flex items-center justify-between gap-2">
+        <h2 className="text-base sm:text-xl font-semibold truncate">
           {!sort
             ? "Most Relevant"
             : sort === "latest"
@@ -214,8 +213,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                   ? "Most Extreme"
                   : "Top Rated"}
         </h2>
-        <div className="flex items-center gap-2">
-          <span className="text-foreground-muted text-sm hidden sm:inline">Sort by:</span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-foreground-muted text-xs sm:text-sm hidden sm:inline">Sort:</span>
           <SortSelect current={sort} showRelevance />
         </div>
       </section>
@@ -243,14 +242,19 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         </>
       )}
 
+      {/* Mobile Ad - After content */}
+      <div className="mt-6 md:hidden">
+        <AdBanner position="mobile" />
+      </div>
+
       {/* Bottom Ad Banner */}
       <div className="mt-8 hidden md:block">
         <AdBanner position="bottom" />
       </div>
 
-      {/* SEO Content for Category */}
+      {/* SEO Content for Category - Hidden on mobile */}
       {meta && (
-        <section className="mt-12 border-t border-border pt-8">
+        <section className="hidden md:block mt-12 border-t border-border pt-8">
           <h2 className="text-lg font-semibold mb-4">About {categoryName} Videos</h2>
           <p className="text-foreground-muted text-sm max-w-3xl">
             {meta.description} Our collection features the highest quality {categoryName.toLowerCase()} content

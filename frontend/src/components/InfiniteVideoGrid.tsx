@@ -49,6 +49,11 @@ function mergeUniqueVideos(existing: Video[], incoming: Video[]): Video[] {
   const merged: Video[] = [];
 
   for (const video of [...existing, ...incoming]) {
+    // Skip videos without thumbnails
+    if (!video.thumbnail && !video.thumbnail_lg) {
+      continue;
+    }
+
     const keys = getVideoDedupKeys(video);
     if (keys.some((key) => seen.has(key))) {
       continue;

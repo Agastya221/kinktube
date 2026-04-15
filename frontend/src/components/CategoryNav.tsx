@@ -18,18 +18,24 @@ export default function CategoryNav({ categories }: CategoryNavProps) {
     ? pathname.split("/category/")[1]
     : null;
 
+  // Organized by type for better UX
   const featuredSlugs = [
-    "extreme-bondage",
-    "femdom",
+    // Bondage types together
     "bondage",
-    "predicament",
-    "mummification",
-    "public-humiliation",
-    "severe-discipline",
-    "sensory-deprivation",
+    "extreme-bondage",
     "shibari",
-    "latex",
+    "mummification",
+    "predicament",
+    // Domination together
+    "femdom",
     "dominatrix",
+    // Materials
+    "latex",
+    // Discipline
+    "spanking",
+    "severe-discipline",
+    // Other popular
+    "public-humiliation",
   ];
 
   const categoryMap = new Map(categories.map((category) => [category.slug, category]));
