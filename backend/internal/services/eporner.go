@@ -189,7 +189,7 @@ var bdsmRelevanceTerms = []string{
 	"inescapable",
 	"encased",
 	"wrapped",
-	"dungeon"
+	"dungeon",
 }
 
 // bdsmEnhancementTerms - niche terms that need "bdsm" appended for quality results
