@@ -28,6 +28,7 @@ const popularSearches = [
   "medical bondage",
   "vacbed",
   "mummification",
+  "public humiliation",
   "predicament bondage",
   "strapon",
   "cbt",

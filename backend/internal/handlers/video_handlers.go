@@ -19,6 +19,7 @@ var categorySearchQueryOverrides = map[string]string{
 	"foot-fetish":         "foot fetish",
 	"medical-bondage":     "medical bondage",
 	"pet-play":            "pet play",
+	"public-humiliation":  "public humiliation",
 	"sensory-deprivation": "sensory deprivation",
 	"severe-discipline":   "severe discipline",
 	"slave":               "slave training",
@@ -98,6 +99,20 @@ func matchesLiveSearchResult(ev *services.EpornerVideo, query string, isBDSMQuer
 	return services.MatchesQueryIntent(ev, query) &&
 		services.IsRelevantBDSMVideo(ev) &&
 		services.IsStrongBDSMMatch(ev)
+}
+
+func (h *Handler) ensureLiveSearchVideoID(ctx context.Context, video *models.Video) {
+	if video == nil || video.ExternalID == "" {
+		return
+	}
+
+	existing, err := h.db.GetVideoByExternalID(ctx, video.ExternalID)
+	if err == nil && existing != nil {
+		video.ID = existing.ID
+		return
+	}
+
+	_, _ = h.db.UpsertVideo(ctx, video)
 }
 
 func (h *Handler) getRelevantCategoryThumbnail(c *fiber.Ctx, slug string) string {
@@ -195,7 +210,7 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 	isBDSMQuery := services.IsBDSMRelatedQuery(query)
 
 	// Try cache first
-	cacheKey := database.VideoListCacheKey("search-v3-"+sortBy, page, perPage, "", enhancedQuery)
+	cacheKey := database.VideoListCacheKey("search-v4-"+sortBy, page, perPage, "", enhancedQuery)
 	var cached models.VideoListResponse
 	err := h.cache.Get(c.Context(), cacheKey, &cached)
 	if err == nil {
@@ -281,6 +296,10 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 			}
 
 			video := services.ConvertToVideo(&ev, query)
+			h.ensureLiveSearchVideoID(c.Context(), video)
+			if video.ID == 0 {
+				continue
+			}
 			markSearchResultSeen(seenResults, dedupKeys)
 			matches = append(matches, *video)
 			if len(matches) >= targetEnd {
@@ -486,26 +505,27 @@ func (h *Handler) GetMenuCategories(c *fiber.Ctx) error {
 	// Menu categories we want thumbnails for
 	menuSlugs := []string{
 		"extreme-bondage", "femdom", "bondage", "shibari", "dominatrix",
-		"slave", "submission", "latex", "vacbed", "pet-play",
+		"public-humiliation", "slave", "submission", "latex", "vacbed", "pet-play",
 		"mummification", "spanking", "cbt", "strapon", "facesitting",
 	}
 
 	slugToName := map[string]string{
-		"extreme-bondage": "Extreme Bondage",
-		"femdom":          "Femdom",
-		"bondage":         "Bondage",
-		"shibari":         "Shibari",
-		"dominatrix":      "Dominatrix",
-		"slave":           "Slave",
-		"submission":      "Submission",
-		"latex":           "Latex",
-		"vacbed":          "Vacbed",
-		"pet-play":        "Pet Play",
-		"mummification":   "Mummification",
-		"spanking":        "Spanking",
-		"cbt":             "CBT",
-		"strapon":         "Strapon",
-		"facesitting":     "Facesitting",
+		"extreme-bondage":    "Extreme Bondage",
+		"femdom":             "Femdom",
+		"bondage":            "Bondage",
+		"shibari":            "Shibari",
+		"dominatrix":         "Dominatrix",
+		"public-humiliation": "Public Humiliation",
+		"slave":              "Slave",
+		"submission":         "Submission",
+		"latex":              "Latex",
+		"vacbed":             "Vacbed",
+		"pet-play":           "Pet Play",
+		"mummification":      "Mummification",
+		"spanking":           "Spanking",
+		"cbt":                "CBT",
+		"strapon":            "Strapon",
+		"facesitting":        "Facesitting",
 	}
 
 	// Try cache first

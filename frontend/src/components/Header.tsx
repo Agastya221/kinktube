@@ -15,6 +15,7 @@ const menuCategories = [
   { slug: "bondage", name: "Bondage" },
   { slug: "shibari", name: "Shibari" },
   { slug: "dominatrix", name: "Dominatrix" },
+  { slug: "public-humiliation", name: "Public Humiliation" },
   { slug: "slave", name: "Slave" },
   { slug: "submission", name: "Submission" },
   { slug: "latex", name: "Latex" },

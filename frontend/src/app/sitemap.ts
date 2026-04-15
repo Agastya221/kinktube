@@ -12,6 +12,7 @@ const categories = [
   "chastity",
   "vacbed",
   "latex",
+  "public-humiliation",
   "spanking",
   "caning",
   "strapon",

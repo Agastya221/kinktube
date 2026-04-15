@@ -7,22 +7,22 @@ import (
 // Video represents a video entry in our database
 type Video struct {
 	ID            int64     `json:"id"`
-	ExternalID    string    `json:"external_id"`    // Eporner video ID
+	ExternalID    string    `json:"external_id"` // Eporner video ID
 	Title         string    `json:"title"`
 	Description   string    `json:"description,omitempty"`
-	Duration      int       `json:"duration"`       // Duration in seconds
-	DurationStr   string    `json:"duration_str"`   // Human readable duration
+	Duration      int       `json:"duration"`     // Duration in seconds
+	DurationStr   string    `json:"duration_str"` // Human readable duration
 	Views         int64     `json:"views"`
 	Rating        float64   `json:"rating"`
 	Thumbnail     string    `json:"thumbnail"`
-	ThumbnailLg   string    `json:"thumbnail_lg"`   // Large thumbnail
+	ThumbnailLg   string    `json:"thumbnail_lg"` // Large thumbnail
 	EmbedURL      string    `json:"embed_url"`
-	SourceURL     string    `json:"source_url"`     // Original video page URL
+	SourceURL     string    `json:"source_url"` // Original video page URL
 	Tags          []string  `json:"tags"`
 	Categories    []string  `json:"categories"`
-	Keywords      string    `json:"keywords"`       // Search keywords that found this video
-	AddedAt       time.Time `json:"added_at"`       // When added to our DB
-	PublishedAt   time.Time `json:"published_at"`   // Original publish date
+	Keywords      string    `json:"keywords"`     // Search keywords that found this video
+	AddedAt       time.Time `json:"added_at"`     // When added to our DB
+	PublishedAt   time.Time `json:"published_at"` // Original publish date
 	LastUpdatedAt time.Time `json:"last_updated_at"`
 }
 
@@ -59,6 +59,7 @@ func GetDefaultCategories() []Category {
 		{Slug: "caning", Name: "Caning", Description: "Canes, crops, and severe impact play"},
 		{Slug: "latex", Name: "Latex", Description: "Latex and rubber fetish"},
 		{Slug: "dominatrix", Name: "Dominatrix", Description: "Professional dominatrix videos"},
+		{Slug: "public-humiliation", Name: "Public Humiliation", Description: "Exposure, embarrassment, and humiliation play"},
 		{Slug: "whipping", Name: "Whipping", Description: "Whips and flagellation"},
 		{Slug: "cbt", Name: "CBT", Description: "Cock and ball torture"},
 		{Slug: "foot-fetish", Name: "Foot Fetish", Description: "Foot worship and fetish"},
@@ -125,6 +126,7 @@ func SearchKeywords() []string {
 		"catsuit",
 		"medical bondage",
 		"vacbed",
+		"public humiliation",
 		"spreader bar",
 		// Extreme bondage
 		"mummification",

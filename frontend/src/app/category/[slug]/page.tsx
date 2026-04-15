@@ -88,6 +88,10 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
     title: "Dominatrix Videos - Pro Domme",
     description: "Watch free dominatrix videos featuring professional dommes, dungeon scenes, and femdom sessions.",
   },
+  "public-humiliation": {
+    title: "Public Humiliation Videos",
+    description: "Watch free public humiliation videos featuring exposure, embarrassment, degradation, and humiliation-focused BDSM scenes.",
+  },
 };
 
 const categorySearchQueryMap: Record<string, string> = {
@@ -96,6 +100,7 @@ const categorySearchQueryMap: Record<string, string> = {
   "extreme-bondage": "extreme bondage",
   "foot-fetish": "foot fetish",
   "pet-play": "pet play",
+  "public-humiliation": "public humiliation",
   "sensory-deprivation": "sensory deprivation",
   "severe-discipline": "severe discipline",
   slave: "slave training",

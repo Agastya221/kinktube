@@ -18,18 +18,18 @@ import (
 
 // EpornerClient handles API requests to Eporner
 type EpornerClient struct {
-	baseURL    string
-	httpClient *http.Client
+	baseURL     string
+	httpClient  *http.Client
 	rateLimiter *rateLimiter
 }
 
 // rateLimiter implements a simple token bucket rate limiter
 type rateLimiter struct {
-	mu           sync.Mutex
-	tokens       int
-	maxTokens    int
-	refillRate   time.Duration
-	lastRefill   time.Time
+	mu         sync.Mutex
+	tokens     int
+	maxTokens  int
+	refillRate time.Duration
+	lastRefill time.Time
 }
 
 func newRateLimiter(maxTokens int, refillRate time.Duration) *rateLimiter {
@@ -82,18 +82,18 @@ type EpornerResponse struct {
 
 // EpornerVideo represents a single video from the API
 type EpornerVideo struct {
-	ID           string            `json:"id"`
-	Title        string            `json:"title"`
-	Keywords     string            `json:"keywords"`
-	Views        json.Number       `json:"views"`
-	Rate         json.Number       `json:"rate"`
-	URL          string            `json:"url"`
-	AddedOn      string            `json:"added"`
-	LengthSec    int               `json:"length_sec"`
-	LengthMin    string            `json:"length_min"`
-	Embed        string            `json:"embed"`
-	DefaultThumb EpornerThumb      `json:"default_thumb"`
-	Thumbs       []EpornerThumb    `json:"thumbs"`
+	ID           string         `json:"id"`
+	Title        string         `json:"title"`
+	Keywords     string         `json:"keywords"`
+	Views        json.Number    `json:"views"`
+	Rate         json.Number    `json:"rate"`
+	URL          string         `json:"url"`
+	AddedOn      string         `json:"added"`
+	LengthSec    int            `json:"length_sec"`
+	LengthMin    string         `json:"length_min"`
+	Embed        string         `json:"embed"`
+	DefaultThumb EpornerThumb   `json:"default_thumb"`
+	Thumbs       []EpornerThumb `json:"thumbs"`
 }
 
 // EpornerThumb represents thumbnail data
@@ -174,6 +174,9 @@ var bdsmRelevanceTerms = []string{
 	"pet play",
 	"puppy play",
 	"boot worship",
+	"humiliation",
+	"public humiliation",
+	"degradation",
 	"corporal punishment",
 	"severe",
 	"tight bondage",
@@ -198,29 +201,29 @@ var bdsmEnhancementTerms = []string{
 	"chastity", "cage",
 	"wax play", "electro play", "orgasm control", "edging",
 	"tease denial", "breath play", "sensory deprivation",
-	"collar", "leash", "worship", "humiliation", "degradation","public humiliation",
+	"collar", "leash", "worship", "humiliation", "degradation", "public humiliation",
 	"objectification", "furniture", "trampling", "smothering",
 }
 
 var enhancedQueryOverrides = map[string]string{
-	"pet play":             "pet play bdsm",
-	"petplay":              "pet play bdsm",
-	"puppy play":           "puppy play bdsm",
-	"pony play":            "pony play bdsm",
-	"kitten play":          "kitten play bdsm",
-	"chastity":             "chastity belt bdsm",
-	"orgasm control":       "orgasm control bdsm",
-	"tease and denial":     "tease and denial bdsm",
-	"tease denial":         "tease denial bdsm",
-	"edging":               "edging bdsm",
-	"wax play":             "wax play bdsm",
-	"electro play":         "electro play bdsm",
-	"sensory deprivation":  "sensory deprivation bdsm",
-	"breath play":          "breath play bdsm",
-	"latex":                "latex rubber catsuit bdsm",
-	"medical bondage":      "medical bondage bdsm",
-	"vacbed":               "vacbed bdsm",
-	"spreader bar":         "spreader bar bdsm",
+	"pet play":            "pet play bdsm",
+	"petplay":             "pet play bdsm",
+	"puppy play":          "puppy play bdsm",
+	"pony play":           "pony play bdsm",
+	"kitten play":         "kitten play bdsm",
+	"chastity":            "chastity belt bdsm",
+	"orgasm control":      "orgasm control bdsm",
+	"tease and denial":    "tease and denial bdsm",
+	"tease denial":        "tease denial bdsm",
+	"edging":              "edging bdsm",
+	"wax play":            "wax play bdsm",
+	"electro play":        "electro play bdsm",
+	"sensory deprivation": "sensory deprivation bdsm",
+	"breath play":         "breath play bdsm",
+	"latex":               "latex rubber catsuit bdsm",
+	"medical bondage":     "medical bondage bdsm",
+	"vacbed":              "vacbed bdsm",
+	"spreader bar":        "spreader bar bdsm",
 }
 
 var queryIntentTerms = map[string][]string{
@@ -232,6 +235,7 @@ var queryIntentTerms = map[string][]string{
 	"latex":               {"latex", "rubber", "catsuit", "rubber fetish"},
 	"medical bondage":     {"medical bondage", "medical", "clinical", "vacbed", "spreader bar"},
 	"mummification":       {"mummification", "mummified", "encased", "wrapped"},
+	"public humiliation":  {"public humiliation", "humiliation", "degradation", "embarrassment"},
 	"shibari":             {"shibari", "kinbaku", "suspension"},
 }
 
@@ -489,61 +493,62 @@ func ConvertToVideo(ev *EpornerVideo, keyword string) *models.Video {
 // categoryMap maps keywords to category slugs
 var categoryMap = map[string]string{
 	// Core mappings
-	"femdom":              "femdom",
+	"femdom":             "femdom",
 	"female domination":  "femdom",
-	"domme":               "femdom",
-	"goddess":             "femdom",
-	"dominatrix":          "dominatrix",
-	"mistress":            "dominatrix",
-	"bondage":             "bondage",
-	"rope":                "bondage",
-	"tied":                "bondage",
-	"shibari":             "shibari",
-	"kinbaku":             "shibari",
-	"suspension":          "shibari",
-	"hogtie":              "bondage",
-	"hogtied":             "bondage",
-	"handcuffs":           "bondage",
-	"blindfold":           "bondage",
-	"gag":                 "bondage",
-	"bdsm":                "bdsm",
-	"slave":               "slave",
-	"submission":          "submission",
-	"submissive":          "submission",
-	"slave training":      "submission",
-	"orgasm control":      "chastity",
-	"chastity":            "chastity",
-	"ruined orgasm":       "chastity",
-	"forced orgasm":       "forced orgasm",
-	"edging":              "edging",
-	"tease denial":        "tease denial",
-	"spanking":            "spanking",
-	"caning":              "caning",
-	"paddling":            "spanking",
-	"crop":                "spanking",
-	"whipping":            "whipping",
-	"latex":               "latex",
-	"rubber":              "latex",
-	"catsuit":             "latex",
-	"heavy rubber":        "latex",
-	"leather":             "leather",
-	"foot":                "foot-fetish",
-	"feet":                "foot-fetish",
-	"boot worship":        "foot-fetish",
-	"facesitting":         "facesitting",
-	"face sitting":        "facesitting",
-	"smothering":          "facesitting",
-	"strapon":             "strapon",
-	"strap-on":            "strapon",
-	"pegging":             "strapon",
-	"cbt":                 "cbt",
-	"ball busting":        "cbt",
-	"cock torture":        "cbt",
-	"device":              "device-bondage",
-	"spreader bar":        "device-bondage",
-	"medical bondage":     "medical-bondage",
-	"vacbed":              "vacbed",
-	"vacuum bed":          "vacbed",
+	"domme":              "femdom",
+	"goddess":            "femdom",
+	"dominatrix":         "dominatrix",
+	"mistress":           "dominatrix",
+	"bondage":            "bondage",
+	"rope":               "bondage",
+	"tied":               "bondage",
+	"shibari":            "shibari",
+	"kinbaku":            "shibari",
+	"suspension":         "shibari",
+	"hogtie":             "bondage",
+	"hogtied":            "bondage",
+	"handcuffs":          "bondage",
+	"blindfold":          "bondage",
+	"gag":                "bondage",
+	"bdsm":               "bdsm",
+	"slave":              "slave",
+	"submission":         "submission",
+	"submissive":         "submission",
+	"slave training":     "submission",
+	"orgasm control":     "chastity",
+	"chastity":           "chastity",
+	"ruined orgasm":      "chastity",
+	"forced orgasm":      "forced orgasm",
+	"edging":             "edging",
+	"tease denial":       "tease denial",
+	"spanking":           "spanking",
+	"caning":             "caning",
+	"paddling":           "spanking",
+	"crop":               "spanking",
+	"whipping":           "whipping",
+	"latex":              "latex",
+	"rubber":             "latex",
+	"catsuit":            "latex",
+	"heavy rubber":       "latex",
+	"leather":            "leather",
+	"foot":               "foot-fetish",
+	"feet":               "foot-fetish",
+	"boot worship":       "foot-fetish",
+	"facesitting":        "facesitting",
+	"face sitting":       "facesitting",
+	"smothering":         "facesitting",
+	"strapon":            "strapon",
+	"strap-on":           "strapon",
+	"pegging":            "strapon",
+	"cbt":                "cbt",
+	"ball busting":       "cbt",
+	"cock torture":       "cbt",
+	"device":             "device-bondage",
+	"spreader bar":       "device-bondage",
+	"medical bondage":    "medical-bondage",
+	"vacbed":             "vacbed",
+	"vacuum bed":         "vacbed",
+	"public humiliation": "public-humiliation",
 	// Extreme category mappings
 	"mummification":       "mummification",
 	"mummified":           "mummification",
