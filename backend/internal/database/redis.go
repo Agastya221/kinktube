@@ -98,8 +98,8 @@ const (
 	CacheKeyVideoList    = "videos:list:%s:%d:%d:%s:%s" // sort:page:perPage:category:search
 	CacheKeyVideo        = "video:%d"                    // id
 	CacheKeyVideoExt     = "video:ext:%s"                // external_id
-	CacheKeyCategories   = "categories:stats"
-	CacheKeyMenuCategories = "menu-categories"
+	CacheKeyCategories   = "categories:stats:v2"
+	CacheKeyMenuCategories = "menu-categories:v2"
 	CacheKeyTotalCount   = "videos:total"
 	CacheKeyRelated      = "video:%d:related"
 )

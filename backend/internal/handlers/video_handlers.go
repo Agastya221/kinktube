@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/redis/go-redis/v9"
@@ -10,6 +11,111 @@ import (
 	"kinktube/internal/models"
 	"kinktube/internal/services"
 )
+
+var categorySearchQueryOverrides = map[string]string{
+	"device-bondage":      "device bondage",
+	"extreme-bondage":     "extreme bondage",
+	"foot-fetish":         "foot fetish",
+	"medical-bondage":     "medical bondage",
+	"pet-play":            "pet play",
+	"sensory-deprivation": "sensory deprivation",
+	"severe-discipline":   "severe discipline",
+	"slave":               "slave training",
+	"vacbed":              "vacbed",
+}
+
+func categorySearchQuery(slug string) string {
+	if query, ok := categorySearchQueryOverrides[slug]; ok {
+		return query
+	}
+
+	return strings.ReplaceAll(slug, "-", " ")
+}
+
+func normalizeSearchDedupText(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, "-", " ")
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func buildSearchDedupKeys(ev *services.EpornerVideo) []string {
+	keys := make([]string, 0, 5)
+
+	if ev.ID != "" {
+		keys = append(keys, "id:"+ev.ID)
+	}
+
+	if ev.URL != "" {
+		keys = append(keys, "url:"+strings.ToLower(strings.TrimSpace(ev.URL)))
+	}
+
+	if ev.Embed != "" {
+		keys = append(keys, "embed:"+strings.ToLower(strings.TrimSpace(ev.Embed)))
+	}
+
+	titleKey := normalizeSearchDedupText(ev.Title)
+	if titleKey == "" {
+		return keys
+	}
+
+	keys = append(keys, "title-duration:"+titleKey+"|"+strconv.Itoa(ev.LengthSec))
+
+	thumbKey := strings.ToLower(strings.TrimSpace(ev.DefaultThumb.Src))
+	if thumbKey != "" {
+		keys = append(keys, "title-thumb:"+titleKey+"|"+thumbKey)
+	}
+
+	return keys
+}
+
+func searchResultSeen(seen map[string]struct{}, keys []string) bool {
+	for _, key := range keys {
+		if _, ok := seen[key]; ok {
+			return true
+		}
+	}
+
+	return false
+}
+
+func markSearchResultSeen(seen map[string]struct{}, keys []string) {
+	for _, key := range keys {
+		seen[key] = struct{}{}
+	}
+}
+
+func (h *Handler) getRelevantCategoryThumbnail(c *fiber.Ctx, slug string) string {
+	query := categorySearchQuery(slug)
+
+	response, err := h.eporner.SearchVideos(c.Context(), query, 1, 12)
+	if err != nil {
+		return ""
+	}
+
+	seen := make(map[string]struct{})
+
+	for _, ev := range response.Videos {
+		keys := buildSearchDedupKeys(&ev)
+		if searchResultSeen(seen, keys) {
+			continue
+		}
+
+		if !services.MatchesTopicAndBDSM(&ev, query) {
+			continue
+		}
+
+		markSearchResultSeen(seen, keys)
+		video := services.ConvertToVideo(&ev, query)
+		if video.ThumbnailLg != "" {
+			return video.ThumbnailLg
+		}
+		if video.Thumbnail != "" {
+			return video.Thumbnail
+		}
+	}
+
+	return ""
+}
 
 // ListVideos handles GET /api/videos
 func (h *Handler) ListVideos(c *fiber.Ctx) error {
@@ -56,7 +162,7 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 	isBDSMQuery := services.IsBDSMRelatedQuery(query)
 
 	// Try cache first
-	cacheKey := database.VideoListCacheKey("search-"+sortBy, page, perPage, "", enhancedQuery)
+	cacheKey := database.VideoListCacheKey("search-v2-"+sortBy, page, perPage, "", enhancedQuery)
 	var cached models.VideoListResponse
 	err := h.cache.Get(c.Context(), cacheKey, &cached)
 	if err == nil {
@@ -97,13 +203,14 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 		return c.JSON(result)
 	}
 
-	// Filter and convert results, tracking seen IDs to prevent duplicates
+	// Filter and convert results, deduping by more than just external ID because
+	// Eporner can surface mirrors with different IDs but identical content.
 	var videos []models.Video
-	seenIDs := make(map[string]bool)
+	seenResults := make(map[string]struct{})
 
 	for _, ev := range response.Videos {
-		// Skip duplicates based on external ID
-		if seenIDs[ev.ID] {
+		dedupKeys := buildSearchDedupKeys(&ev)
+		if searchResultSeen(seenResults, dedupKeys) {
 			continue
 		}
 
@@ -112,7 +219,7 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 		if isBDSMQuery {
 			if services.MatchesTopicAndBDSM(&ev, query) {
 				video := services.ConvertToVideo(&ev, query)
-				seenIDs[ev.ID] = true
+				markSearchResultSeen(seenResults, dedupKeys)
 				videos = append(videos, *video)
 			}
 		} else {
@@ -120,7 +227,7 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 			// This gives limited results for off-topic searches
 			if services.MatchesQueryIntent(&ev, query) && services.IsRelevantBDSMVideo(&ev) && services.IsStrongBDSMMatch(&ev) {
 				video := services.ConvertToVideo(&ev, query)
-				seenIDs[ev.ID] = true
+				markSearchResultSeen(seenResults, dedupKeys)
 				videos = append(videos, *video)
 			}
 		}
@@ -344,7 +451,7 @@ func (h *Handler) GetMenuCategories(c *fiber.Ctx) error {
 		})
 	}
 
-	// Fetch top-rated video thumbnail for each category
+	// Fetch the first relevant video thumbnail for each category
 	categories := make([]MenuCategory, 0, len(menuSlugs))
 	for _, slug := range menuSlugs {
 		cat := MenuCategory{
@@ -352,13 +459,17 @@ func (h *Handler) GetMenuCategories(c *fiber.Ctx) error {
 			Name: slugToName[slug],
 		}
 
-		// Get top-rated video for this category
-		result, err := h.db.ListVideos(c.Context(), 1, 1, "rating", slug, "")
-		if err == nil && len(result.Videos) > 0 {
-			if result.Videos[0].ThumbnailLg != "" {
-				cat.Thumbnail = result.Videos[0].ThumbnailLg
-			} else {
-				cat.Thumbnail = result.Videos[0].Thumbnail
+		cat.Thumbnail = h.getRelevantCategoryThumbnail(c, slug)
+
+		// Fall back to the imported DB thumbnail if live search couldn't find one.
+		if cat.Thumbnail == "" {
+			result, err := h.db.ListVideos(c.Context(), 1, 1, "rating", slug, "")
+			if err == nil && len(result.Videos) > 0 {
+				if result.Videos[0].ThumbnailLg != "" {
+					cat.Thumbnail = result.Videos[0].ThumbnailLg
+				} else {
+					cat.Thumbnail = result.Videos[0].Thumbnail
+				}
 			}
 		}
 

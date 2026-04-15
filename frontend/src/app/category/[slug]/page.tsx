@@ -98,6 +98,7 @@ const categorySearchQueryMap: Record<string, string> = {
   "pet-play": "pet play",
   "sensory-deprivation": "sensory deprivation",
   "severe-discipline": "severe discipline",
+  slave: "slave training",
   vacbed: "vacbed",
 };
 

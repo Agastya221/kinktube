@@ -13,13 +13,61 @@ interface InfiniteVideoGridProps {
   queryParams: VideoQueryParams;
 }
 
+function normalizeVideoDedupText(value: string): string {
+  return value.toLowerCase().trim().replace(/\s+/g, " ");
+}
+
+function getVideoDedupKeys(video: Video): string[] {
+  const keys: string[] = [];
+
+  if (video.external_id) {
+    keys.push(`external:${video.external_id}`);
+  }
+
+  if (video.source_url) {
+    keys.push(`source:${video.source_url.toLowerCase()}`);
+  }
+
+  if (video.embed_url) {
+    keys.push(`embed:${video.embed_url.toLowerCase()}`);
+  }
+
+  const titleKey = normalizeVideoDedupText(video.title);
+  if (titleKey) {
+    keys.push(`title-duration:${titleKey}|${video.duration}`);
+    const thumbKey = (video.thumbnail_lg || video.thumbnail || "").toLowerCase();
+    if (thumbKey) {
+      keys.push(`title-thumb:${titleKey}|${thumbKey}`);
+    }
+  }
+
+  return keys;
+}
+
+function mergeUniqueVideos(existing: Video[], incoming: Video[]): Video[] {
+  const seen = new Set<string>();
+  const merged: Video[] = [];
+
+  for (const video of [...existing, ...incoming]) {
+    const keys = getVideoDedupKeys(video);
+    if (keys.some((key) => seen.has(key))) {
+      continue;
+    }
+
+    keys.forEach((key) => seen.add(key));
+    merged.push(video);
+  }
+
+  return merged;
+}
+
 export default function InfiniteVideoGrid({
   initialVideos,
   initialPage,
   totalPages,
   queryParams,
 }: InfiniteVideoGridProps) {
-  const [videos, setVideos] = useState<Video[]>(initialVideos);
+  const [videos, setVideos] = useState<Video[]>(() => mergeUniqueVideos([], initialVideos));
   const [page, setPage] = useState(initialPage);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(initialPage < totalPages);
@@ -41,7 +89,7 @@ export default function InfiniteVideoGrid({
         page: nextPage,
       });
 
-      setVideos((prev) => [...prev, ...response.videos]);
+      setVideos((prev) => mergeUniqueVideos(prev, response.videos));
       setPage(nextPage);
       setHasMore(nextPage < response.total_pages);
     } catch {
@@ -82,7 +130,7 @@ export default function InfiniteVideoGrid({
 
   // Reset when query params change
   useEffect(() => {
-    setVideos(initialVideos);
+    setVideos(mergeUniqueVideos([], initialVideos));
     setPage(initialPage);
     setHasMore(initialPage < totalPages);
   }, [initialVideos, initialPage, totalPages]);
