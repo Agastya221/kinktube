@@ -90,7 +90,7 @@ export default function VideoCard({ video, priority = false }: VideoCardProps) {
           </span>
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            {formatRelativeTime(video.added_at)}
+            {formatRelativeTime(video.published_at || video.added_at)}
           </span>
         </div>
 

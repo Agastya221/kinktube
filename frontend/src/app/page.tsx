@@ -22,6 +22,7 @@ interface HomePageProps {
 export default async function HomePage({ searchParams }: HomePageProps) {
   const params = await searchParams;
   const page = parseInt(params.page || "1", 10);
+  // Default to mixed/latest for homepage - backend handles smart ordering
   const sort = (params.sort as "latest" | "views" | "rating" | "extreme") || "latest";
   const useInfiniteScroll = params.infinite === "1";
 

@@ -206,44 +206,51 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 		whereClause = "WHERE " + strings.Join(conditions, " AND ")
 	}
 
+	// Priority categories for homepage mixing
+	priorityCategories := []string{
+		"extreme-bondage", "bondage", "slave", "submission",
+		"dominatrix", "shibari", "leather", "latex", "pet-play", "femdom",
+	}
+
 	// Determine sort order
 	orderClause := "ORDER BY added_at DESC"
 	switch sortBy {
 	case "views":
-		orderClause = "ORDER BY views DESC"
+		orderClause = "ORDER BY views DESC, rating DESC"
 	case "rating":
-		orderClause = "ORDER BY rating DESC"
+		orderClause = "ORDER BY rating DESC, views DESC"
 	case "duration":
 		orderClause = "ORDER BY duration DESC"
 	case "oldest":
-		orderClause = "ORDER BY added_at ASC"
+		orderClause = "ORDER BY published_at ASC"
 	case "extreme":
 		// Prioritize videos with extreme/intense keywords in title
 		orderClause = `ORDER BY
 			(CASE WHEN lower(title) ~* 'extreme|severe|brutal|intense|harsh|strict|cruel|torture|punishment' THEN 3 ELSE 0 END +
 			 CASE WHEN lower(title) ~* 'tight|heavy|hard|discipline|predicament|inescapable|mummification' THEN 2 ELSE 0 END +
 			 CASE WHEN cardinality(categories) >= 3 THEN 1 ELSE 0 END) DESC,
+			rating DESC,
 			views DESC`
 	}
 
-	// On the homepage, prioritize extreme/niche content over generic "bdsm only" matches
+	// Homepage: Mix priority categories with rating-based ordering
 	if category == "" && search == "" && sortBy == "latest" {
-		orderClause = `ORDER BY
-			CASE WHEN cardinality(categories) = 1 AND 'bdsm' = ANY(categories) THEN 100 ELSE 0 END +
-			CASE
-				WHEN lower(title) ~* 'extreme|severe|brutal|intense|harsh|torture|punishment' THEN -20
-				WHEN lower(title) ~* 'tight|heavy|discipline|predicament|mummification' THEN -10
-				WHEN cardinality(categories) >= 3 THEN -5
-				ELSE 0
-			END ASC,
-			added_at DESC`
+		// Build priority category case for mixing
+		priorityCaseSQL := "CASE "
+		for i, cat := range priorityCategories {
+			priorityCaseSQL += fmt.Sprintf("WHEN '%s' = ANY(categories) THEN %d ", cat, i)
+		}
+		priorityCaseSQL += "ELSE 100 END"
+
+		orderClause = fmt.Sprintf(`ORDER BY
+			%s,
+			CASE WHEN cardinality(categories) = 1 AND 'bdsm' = ANY(categories) THEN 1 ELSE 0 END,
+			rating DESC,
+			views DESC`, priorityCaseSQL)
 	}
 
-	// For category pages, prioritize videos where this category is the PRIMARY focus
-	// Note: category is already validated via the categories array check, so this is safe
+	// Category pages: default to rating (top-rated) not latest
 	if category != "" && sortBy == "latest" {
-		// We need to reference the category parameter that's already in args
-		// The category is at position $1 in the args
 		orderClause = `ORDER BY
 			CASE WHEN categories[1] = $1 THEN 0 ELSE 1 END,
 			CASE WHEN keywords ILIKE '%' || $1 || '%' THEN 0 ELSE 1 END,
