@@ -14,12 +14,12 @@ import (
 
 // Importer handles the automated video import process
 type Importer struct {
-	db       *database.PostgresDB
-	cache    *database.RedisCache
-	eporner  *EpornerClient
-	perPage  int
-	running  atomic.Bool
-	mu       sync.Mutex
+	db      *database.PostgresDB
+	cache   *database.RedisCache
+	eporner *EpornerClient
+	perPage int
+	running atomic.Bool
+	mu      sync.Mutex
 }
 
 // ImportStats tracks import statistics
@@ -144,17 +144,17 @@ func (i *Importer) importKeyword(ctx context.Context, keyword string) keywordSta
 
 			video := ConvertToVideo(&ev, keyword)
 
-			err := i.db.UpsertVideo(ctx, video)
+			inserted, err := i.db.UpsertVideo(ctx, video)
 			if err != nil {
 				log.Printf("Error upserting video %s: %v", video.ExternalID, err)
 				stats.errors++
 				continue
 			}
 
-			if video.AddedAt.IsZero() {
-				stats.skipped++ // Was an update, not insert
-			} else {
+			if inserted {
 				stats.imported++
+			} else {
+				stats.skipped++ // Was an update, not insert
 			}
 		}
 
@@ -312,17 +312,17 @@ func (i *Importer) importKeywordLight(ctx context.Context, keyword string) keywo
 
 		video := ConvertToVideo(&ev, keyword)
 
-		err := i.db.UpsertVideo(ctx, video)
+		inserted, err := i.db.UpsertVideo(ctx, video)
 		if err != nil {
 			log.Printf("Error upserting video %s: %v", video.ExternalID, err)
 			stats.errors++
 			continue
 		}
 
-		if video.AddedAt.IsZero() {
-			stats.skipped++
-		} else {
+		if inserted {
 			stats.imported++
+		} else {
+			stats.skipped++
 		}
 	}
 

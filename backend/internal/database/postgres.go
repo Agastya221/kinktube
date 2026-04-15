@@ -17,6 +17,12 @@ type PostgresDB struct {
 	pool *pgxpool.Pool
 }
 
+// CategoryMenuThumbnailCache stores the persisted thumbnail plus the query strategy that produced it.
+type CategoryMenuThumbnailCache struct {
+	Thumbnail string
+	QueryKey  string
+}
+
 // NewPostgresDB creates a new database connection pool
 func NewPostgresDB(ctx context.Context, databaseURL string) (*PostgresDB, error) {
 	config, err := pgxpool.ParseConfig(databaseURL)
@@ -86,8 +92,12 @@ func (db *PostgresDB) InitSchema(ctx context.Context) error {
 		CREATE TABLE IF NOT EXISTS category_menu_thumbnails (
 			slug VARCHAR(64) PRIMARY KEY,
 			thumbnail TEXT NOT NULL,
+			query_key TEXT NOT NULL DEFAULT '',
 			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);
+
+		ALTER TABLE category_menu_thumbnails
+		ADD COLUMN IF NOT EXISTS query_key TEXT NOT NULL DEFAULT '';
 	`
 
 	_, err := db.pool.Exec(ctx, schema)
@@ -95,13 +105,13 @@ func (db *PostgresDB) InitSchema(ctx context.Context) error {
 }
 
 // GetCategoryMenuThumbnailMap returns cached menu thumbnails by category slug.
-func (db *PostgresDB) GetCategoryMenuThumbnailMap(ctx context.Context, slugs []string) (map[string]string, error) {
+func (db *PostgresDB) GetCategoryMenuThumbnailMap(ctx context.Context, slugs []string) (map[string]CategoryMenuThumbnailCache, error) {
 	if len(slugs) == 0 {
-		return map[string]string{}, nil
+		return map[string]CategoryMenuThumbnailCache{}, nil
 	}
 
 	query := `
-		SELECT slug, thumbnail
+		SELECT slug, thumbnail, query_key
 		FROM category_menu_thumbnails
 		WHERE slug = ANY($1)
 	`
@@ -112,34 +122,39 @@ func (db *PostgresDB) GetCategoryMenuThumbnailMap(ctx context.Context, slugs []s
 	}
 	defer rows.Close()
 
-	thumbnails := make(map[string]string, len(slugs))
+	thumbnails := make(map[string]CategoryMenuThumbnailCache, len(slugs))
 	for rows.Next() {
 		var slug string
 		var thumbnail string
-		if err := rows.Scan(&slug, &thumbnail); err != nil {
+		var queryKey string
+		if err := rows.Scan(&slug, &thumbnail, &queryKey); err != nil {
 			return nil, err
 		}
-		thumbnails[slug] = thumbnail
+		thumbnails[slug] = CategoryMenuThumbnailCache{
+			Thumbnail: thumbnail,
+			QueryKey:  queryKey,
+		}
 	}
 
 	return thumbnails, rows.Err()
 }
 
 // UpsertCategoryMenuThumbnail stores or refreshes a cached menu thumbnail.
-func (db *PostgresDB) UpsertCategoryMenuThumbnail(ctx context.Context, slug, thumbnail string) error {
+func (db *PostgresDB) UpsertCategoryMenuThumbnail(ctx context.Context, slug, queryKey, thumbnail string) error {
 	if slug == "" || thumbnail == "" {
 		return nil
 	}
 
 	query := `
-		INSERT INTO category_menu_thumbnails (slug, thumbnail, updated_at)
-		VALUES ($1, $2, NOW())
+		INSERT INTO category_menu_thumbnails (slug, thumbnail, query_key, updated_at)
+		VALUES ($1, $2, $3, NOW())
 		ON CONFLICT (slug) DO UPDATE SET
 			thumbnail = EXCLUDED.thumbnail,
+			query_key = EXCLUDED.query_key,
 			updated_at = NOW()
 	`
 
-	_, err := db.pool.Exec(ctx, query, slug, thumbnail)
+	_, err := db.pool.Exec(ctx, query, slug, thumbnail, queryKey)
 	return err
 }
 
@@ -149,8 +164,8 @@ func (db *PostgresDB) ClearCategoryMenuThumbnailCache(ctx context.Context) error
 	return err
 }
 
-// UpsertVideo inserts or updates a video (handles deduplication by external_id)
-func (db *PostgresDB) UpsertVideo(ctx context.Context, video *models.Video) error {
+// UpsertVideo inserts or updates a video (handles deduplication by external_id).
+func (db *PostgresDB) UpsertVideo(ctx context.Context, video *models.Video) (bool, error) {
 	query := `
 		INSERT INTO videos (
 			external_id, title, description, duration, duration_str,
@@ -161,17 +176,34 @@ func (db *PostgresDB) UpsertVideo(ctx context.Context, video *models.Video) erro
 		)
 		ON CONFLICT (external_id) DO UPDATE SET
 			title = EXCLUDED.title,
+			description = EXCLUDED.description,
+			duration = EXCLUDED.duration,
+			duration_str = EXCLUDED.duration_str,
 			views = EXCLUDED.views,
 			rating = EXCLUDED.rating,
+			thumbnail = EXCLUDED.thumbnail,
+			thumbnail_lg = EXCLUDED.thumbnail_lg,
+			embed_url = EXCLUDED.embed_url,
+			source_url = EXCLUDED.source_url,
+			tags = EXCLUDED.tags,
+			categories = EXCLUDED.categories,
+			keywords = EXCLUDED.keywords,
+			published_at = EXCLUDED.published_at,
 			last_updated_at = NOW()
-		RETURNING id, added_at
+		RETURNING id, added_at, (xmax = 0) AS inserted
 	`
 
-	return db.pool.QueryRow(ctx, query,
+	var inserted bool
+	err := db.pool.QueryRow(ctx, query,
 		video.ExternalID, video.Title, video.Description, video.Duration, video.DurationStr,
 		video.Views, video.Rating, video.Thumbnail, video.ThumbnailLg, video.EmbedURL,
 		video.SourceURL, video.Tags, video.Categories, video.Keywords, video.PublishedAt,
-	).Scan(&video.ID, &video.AddedAt)
+	).Scan(&video.ID, &video.AddedAt, &inserted)
+	if err != nil {
+		return false, err
+	}
+
+	return inserted, nil
 }
 
 // GetVideoByID retrieves a video by its internal ID

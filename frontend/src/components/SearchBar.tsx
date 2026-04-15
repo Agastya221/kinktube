@@ -13,6 +13,7 @@ interface SearchSuggestion {
   id: string;
   title: string;
   type: "result" | "suggestion" | "trending";
+  href: string;
 }
 
 // Popular BDSM search terms for suggestions
@@ -84,6 +85,7 @@ export default function SearchBar({
         id: `trending-${s}`,
         title: s,
         type: "trending" as const,
+        href: `/search?q=${encodeURIComponent(s)}`,
       }));
     }
 
@@ -95,6 +97,7 @@ export default function SearchBar({
         id: `suggest-${s}`,
         title: s,
         type: "suggestion" as const,
+        href: `/search?q=${encodeURIComponent(s)}`,
       }));
   }, []);
 
@@ -110,7 +113,7 @@ export default function SearchBar({
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&per_page=6&sort=top-rated`,
+        `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&per_page=6&sort=rating`,
         { signal: AbortSignal.timeout(5000) } // 5s timeout
       );
 
@@ -129,6 +132,7 @@ export default function SearchBar({
           id: `video-${v.id}`,
           title: v.title,
           type: "result" as const,
+          href: `/video/${v.id}`,
         }));
         results.push(...videoResults);
       }
@@ -167,17 +171,17 @@ export default function SearchBar({
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (query.trim()) {
+    const trimmedQuery = query.trim();
+    if (trimmedQuery) {
       setShowSuggestions(false);
-      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
     }
   };
 
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
-    const searchTerm = suggestion.type === "result" ? query : suggestion.title;
-    setQuery(searchTerm);
+    setQuery(suggestion.title);
     setShowSuggestions(false);
-    router.push(`/search?q=${encodeURIComponent(searchTerm)}`);
+    router.push(suggestion.href);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -209,6 +213,14 @@ export default function SearchBar({
     setShowSuggestions(true);
     setSuggestions(getPopularSuggestions(query));
   };
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>

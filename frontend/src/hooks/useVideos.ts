@@ -15,6 +15,7 @@ interface UseVideosResult {
 }
 
 export function useVideos(params: VideoQueryParams = {}): UseVideosResult {
+  const { page, per_page, sort, category, q } = params;
   const [data, setData] = useState<VideoListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,14 +25,14 @@ export function useVideos(params: VideoQueryParams = {}): UseVideosResult {
     setError(null);
 
     try {
-      const result = await getVideos(params);
+      const result = await getVideos({ page, per_page, sort, category, q });
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch videos");
     } finally {
       setLoading(false);
     }
-  }, [params.page, params.per_page, params.sort, params.category, params.q]);
+  }, [page, per_page, sort, category, q]);
 
   useEffect(() => {
     fetchVideos();

@@ -188,6 +188,7 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 
 	// Admin routes (in production, add authentication middleware)
 	admin := api.Group("/admin")
+	admin.Use(h.RequireAdminAuth)
 	admin.Post("/import", h.TriggerImport)
 	admin.Get("/import/status", h.GetImportStatus)
 }

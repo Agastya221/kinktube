@@ -95,13 +95,13 @@ func (r *RedisCache) Exists(ctx context.Context, key string) bool {
 
 // Cache key generators for consistent naming
 const (
-	CacheKeyVideoList    = "videos:list:%s:%d:%d:%s:%s" // sort:page:perPage:category:search
-	CacheKeyVideo        = "video:%d"                    // id
-	CacheKeyVideoExt     = "video:ext:%s"                // external_id
-	CacheKeyCategories   = "categories:stats:v2"
+	CacheKeyVideoList      = "videos:list:%s:%d:%d:%s:%s" // sort:page:perPage:category:search
+	CacheKeyVideo          = "video:%d"                   // id
+	CacheKeyVideoExt       = "video:ext:%s"               // external_id
+	CacheKeyCategories     = "categories:stats:v2"
 	CacheKeyMenuCategories = "menu-categories:v2"
-	CacheKeyTotalCount   = "videos:total"
-	CacheKeyRelated      = "video:%d:related"
+	CacheKeyTotalCount     = "videos:total"
+	CacheKeyRelated        = "video:%d:related:v2:%d"
 )
 
 // VideoListCacheKey generates a cache key for video listings
@@ -119,7 +119,7 @@ func VideoExternalCacheKey(externalID string) string {
 	return fmt.Sprintf(CacheKeyVideoExt, externalID)
 }
 
-// RelatedVideosCacheKey generates a cache key for related videos
-func RelatedVideosCacheKey(id int64) string {
-	return fmt.Sprintf(CacheKeyRelated, id)
+// RelatedVideosCacheKey generates a cache key for related videos.
+func RelatedVideosCacheKey(id int64, limit int) string {
+	return fmt.Sprintf(CacheKeyRelated, id, limit)
 }

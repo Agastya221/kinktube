@@ -32,6 +32,9 @@ type Config struct {
 
 	// Frontend URL for CORS
 	FrontendURL string
+
+	// Admin API key for protected endpoints
+	AdminAPIKey string
 }
 
 // Load reads configuration from environment variables
@@ -55,6 +58,7 @@ func Load() *Config {
 		StartupRefreshDelay: startupDelay,
 		CacheTTL:            cacheTTL,
 		FrontendURL:         getEnv("FRONTEND_URL", "http://localhost:3000"),
+		AdminAPIKey:         getEnv("ADMIN_API_KEY", ""),
 	}
 }
 

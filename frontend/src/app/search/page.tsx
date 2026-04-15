@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import VideoGrid from "@/components/VideoGrid";
 import Pagination from "@/components/Pagination";
@@ -116,13 +117,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
               Popular searches:
             </p>
             {["extreme bondage", "brutal femdom", "predicament", "mummification", "severe discipline", "tight bondage", "torture"].map((term) => (
-              <a
+              <Link
                 key={term}
                 href={`/search?q=${term}`}
                 className="px-4 py-2 bg-background-tertiary text-foreground-muted rounded-full hover:bg-accent hover:text-white transition-colors"
               >
                 {term}
-              </a>
+              </Link>
             ))}
           </div>
         </div>

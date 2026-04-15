@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -69,7 +70,7 @@ func requestLogger() fiber.Handler {
 // CacheControl sets cache headers for responses
 func CacheControl(maxAge int) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		c.Set("Cache-Control", "public, max-age="+string(rune(maxAge)))
+		c.Set("Cache-Control", "public, max-age="+strconv.Itoa(maxAge))
 		return c.Next()
 	}
 }

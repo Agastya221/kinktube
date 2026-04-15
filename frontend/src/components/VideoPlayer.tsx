@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Play, Maximize2, AlertTriangle } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import { Play, Maximize2, Minimize2, AlertTriangle } from "lucide-react";
 
 interface VideoPlayerProps {
   embedUrl: string;
@@ -19,6 +20,7 @@ export default function VideoPlayer({
   const [isLoaded, setIsLoaded] = useState(autoplay);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showBlockedNotice, setShowBlockedNotice] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Modify embed URL to include autoplay if needed
   const getEmbedUrl = () => {
@@ -33,24 +35,45 @@ export default function VideoPlayer({
     setIsLoaded(true);
   };
 
-  const handleFullscreen = () => {
-    const container = document.querySelector(".video-player-container");
-    if (container) {
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-        setIsFullscreen(false);
-      } else {
-        container.requestFullscreen();
-        setIsFullscreen(true);
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      setIsFullscreen(document.fullscreenElement === containerRef.current);
+    };
+
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () => {
+      document.removeEventListener("fullscreenchange", syncFullscreenState);
+    };
+  }, []);
+
+  const handleFullscreen = async () => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement === container) {
+        await document.exitFullscreen();
+        return;
       }
+
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+
+      await container.requestFullscreen();
+    } catch {
+      setIsFullscreen(document.fullscreenElement === container);
     }
   };
 
   return (
     <div className="video-player-wrapper relative">
       <div
+        ref={containerRef}
         className={`
-          video-player-container relative w-full overflow-hidden bg-black
+          video-player-container group relative w-full overflow-hidden bg-black
           ${isFullscreen ? "fixed inset-0 z-50" : "rounded-lg"}
         `}
         style={{ aspectRatio: "16 / 9" }}
@@ -58,10 +81,13 @@ export default function VideoPlayer({
         {!isLoaded && thumbnailUrl ? (
           // Thumbnail with play button overlay
           <div className="relative w-full h-full">
-            <img
+            <Image
               src={thumbnailUrl}
               alt={title}
-              className="absolute inset-0 w-full h-full object-cover"
+              fill
+              sizes="100vw"
+              className="absolute inset-0 object-cover"
+              priority
             />
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <button
@@ -93,18 +119,18 @@ export default function VideoPlayer({
         )}
 
         {/* Fullscreen toggle button */}
-        {isLoaded && !isFullscreen && (
+        {isLoaded && (
           <button
             onClick={handleFullscreen}
             className="
               absolute bottom-4 right-4 p-2 rounded-lg
               bg-black/60 hover:bg-black/80
               text-white transition-colors
-              opacity-0 group-hover:opacity-100
+              opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100
             "
-            aria-label="Toggle fullscreen"
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           >
-            <Maximize2 className="w-5 h-5" />
+            {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
           </button>
         )}
       </div>

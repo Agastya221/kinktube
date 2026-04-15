@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,11 @@ func categorySearchQuery(slug string) string {
 	}
 
 	return strings.ReplaceAll(slug, "-", " ")
+}
+
+func menuCategoryThumbnailQueryKey(slug string) string {
+	query := services.EnhanceQueryForBDSM(categorySearchQuery(slug))
+	return "thumb-v2:" + query + ":top-rated-first"
 }
 
 func normalizeSearchDedupText(value string) string {
@@ -82,6 +88,16 @@ func markSearchResultSeen(seen map[string]struct{}, keys []string) {
 	for _, key := range keys {
 		seen[key] = struct{}{}
 	}
+}
+
+func matchesLiveSearchResult(ev *services.EpornerVideo, query string, isBDSMQuery bool) bool {
+	if isBDSMQuery {
+		return services.MatchesTopicAndBDSM(ev, query)
+	}
+
+	return services.MatchesQueryIntent(ev, query) &&
+		services.IsRelevantBDSMVideo(ev) &&
+		services.IsStrongBDSMMatch(ev)
 }
 
 func (h *Handler) getRelevantCategoryThumbnail(c *fiber.Ctx, slug string) string {
@@ -159,6 +175,16 @@ func (h *Handler) ListVideos(c *fiber.Ctx) error {
 
 // liveSearch queries Eporner API directly and filters for BDSM relevance
 func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) error {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 24
+	}
+	if perPage > 50 {
+		perPage = 50
+	}
+
 	// Get sort preference from query params - empty means let Eporner decide (relevance)
 	sortBy := c.Query("sort", "")
 
@@ -169,14 +195,14 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 	isBDSMQuery := services.IsBDSMRelatedQuery(query)
 
 	// Try cache first
-	cacheKey := database.VideoListCacheKey("search-v2-"+sortBy, page, perPage, "", enhancedQuery)
+	cacheKey := database.VideoListCacheKey("search-v3-"+sortBy, page, perPage, "", enhancedQuery)
 	var cached models.VideoListResponse
 	err := h.cache.Get(c.Context(), cacheKey, &cached)
 	if err == nil {
 		return c.JSON(cached)
 	}
 
-	// Fetch more results from Eporner to account for filtering
+	// Fetch larger Eporner pages because we filter and dedupe aggressively afterwards.
 	fetchPerPage := perPage * 2
 	if fetchPerPage > 100 {
 		fetchPerPage = 100
@@ -198,9 +224,7 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 		opts.Order = "" // Let Eporner decide (relevance-based)
 	}
 
-	response, err := h.eporner.SearchVideosWithOptions(c.Context(), enhancedQuery, page, fetchPerPage, opts)
-	if err != nil {
-		// Fallback to database search if Eporner fails
+	fallbackToDatabase := func() error {
 		result, dbErr := h.db.ListVideos(c.Context(), page, perPage, sortBy, "", query)
 		if dbErr != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -210,48 +234,81 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 		return c.JSON(result)
 	}
 
-	// Filter and convert results, deduping by more than just external ID because
-	// Eporner can surface mirrors with different IDs but identical content.
-	var videos []models.Video
+	// Build our own filtered pagination so app pages stay aligned with the
+	// deduped/relevance-filtered results instead of raw Eporner counts.
+	targetStart := (page - 1) * perPage
+	targetEnd := targetStart + perPage + 1
+	maxSourcePages := (targetEnd / fetchPerPage) + 2
+	if maxSourcePages < 2 {
+		maxSourcePages = 2
+	}
+	if maxSourcePages > 6 {
+		maxSourcePages = 6
+	}
+
+	var matches []models.Video
 	seenResults := make(map[string]struct{})
+	moreRawResults := false
 
-	for _, ev := range response.Videos {
-		dedupKeys := buildSearchDedupKeys(&ev)
-		if searchResultSeen(seenResults, dedupKeys) {
-			continue
+	for sourcePage := 1; sourcePage <= maxSourcePages && len(matches) < targetEnd; sourcePage++ {
+		response, searchErr := h.eporner.SearchVideosWithOptions(c.Context(), enhancedQuery, sourcePage, fetchPerPage, opts)
+		if searchErr != nil {
+			if sourcePage == 1 {
+				return fallbackToDatabase()
+			}
+			break
 		}
 
-		// For BDSM queries, only include relevant results
-		// For non-BDSM queries, heavily filter (show fewer results)
-		if isBDSMQuery {
-			if services.MatchesTopicAndBDSM(&ev, query) {
-				video := services.ConvertToVideo(&ev, query)
-				markSearchResultSeen(seenResults, dedupKeys)
-				videos = append(videos, *video)
+		if len(response.Videos) == 0 {
+			moreRawResults = false
+			break
+		}
+
+		responsePerPage := response.PerPage
+		if responsePerPage <= 0 {
+			responsePerPage = fetchPerPage
+		}
+		moreRawResults = (response.Page * responsePerPage) < response.Count
+
+		for _, ev := range response.Videos {
+			dedupKeys := buildSearchDedupKeys(&ev)
+			if searchResultSeen(seenResults, dedupKeys) {
+				continue
 			}
-		} else {
-			// Non-BDSM query: only include if it's actually BDSM content
-			// This gives limited results for off-topic searches
-			if services.MatchesQueryIntent(&ev, query) && services.IsRelevantBDSMVideo(&ev) && services.IsStrongBDSMMatch(&ev) {
-				video := services.ConvertToVideo(&ev, query)
-				markSearchResultSeen(seenResults, dedupKeys)
-				videos = append(videos, *video)
+
+			if !matchesLiveSearchResult(&ev, query, isBDSMQuery) {
+				continue
+			}
+
+			video := services.ConvertToVideo(&ev, query)
+			markSearchResultSeen(seenResults, dedupKeys)
+			matches = append(matches, *video)
+			if len(matches) >= targetEnd {
+				break
 			}
 		}
 
-		// Stop once we have enough results
-		if len(videos) >= perPage {
+		if !moreRawResults {
 			break
 		}
 	}
 
-	// Calculate pagination (estimated)
-	total := int64(response.Count)
-	if !isBDSMQuery {
-		// For non-BDSM queries, report fewer total results
-		total = int64(len(videos))
+	var videos []models.Video
+	if targetStart < len(matches) {
+		end := targetStart + perPage
+		if end > len(matches) {
+			end = len(matches)
+		}
+		videos = matches[targetStart:end]
+	} else {
+		videos = []models.Video{}
 	}
 
+	hasMore := len(matches) > targetStart+perPage || (moreRawResults && len(videos) == perPage)
+	total := int64(targetStart + len(videos))
+	if hasMore {
+		total++
+	}
 	totalPages := int(total) / perPage
 	if int(total)%perPage > 0 {
 		totalPages++
@@ -344,12 +401,15 @@ func (h *Handler) GetRelatedVideos(c *fiber.Ctx) error {
 	}
 
 	limit, _ := strconv.Atoi(c.Query("limit", "12"))
+	if limit < 1 {
+		limit = 12
+	}
 	if limit > 24 {
 		limit = 24
 	}
 
 	// Try cache first
-	cacheKey := database.RelatedVideosCacheKey(id)
+	cacheKey := database.RelatedVideosCacheKey(id, limit)
 	var cached []models.Video
 	err = h.cache.Get(c.Context(), cacheKey, &cached)
 	if err == nil {
@@ -460,7 +520,7 @@ func (h *Handler) GetMenuCategories(c *fiber.Ctx) error {
 
 	cachedThumbnails, err := h.db.GetCategoryMenuThumbnailMap(c.Context(), menuSlugs)
 	if err != nil {
-		cachedThumbnails = map[string]string{}
+		cachedThumbnails = map[string]database.CategoryMenuThumbnailCache{}
 	}
 
 	// Fetch the first relevant video thumbnail for each category
@@ -471,8 +531,10 @@ func (h *Handler) GetMenuCategories(c *fiber.Ctx) error {
 			Name: slugToName[slug],
 		}
 
-		if thumbnail, ok := cachedThumbnails[slug]; ok {
-			cat.Thumbnail = thumbnail
+		queryKey := menuCategoryThumbnailQueryKey(slug)
+
+		if cachedThumbnail, ok := cachedThumbnails[slug]; ok && cachedThumbnail.QueryKey == queryKey {
+			cat.Thumbnail = cachedThumbnail.Thumbnail
 		}
 
 		if cat.Thumbnail == "" {
@@ -490,7 +552,7 @@ func (h *Handler) GetMenuCategories(c *fiber.Ctx) error {
 				}
 			}
 
-			_ = h.db.UpsertCategoryMenuThumbnail(c.Context(), slug, cat.Thumbnail)
+			_ = h.db.UpsertCategoryMenuThumbnail(c.Context(), slug, queryKey, cat.Thumbnail)
 		}
 
 		categories = append(categories, cat)
@@ -542,7 +604,7 @@ func (h *Handler) TriggerImport(c *fiber.Ctx) error {
 	}
 
 	// Run import in background
-	go h.importer.Run(c.Context())
+	go h.importer.Run(context.Background())
 
 	return c.JSON(fiber.Map{
 		"message": "Import started",
