@@ -114,7 +114,9 @@ var bdsmRelevanceTerms = []string{
 	"mistress",
 	"domme",
 	"goddess",
+	"dominant",
 	"slave",
+	"slave training",
 	"submission",
 	"submissive",
 	"shibari",
@@ -187,6 +189,7 @@ var bdsmRelevanceTerms = []string{
 	"inescapable",
 	"encased",
 	"wrapped",
+	"dungeon"
 }
 
 // bdsmEnhancementTerms - niche terms that need "bdsm" appended for quality results
@@ -195,7 +198,7 @@ var bdsmEnhancementTerms = []string{
 	"chastity", "cage",
 	"wax play", "electro play", "orgasm control", "edging",
 	"tease denial", "breath play", "sensory deprivation",
-	"collar", "leash", "worship", "humiliation", "degradation",
+	"collar", "leash", "worship", "humiliation", "degradation","public humiliation",
 	"objectification", "furniture", "trampling", "smothering",
 }
 
@@ -205,8 +208,7 @@ var enhancedQueryOverrides = map[string]string{
 	"puppy play":           "puppy play bdsm",
 	"pony play":            "pony play bdsm",
 	"kitten play":          "kitten play bdsm",
-	"chastity":             "chastity bdsm",
-	"chasity":              "chastity belt bdsm",
+	"chastity":             "chastity belt bdsm",
 	"orgasm control":       "orgasm control bdsm",
 	"tease and denial":     "tease and denial bdsm",
 	"tease denial":         "tease denial bdsm",
@@ -222,7 +224,7 @@ var enhancedQueryOverrides = map[string]string{
 
 var queryIntentTerms = map[string][]string{
 	"pet play":            {"pet play", "puppy play", "pony play", "kitten play", "human pet"},
-	"chastity":            {"chastity", "orgasm control", "tease denial", "tease and denial", "edging", "ruined orgasm", "forced orgasm", "keyholder"},
+	"chastity":            {"chastity belt", "chastity cage", "ruined orgasm", "keyholder"},
 	"wax play":            {"wax play", "candle wax", "hot wax"},
 	"electro play":        {"electro play", "electro torture", "violet wand", "estim"},
 	"sensory deprivation": {"sensory deprivation", "blindfold", "hood", "isolation"},
@@ -511,9 +513,9 @@ var categoryMap = map[string]string{
 	"orgasm control":      "chastity",
 	"chastity":            "chastity",
 	"ruined orgasm":       "chastity",
-	"forced orgasm":       "chastity",
-	"edging":              "chastity",
-	"tease denial":        "chastity",
+	"forced orgasm":       "forced orgasm",
+	"edging":              "edging",
+	"tease denial":        "tease denial",
 	"spanking":            "spanking",
 	"caning":              "caning",
 	"paddling":            "spanking",
