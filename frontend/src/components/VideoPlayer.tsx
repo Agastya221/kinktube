@@ -81,22 +81,15 @@ export default function VideoPlayer({
           </div>
         ) : (
           // Iframe embed
-          <>
-            <iframe
-              src={getEmbedUrl()}
-              title={title}
-              allowFullScreen
-              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-              className="absolute inset-0 w-full h-full"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-            {/* Overlay to hide eporner download button (top-left corner) */}
-            <div
-              className="absolute top-0 left-0 w-20 h-14 bg-black pointer-events-none z-10"
-              aria-hidden="true"
-            />
-          </>
+          <iframe
+            src={getEmbedUrl()}
+            title={title}
+            allowFullScreen
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+            className="absolute inset-0 w-full h-full"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
         )}
 
         {/* Fullscreen toggle button */}
