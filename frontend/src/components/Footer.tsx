@@ -41,18 +41,18 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/category/bdsm"
+                  href="/category/medical-bondage"
                   className="text-foreground-muted hover:text-accent transition-colors"
                 >
-                  BDSM
+                  Medical Bondage
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/category/latex"
+                  href="/category/vacbed"
                   className="text-foreground-muted hover:text-accent transition-colors"
                 >
-                  Latex
+                  Vacbed
                 </Link>
               </li>
               <li>

@@ -58,7 +58,11 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
   },
   "medical-bondage": {
     title: "Medical Bondage Videos",
-    description: "Watch free medical bondage videos featuring clinical restraints, fetish exams, vacbeds, and medical play.",
+    description: "Watch free medical bondage videos featuring clinical restraints, fetish exams, and medical play.",
+  },
+  vacbed: {
+    title: "Vacbed Videos - Vacuum Bed Bondage",
+    description: "Watch free vacbed videos featuring vacuum bed bondage, enclosure play, and airtight fetish scenes.",
   },
   latex: {
     title: "Latex Fetish Videos",
@@ -84,6 +88,17 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
     title: "Dominatrix Videos - Pro Domme",
     description: "Watch free dominatrix videos featuring professional dommes, dungeon scenes, and femdom sessions.",
   },
+};
+
+const categorySearchQueryMap: Record<string, string> = {
+  "device-bondage": "device bondage",
+  "medical-bondage": "medical bondage",
+  "extreme-bondage": "extreme bondage",
+  "foot-fetish": "foot fetish",
+  "pet-play": "pet play",
+  "sensory-deprivation": "sensory deprivation",
+  "severe-discipline": "severe discipline",
+  vacbed: "vacbed",
 };
 
 // Generate metadata for SEO
@@ -119,9 +134,9 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const { slug } = await params;
   const search = await searchParams;
   const page = parseInt(search.page || "1", 10);
-  // Default to rating (top-rated) for category pages
-  const sort = (search.sort as "latest" | "views" | "rating") || "rating";
+  const sort = search.sort as "latest" | "views" | "rating" | "extreme" | undefined;
   const useInfiniteScroll = search.infinite === "1";
+  const categoryQuery = categorySearchQueryMap[slug] || slug.replace(/-/g, " ");
 
   // Format category name for display
   const categoryName = slug
@@ -135,7 +150,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   try {
     [videosData, categories] = await Promise.all([
-      getVideosServer({ page, per_page: 24, sort, category: slug }),
+      getVideosServer({
+        page,
+        per_page: 24,
+        q: categoryQuery,
+        ...(sort && { sort }),
+      }),
       getCategoriesServer().catch(() => ({ categories: defaultCategories })),
     ]);
   } catch {
@@ -178,11 +198,19 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       {/* Sort Options */}
       <section className="mb-6 flex items-center justify-between">
         <h2 className="text-xl font-semibold">
-          {sort === "latest" ? "Latest" : sort === "views" ? "Most Viewed" : "Top Rated"}
+          {!sort
+            ? "Most Relevant"
+            : sort === "latest"
+              ? "Latest"
+              : sort === "views"
+                ? "Most Viewed"
+                : sort === "extreme"
+                  ? "Most Extreme"
+                  : "Top Rated"}
         </h2>
         <div className="flex items-center gap-2">
           <span className="text-foreground-muted text-sm hidden sm:inline">Sort by:</span>
-          <SortSelect current={sort} />
+          <SortSelect current={sort} showRelevance />
         </div>
       </section>
 
@@ -192,7 +220,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           initialVideos={videosData.videos}
           initialPage={videosData.page}
           totalPages={videosData.total_pages}
-          queryParams={{ per_page: 24, sort, category: slug }}
+          queryParams={{ per_page: 24, q: categoryQuery, ...(sort && { sort }) }}
         />
       ) : (
         <>

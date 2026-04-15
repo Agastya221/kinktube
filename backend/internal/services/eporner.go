@@ -540,8 +540,8 @@ var categoryMap = map[string]string{
 	"device":              "device-bondage",
 	"spreader bar":        "device-bondage",
 	"medical bondage":     "medical-bondage",
-	"vacbed":              "latex",
-	"vacuum bed":          "latex",
+	"vacbed":              "vacbed",
+	"vacuum bed":          "vacbed",
 	// Extreme category mappings
 	"mummification":       "mummification",
 	"mummified":           "mummification",

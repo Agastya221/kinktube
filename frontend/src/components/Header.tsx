@@ -18,7 +18,7 @@ const menuCategories = [
   { slug: "slave", name: "Slave" },
   { slug: "submission", name: "Submission" },
   { slug: "latex", name: "Latex" },
-  { slug: "leather", name: "Leather" },
+  { slug: "vacbed", name: "Vacbed" },
   { slug: "pet-play", name: "Pet Play" },
   { slug: "mummification", name: "Mummification" },
   { slug: "spanking", name: "Spanking" },

@@ -312,7 +312,7 @@ func (h *Handler) GetMenuCategories(c *fiber.Ctx) error {
 	// Menu categories we want thumbnails for
 	menuSlugs := []string{
 		"extreme-bondage", "femdom", "bondage", "shibari", "dominatrix",
-		"slave", "submission", "latex", "leather", "pet-play",
+		"slave", "submission", "latex", "vacbed", "pet-play",
 		"mummification", "spanking", "cbt", "strapon", "facesitting",
 	}
 
@@ -325,7 +325,7 @@ func (h *Handler) GetMenuCategories(c *fiber.Ctx) error {
 		"slave":           "Slave",
 		"submission":      "Submission",
 		"latex":           "Latex",
-		"leather":         "Leather",
+		"vacbed":          "Vacbed",
 		"pet-play":        "Pet Play",
 		"mummification":   "Mummification",
 		"spanking":        "Spanking",

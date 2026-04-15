@@ -209,7 +209,7 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 	// Priority categories for homepage mixing
 	priorityCategories := []string{
 		"extreme-bondage", "bondage", "slave", "submission",
-		"dominatrix", "shibari", "leather", "latex", "pet-play", "femdom",
+		"dominatrix", "shibari", "medical-bondage", "latex", "pet-play", "femdom",
 	}
 
 	// Determine sort order
