@@ -538,9 +538,10 @@ var categoryMap = map[string]string{
 	"ball busting":        "cbt",
 	"cock torture":        "cbt",
 	"device":              "device-bondage",
+	"spreader bar":        "device-bondage",
 	"medical bondage":     "medical-bondage",
-	"vacbed":              "medical-bondage",
-	"spreader bar":        "medical-bondage",
+	"vacbed":              "latex",
+	"vacuum bed":          "latex",
 	// Extreme category mappings
 	"mummification":       "mummification",
 	"mummified":           "mummification",

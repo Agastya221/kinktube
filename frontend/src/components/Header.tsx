@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Menu, X, ChevronRight, Flame, Search } from "lucide-react";
 import SearchBar from "./SearchBar";
@@ -24,7 +25,11 @@ const menuCategories = [
   { slug: "facesitting", name: "Facesitting" },
 ];
 
-export default function Header() {
+interface HeaderProps {
+  categoryThumbnails?: Record<string, string>;
+}
+
+export default function Header({ categoryThumbnails = {} }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Prevent body scroll when menu is open
@@ -150,54 +155,76 @@ export default function Header() {
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
+              className="flex items-center justify-between py-3 text-[#fafafa] hover:text-[#dc2626] transition-colors"
             >
               <span className="font-medium">Home</span>
-              <ChevronRight className="w-5 h-5 text-foreground-muted" />
+              <ChevronRight className="w-5 h-5 text-[#a1a1aa]" />
             </Link>
             <Link
               href="/?sort=rating"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
+              className="flex items-center justify-between py-3 text-[#fafafa] hover:text-[#dc2626] transition-colors"
             >
               <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-accent" />
+                <Flame className="w-4 h-4 text-[#dc2626]" />
                 <span className="font-medium">Popular</span>
               </div>
-              <ChevronRight className="w-5 h-5 text-foreground-muted" />
+              <ChevronRight className="w-5 h-5 text-[#a1a1aa]" />
             </Link>
             <Link
               href="/?sort=latest"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
+              className="flex items-center justify-between py-3 text-[#fafafa] hover:text-[#dc2626] transition-colors"
             >
               <span className="font-medium">Newest</span>
-              <ChevronRight className="w-5 h-5 text-foreground-muted" />
+              <ChevronRight className="w-5 h-5 text-[#a1a1aa]" />
             </Link>
             <Link
               href="/?sort=views"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
+              className="flex items-center justify-between py-3 text-[#fafafa] hover:text-[#dc2626] transition-colors"
             >
               <span className="font-medium">Most Viewed</span>
-              <ChevronRight className="w-5 h-5 text-foreground-muted" />
+              <ChevronRight className="w-5 h-5 text-[#a1a1aa]" />
             </Link>
           </div>
 
-          {/* Categories List */}
+          {/* Categories Grid */}
           <div className="p-4">
-            <h3 className="text-xs font-semibold text-foreground-muted uppercase tracking-wider mb-3">
+            <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-3">
               Categories
             </h3>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <div className="grid grid-cols-2 gap-2">
               {menuCategories.map((category) => (
                 <Link
                   key={category.slug}
                   href={`/category/${category.slug}`}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="py-2.5 text-foreground hover:text-accent transition-colors text-sm"
+                  className="relative group overflow-hidden rounded-lg aspect-[4/3] bg-[#1a1a1a]"
                 >
-                  {category.name}
+                  {/* Category Thumbnail */}
+                  {categoryThumbnails[category.slug] ? (
+                    <Image
+                      src={categoryThumbnails[category.slug]}
+                      alt={category.name}
+                      fill
+                      className="object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-300"
+                      sizes="150px"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#dc2626]/30 to-[#1a1a1a]" />
+                  )}
+
+                  {/* Overlay Gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+
+                  {/* Category Label */}
+                  <div className="absolute bottom-0 left-0 right-0 p-2">
+                    <span className="text-white text-sm font-semibold drop-shadow-lg">
+                      {category.name}
+                    </span>
+                  </div>
                 </Link>
               ))}
             </div>

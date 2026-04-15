@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/Header";
+import HeaderWrapper from "@/components/HeaderWrapper";
 import Footer from "@/components/Footer";
 import AgeVerification from "@/components/AgeVerification";
 import DisclaimerBanner from "@/components/DisclaimerBanner";
@@ -92,7 +92,7 @@ export default function RootLayout({
         <Analytics />
         <AgeVerification>
           <DisclaimerBanner />
-          <Header />
+          <HeaderWrapper />
           <main className="flex-1">{children}</main>
           <Footer />
           <PopunderAd />
