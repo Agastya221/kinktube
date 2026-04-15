@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, X, Loader2, TrendingUp } from "lucide-react";
+import { Search, Loader2, TrendingUp } from "lucide-react";
 
 interface SearchBarProps {
   placeholder?: string;
@@ -204,13 +204,6 @@ export default function SearchBar({
     }
   };
 
-  const clearSearch = () => {
-    setQuery("");
-    setSuggestions(getPopularSuggestions(""));
-    setShowSuggestions(true);
-    inputRef.current?.focus();
-  };
-
   const handleFocus = () => {
     setShowSuggestions(true);
     setSuggestions(getPopularSuggestions(query));
@@ -238,22 +231,11 @@ export default function SearchBar({
             onKeyDown={handleKeyDown}
             onFocus={handleFocus}
             placeholder={placeholder}
-            className="w-full bg-background-secondary border border-border rounded-lg pl-11 pr-20 sm:pr-28 py-2.5 sm:py-3 text-sm sm:text-base text-foreground placeholder-foreground-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all duration-200"
+            className="w-full bg-background-secondary border border-border rounded-lg pl-11 pr-14 sm:pr-20 py-2.5 sm:py-3 text-sm sm:text-base text-foreground placeholder-foreground-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all duration-200"
             autoComplete="off"
             spellCheck={false}
           />
 
-          {/* Clear Button */}
-          {query && (
-            <button
-              type="button"
-              onClick={clearSearch}
-              className="absolute right-20 sm:right-24 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-foreground-muted hover:text-foreground transition-colors rounded-full hover:bg-[#27272a]"
-              aria-label="Clear search"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
 
           {/* Search Button */}
           <button
