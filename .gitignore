@@ -6,6 +6,7 @@ vendor/
 backend/kinktube
 frontend/.next/
 frontend/out/
+backend/.gocache
 
 # Environment files
 .env

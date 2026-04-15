@@ -82,9 +82,70 @@ func (db *PostgresDB) InitSchema(ctx context.Context) error {
 
 		-- Full text search index
 		CREATE INDEX IF NOT EXISTS idx_videos_title_search ON videos USING GIN(to_tsvector('english', title));
+
+		CREATE TABLE IF NOT EXISTS category_menu_thumbnails (
+			slug VARCHAR(64) PRIMARY KEY,
+			thumbnail TEXT NOT NULL,
+			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);
 	`
 
 	_, err := db.pool.Exec(ctx, schema)
+	return err
+}
+
+// GetCategoryMenuThumbnailMap returns cached menu thumbnails by category slug.
+func (db *PostgresDB) GetCategoryMenuThumbnailMap(ctx context.Context, slugs []string) (map[string]string, error) {
+	if len(slugs) == 0 {
+		return map[string]string{}, nil
+	}
+
+	query := `
+		SELECT slug, thumbnail
+		FROM category_menu_thumbnails
+		WHERE slug = ANY($1)
+	`
+
+	rows, err := db.pool.Query(ctx, query, slugs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	thumbnails := make(map[string]string, len(slugs))
+	for rows.Next() {
+		var slug string
+		var thumbnail string
+		if err := rows.Scan(&slug, &thumbnail); err != nil {
+			return nil, err
+		}
+		thumbnails[slug] = thumbnail
+	}
+
+	return thumbnails, rows.Err()
+}
+
+// UpsertCategoryMenuThumbnail stores or refreshes a cached menu thumbnail.
+func (db *PostgresDB) UpsertCategoryMenuThumbnail(ctx context.Context, slug, thumbnail string) error {
+	if slug == "" || thumbnail == "" {
+		return nil
+	}
+
+	query := `
+		INSERT INTO category_menu_thumbnails (slug, thumbnail, updated_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (slug) DO UPDATE SET
+			thumbnail = EXCLUDED.thumbnail,
+			updated_at = NOW()
+	`
+
+	_, err := db.pool.Exec(ctx, query, slug, thumbnail)
+	return err
+}
+
+// ClearCategoryMenuThumbnailCache removes cached menu thumbnails so they can be refreshed.
+func (db *PostgresDB) ClearCategoryMenuThumbnailCache(ctx context.Context) error {
+	_, err := db.pool.Exec(ctx, "DELETE FROM category_menu_thumbnails")
 	return err
 }
 

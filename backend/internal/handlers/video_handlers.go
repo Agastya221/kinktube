@@ -87,30 +87,37 @@ func markSearchResultSeen(seen map[string]struct{}, keys []string) {
 func (h *Handler) getRelevantCategoryThumbnail(c *fiber.Ctx, slug string) string {
 	query := categorySearchQuery(slug)
 
-	response, err := h.eporner.SearchVideos(c.Context(), query, 1, 12)
-	if err != nil {
-		return ""
+	searchAttempts := []*services.SearchOptions{
+		{Order: "top-rated"},
+		nil,
 	}
 
-	seen := make(map[string]struct{})
-
-	for _, ev := range response.Videos {
-		keys := buildSearchDedupKeys(&ev)
-		if searchResultSeen(seen, keys) {
+	for _, opts := range searchAttempts {
+		response, err := h.eporner.SearchVideosWithOptions(c.Context(), query, 1, 12, opts)
+		if err != nil {
 			continue
 		}
 
-		if !services.MatchesTopicAndBDSM(&ev, query) {
-			continue
-		}
+		seen := make(map[string]struct{})
 
-		markSearchResultSeen(seen, keys)
-		video := services.ConvertToVideo(&ev, query)
-		if video.ThumbnailLg != "" {
-			return video.ThumbnailLg
-		}
-		if video.Thumbnail != "" {
-			return video.Thumbnail
+		for _, ev := range response.Videos {
+			keys := buildSearchDedupKeys(&ev)
+			if searchResultSeen(seen, keys) {
+				continue
+			}
+
+			if !services.MatchesTopicAndBDSM(&ev, query) {
+				continue
+			}
+
+			markSearchResultSeen(seen, keys)
+			video := services.ConvertToVideo(&ev, query)
+			if video.ThumbnailLg != "" {
+				return video.ThumbnailLg
+			}
+			if video.Thumbnail != "" {
+				return video.Thumbnail
+			}
 		}
 	}
 
@@ -451,6 +458,11 @@ func (h *Handler) GetMenuCategories(c *fiber.Ctx) error {
 		})
 	}
 
+	cachedThumbnails, err := h.db.GetCategoryMenuThumbnailMap(c.Context(), menuSlugs)
+	if err != nil {
+		cachedThumbnails = map[string]string{}
+	}
+
 	// Fetch the first relevant video thumbnail for each category
 	categories := make([]MenuCategory, 0, len(menuSlugs))
 	for _, slug := range menuSlugs {
@@ -459,18 +471,26 @@ func (h *Handler) GetMenuCategories(c *fiber.Ctx) error {
 			Name: slugToName[slug],
 		}
 
-		cat.Thumbnail = h.getRelevantCategoryThumbnail(c, slug)
+		if thumbnail, ok := cachedThumbnails[slug]; ok {
+			cat.Thumbnail = thumbnail
+		}
 
-		// Fall back to the imported DB thumbnail if live search couldn't find one.
 		if cat.Thumbnail == "" {
-			result, err := h.db.ListVideos(c.Context(), 1, 1, "rating", slug, "")
-			if err == nil && len(result.Videos) > 0 {
-				if result.Videos[0].ThumbnailLg != "" {
-					cat.Thumbnail = result.Videos[0].ThumbnailLg
-				} else {
-					cat.Thumbnail = result.Videos[0].Thumbnail
+			cat.Thumbnail = h.getRelevantCategoryThumbnail(c, slug)
+
+			// Fall back to the imported DB thumbnail if live search couldn't find one.
+			if cat.Thumbnail == "" {
+				result, err := h.db.ListVideos(c.Context(), 1, 1, "rating", slug, "")
+				if err == nil && len(result.Videos) > 0 {
+					if result.Videos[0].ThumbnailLg != "" {
+						cat.Thumbnail = result.Videos[0].ThumbnailLg
+					} else {
+						cat.Thumbnail = result.Videos[0].Thumbnail
+					}
 				}
 			}
+
+			_ = h.db.UpsertCategoryMenuThumbnail(c.Context(), slug, cat.Thumbnail)
 		}
 
 		categories = append(categories, cat)

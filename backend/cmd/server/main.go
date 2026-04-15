@@ -125,6 +125,9 @@ func main() {
 			if err := cache.DeletePattern(ctx, database.CacheKeyMenuCategories); err != nil {
 				log.Printf("Warning: failed to clear menu category cache: %v", err)
 			}
+			if err := db.ClearCategoryMenuThumbnailCache(ctx); err != nil {
+				log.Printf("Warning: failed to clear menu thumbnail cache: %v", err)
+			}
 			// Run light import to get fresh content
 			importer.RunLight(ctx)
 		}

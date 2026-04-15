@@ -176,6 +176,10 @@ func (i *Importer) importKeyword(ctx context.Context, keyword string) keywordSta
 }
 
 func (i *Importer) invalidateCache(ctx context.Context) error {
+	if err := i.db.ClearCategoryMenuThumbnailCache(ctx); err != nil {
+		return err
+	}
+
 	// Clear all video-related cache keys
 	patterns := []string{
 		"videos:*",
