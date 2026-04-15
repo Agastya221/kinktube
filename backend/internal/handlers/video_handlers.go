@@ -46,6 +46,9 @@ func (h *Handler) ListVideos(c *fiber.Ctx) error {
 
 // liveSearch queries Eporner API directly and filters for BDSM relevance
 func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) error {
+	// Get sort preference from query params
+	sortBy := c.Query("sort", "top-rated") // Default to top-rated for better quality
+
 	// Enhance query for better BDSM results
 	enhancedQuery := services.EnhanceQueryForBDSM(query)
 
@@ -53,7 +56,7 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 	isBDSMQuery := services.IsBDSMRelatedQuery(query)
 
 	// Try cache first
-	cacheKey := database.VideoListCacheKey("search", page, perPage, "", enhancedQuery)
+	cacheKey := database.VideoListCacheKey("search-"+sortBy, page, perPage, "", enhancedQuery)
 	var cached models.VideoListResponse
 	err := h.cache.Get(c.Context(), cacheKey, &cached)
 	if err == nil {
@@ -66,10 +69,25 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 		fetchPerPage = 100
 	}
 
-	response, err := h.eporner.SearchVideos(c.Context(), enhancedQuery, page, fetchPerPage)
+	// Map sort option to Eporner API order
+	opts := &services.SearchOptions{}
+	switch sortBy {
+	case "latest":
+		opts.Order = "latest"
+	case "views":
+		opts.Order = "most-popular"
+	case "rating":
+		opts.Order = "top-rated"
+	case "duration":
+		opts.Order = "longest"
+	default:
+		opts.Order = "top-rated" // Default to top-rated for quality
+	}
+
+	response, err := h.eporner.SearchVideosWithOptions(c.Context(), enhancedQuery, page, fetchPerPage, opts)
 	if err != nil {
 		// Fallback to database search if Eporner fails
-		result, dbErr := h.db.ListVideos(c.Context(), page, perPage, "latest", "", query)
+		result, dbErr := h.db.ListVideos(c.Context(), page, perPage, sortBy, "", query)
 		if dbErr != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Failed to search videos",
@@ -132,8 +150,13 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 // SearchVideos handles GET /api/search - dedicated live search endpoint
 func (h *Handler) SearchVideos(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
-	perPage, _ := strconv.Atoi(c.Query("per_page", "24"))
+	perPage, _ := strconv.Atoi(c.Query("per_page", "36")) // Default to 36 for search
 	query := c.Query("q", "")
+
+	// Cap per_page at 50 for search
+	if perPage > 50 {
+		perPage = 50
+	}
 
 	if query == "" {
 		return c.JSON(models.VideoListResponse{

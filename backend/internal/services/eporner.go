@@ -224,7 +224,6 @@ var enhancedQueryOverrides = map[string]string{
 
 var queryIntentTerms = map[string][]string{
 	"pet play":            {"pet play", "puppy play", "pony play", "kitten play", "human pet"},
-	"chastity":            {"chastity belt", "chastity cage", "ruined orgasm", "keyholder"},
 	"wax play":            {"wax play", "candle wax", "hot wax"},
 	"electro play":        {"electro play", "electro torture", "violet wand", "estim"},
 	"sensory deprivation": {"sensory deprivation", "blindfold", "hood", "isolation"},

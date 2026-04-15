@@ -186,6 +186,7 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 	argIndex := 1
 
 	if category != "" {
+		// Category must be present in the categories array
 		conditions = append(conditions, fmt.Sprintf("$%d = ANY(categories)", argIndex))
 		args = append(args, category)
 		argIndex++
@@ -236,6 +237,18 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 				ELSE 0
 			END ASC,
 			added_at DESC`
+	}
+
+	// For category pages, prioritize videos where this category is the PRIMARY focus
+	// Note: category is already validated via the categories array check, so this is safe
+	if category != "" && sortBy == "latest" {
+		// We need to reference the category parameter that's already in args
+		// The category is at position $1 in the args
+		orderClause = `ORDER BY
+			CASE WHEN categories[1] = $1 THEN 0 ELSE 1 END,
+			CASE WHEN keywords ILIKE '%' || $1 || '%' THEN 0 ELSE 1 END,
+			rating DESC,
+			views DESC`
 	}
 
 	// Count total
@@ -331,21 +344,40 @@ func (db *PostgresDB) GetTotalVideoCount(ctx context.Context) (int64, error) {
 }
 
 // GetRelatedVideos fetches videos related by category or tags
+// Prioritizes videos that share the FIRST (primary) category and specific keywords
 func (db *PostgresDB) GetRelatedVideos(ctx context.Context, videoID int64, limit int) ([]models.Video, error) {
 	query := `
 		WITH target AS (
-			SELECT categories, tags FROM videos WHERE id = $1
+			SELECT
+				categories,
+				tags,
+				keywords,
+				COALESCE(categories[1], 'bdsm') as primary_category
+			FROM videos WHERE id = $1
 		)
 		SELECT v.id, v.external_id, v.title, v.description, v.duration, v.duration_str,
 			v.views, v.rating, v.thumbnail, v.thumbnail_lg, v.embed_url, v.source_url,
 			v.tags, v.categories, v.keywords, v.added_at, v.published_at, v.last_updated_at
 		FROM videos v, target t
 		WHERE v.id != $1
-		AND (v.categories && t.categories OR v.tags && t.tags)
+		AND (
+			-- Must share primary category OR have same keywords
+			t.primary_category = ANY(v.categories)
+			OR v.keywords = t.keywords
+		)
 		ORDER BY
-			(SELECT COUNT(*) FROM unnest(v.categories) c WHERE c = ANY(t.categories)) +
-			(SELECT COUNT(*) FROM unnest(v.tags) tag WHERE tag = ANY(t.tags)) DESC,
-			v.views DESC
+			-- Highest priority: same keywords (imported from same search)
+			CASE WHEN v.keywords = t.keywords THEN 10 ELSE 0 END +
+			-- High priority: shares primary category
+			CASE WHEN t.primary_category = ANY(v.categories) THEN 5 ELSE 0 END +
+			-- Medium priority: number of matching categories (excluding generic 'bdsm')
+			(SELECT COUNT(*) FROM unnest(v.categories) c
+			 WHERE c = ANY(t.categories) AND c != 'bdsm') +
+			-- Lower priority: matching tags
+			(SELECT COUNT(*) FROM unnest(v.tags) tag WHERE tag = ANY(t.tags)) * 0.5
+		DESC,
+		v.rating DESC,
+		v.views DESC
 		LIMIT $2
 	`
 

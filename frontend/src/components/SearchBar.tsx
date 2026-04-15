@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, X, Loader2 } from "lucide-react";
+import { Search, X, Loader2, TrendingUp } from "lucide-react";
 
 interface SearchBarProps {
   placeholder?: string;
@@ -12,7 +12,7 @@ interface SearchBarProps {
 interface SearchSuggestion {
   id: string;
   title: string;
-  type: "result" | "suggestion";
+  type: "result" | "suggestion" | "trending";
 }
 
 // Popular BDSM search terms for suggestions
@@ -52,10 +52,11 @@ export default function SearchBar({
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const suggestionRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Sync query with URL params
   useEffect(() => {
     setQuery(searchParams.get("q") || "");
   }, [searchParams]);
@@ -63,12 +64,7 @@ export default function SearchBar({
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        suggestionRef.current &&
-        !suggestionRef.current.contains(e.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(e.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
       }
     };
@@ -77,15 +73,34 @@ export default function SearchBar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetch live suggestions from API with debouncing
-  const fetchSuggestions = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim() || searchQuery.length < 2) {
-      // Show popular searches when query is empty or too short
-      const filtered = popularSearches
-        .filter((s) => !searchQuery || s.toLowerCase().includes(searchQuery.toLowerCase()))
-        .slice(0, 8)
-        .map((s) => ({ id: s, title: s, type: "suggestion" as const }));
-      setSuggestions(filtered);
+  // Get popular suggestions (no API call needed)
+  const getPopularSuggestions = useCallback((searchQuery: string): SearchSuggestion[] => {
+    const q = searchQuery.toLowerCase().trim();
+
+    if (!q) {
+      // Show trending when empty
+      return popularSearches.slice(0, 8).map((s) => ({
+        id: `trending-${s}`,
+        title: s,
+        type: "trending" as const,
+      }));
+    }
+
+    // Filter by what matches the query
+    return popularSearches
+      .filter((s) => s.toLowerCase().includes(q))
+      .slice(0, 6)
+      .map((s) => ({
+        id: `suggest-${s}`,
+        title: s,
+        type: "suggestion" as const,
+      }));
+  }, []);
+
+  // Fetch live suggestions from API
+  const fetchLiveSuggestions = useCallback(async (searchQuery: string) => {
+    if (searchQuery.length < 2) {
+      setSuggestions(getPopularSuggestions(searchQuery));
       setIsLoading(false);
       return;
     }
@@ -93,28 +108,23 @@ export default function SearchBar({
     setIsLoading(true);
 
     try {
-      // Fetch live results from Eporner via our API
       const response = await fetch(
-        `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&per_page=6`
+        `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&per_page=6&sort=top-rated`,
+        { signal: AbortSignal.timeout(5000) } // 5s timeout
       );
 
       if (!response.ok) throw new Error("Search failed");
 
       const data = await response.json();
-
       const results: SearchSuggestion[] = [];
 
-      // Add matching popular searches first
-      const matchingPopular = popularSearches
-        .filter((s) => s.toLowerCase().includes(searchQuery.toLowerCase()))
-        .slice(0, 3)
-        .map((s) => ({ id: `suggest-${s}`, title: s, type: "suggestion" as const }));
+      // Add matching popular searches first (always available)
+      const popularMatches = getPopularSuggestions(searchQuery);
+      results.push(...popularMatches.slice(0, 3));
 
-      results.push(...matchingPopular);
-
-      // Add live video results
+      // Add live video results if available
       if (data.videos && data.videos.length > 0) {
-        const videoResults = data.videos.slice(0, 5).map((v: { id: string; title: string }) => ({
+        const videoResults = data.videos.slice(0, 5).map((v: { id: number; title: string }) => ({
           id: `video-${v.id}`,
           title: v.title,
           type: "result" as const,
@@ -124,33 +134,34 @@ export default function SearchBar({
 
       setSuggestions(results.slice(0, 8));
     } catch {
-      // On error, show matching popular searches
-      const filtered = popularSearches
-        .filter((s) => s.toLowerCase().includes(searchQuery.toLowerCase()))
-        .slice(0, 8)
-        .map((s) => ({ id: s, title: s, type: "suggestion" as const }));
-      setSuggestions(filtered);
+      // On error, just show popular matches
+      setSuggestions(getPopularSuggestions(searchQuery));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [getPopularSuggestions]);
 
-  // Debounced search
+  // Debounced input handler
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setQuery(value);
     setSelectedIndex(-1);
     setShowSuggestions(true);
 
+    // Show popular suggestions immediately
+    setSuggestions(getPopularSuggestions(value));
+
     // Clear previous debounce
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
-    // Debounce API calls (300ms)
-    debounceRef.current = setTimeout(() => {
-      fetchSuggestions(value);
-    }, 300);
+    // Debounce live API calls (400ms)
+    if (value.length >= 2) {
+      debounceRef.current = setTimeout(() => {
+        fetchLiveSuggestions(value);
+      }, 400);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -162,7 +173,7 @@ export default function SearchBar({
   };
 
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
-    const searchTerm = suggestion.type === "suggestion" ? suggestion.title : query;
+    const searchTerm = suggestion.type === "result" ? query : suggestion.title;
     setQuery(searchTerm);
     setShowSuggestions(false);
     router.push(`/search?q=${encodeURIComponent(searchTerm)}`);
@@ -195,75 +206,76 @@ export default function SearchBar({
 
   const clearSearch = () => {
     setQuery("");
-    setSuggestions([]);
+    setSuggestions(getPopularSuggestions(""));
+    setShowSuggestions(true);
     inputRef.current?.focus();
   };
 
   const handleFocus = () => {
     setShowSuggestions(true);
-    if (!query.trim()) {
-      // Show popular searches on focus
-      const popular = popularSearches.slice(0, 8).map((s) => ({
-        id: s,
-        title: s,
-        type: "suggestion" as const,
-      }));
-      setSuggestions(popular);
-    }
+    setSuggestions(getPopularSuggestions(query));
   };
 
   return (
-    <form onSubmit={handleSubmit} className={`relative ${className}`}>
-      <div className="relative">
-        {/* Search Icon */}
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-          {isLoading ? (
-            <Loader2 className="w-5 h-5 text-foreground-muted animate-spin" />
-          ) : (
-            <Search className="w-5 h-5 text-foreground-muted" />
+    <div ref={containerRef} className={`relative ${className}`}>
+      <form onSubmit={handleSubmit}>
+        <div className="relative">
+          {/* Search Icon */}
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 text-foreground-muted animate-spin" />
+            ) : (
+              <Search className="w-5 h-5 text-foreground-muted" />
+            )}
+          </div>
+
+          {/* Input */}
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onFocus={handleFocus}
+            placeholder={placeholder}
+            className="w-full bg-background-secondary border border-border rounded-lg pl-12 pr-28 py-3 text-base text-foreground placeholder-foreground-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all duration-200"
+            autoComplete="off"
+            spellCheck={false}
+          />
+
+          {/* Clear Button */}
+          {query && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="absolute right-24 top-1/2 -translate-y-1/2 p-1.5 text-foreground-muted hover:text-foreground transition-colors rounded-full hover:bg-background-tertiary"
+            >
+              <X className="w-4 h-4" />
+            </button>
           )}
-        </div>
 
-        {/* Input */}
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          onFocus={handleFocus}
-          placeholder={placeholder}
-          className="search-input w-full pl-11 pr-24 py-3 text-base"
-          autoComplete="off"
-        />
-
-        {/* Clear Button */}
-        {query && (
+          {/* Search Button */}
           <button
-            type="button"
-            onClick={clearSearch}
-            className="absolute right-20 top-1/2 -translate-y-1/2 p-1 text-foreground-muted hover:text-foreground transition-colors"
+            type="submit"
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
           >
-            <X className="w-4 h-4" />
+            <Search className="w-4 h-4" />
+            <span className="hidden sm:inline">Search</span>
           </button>
-        )}
-
-        {/* Search Button */}
-        <button
-          type="submit"
-          className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
-        >
-          <Search className="w-4 h-4" />
-          <span className="hidden sm:inline">Search</span>
-        </button>
-      </div>
+        </div>
+      </form>
 
       {/* Suggestions Dropdown */}
       {showSuggestions && suggestions.length > 0 && (
-        <div
-          ref={suggestionRef}
-          className="absolute z-50 w-full mt-1 bg-background-secondary border border-border rounded-lg shadow-lg overflow-hidden"
-        >
+        <div className="absolute left-0 right-0 z-[100] mt-2 bg-[#111111] border border-[#27272a] rounded-lg shadow-2xl overflow-hidden">
+          {/* Header for trending */}
+          {!query && (
+            <div className="px-4 py-2 text-xs font-medium text-foreground-muted border-b border-[#27272a] flex items-center gap-2 bg-[#1a1a1a]">
+              <TrendingUp className="w-3 h-3" />
+              Trending Searches
+            </div>
+          )}
+
           {suggestions.map((suggestion, index) => (
             <button
               key={suggestion.id}
@@ -271,34 +283,39 @@ export default function SearchBar({
               onClick={() => handleSuggestionClick(suggestion)}
               className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-colors ${
                 index === selectedIndex
-                  ? "bg-accent/20 text-foreground"
-                  : "hover:bg-background-tertiary text-foreground"
+                  ? "bg-accent/20 text-white"
+                  : "hover:bg-[#1a1a1a] text-[#fafafa]"
               }`}
             >
-              {suggestion.type === "suggestion" ? (
-                <Search className="w-4 h-4 text-foreground-muted flex-shrink-0" />
+              {suggestion.type === "result" ? (
+                <div className="w-5 h-5 rounded bg-accent/30 flex items-center justify-center flex-shrink-0">
+                  <span className="text-[10px] text-accent">V</span>
+                </div>
+              ) : suggestion.type === "trending" ? (
+                <TrendingUp className="w-4 h-4 text-accent flex-shrink-0" />
               ) : (
-                <div className="w-4 h-4 rounded bg-accent/30 flex-shrink-0" />
+                <Search className="w-4 h-4 text-[#a1a1aa] flex-shrink-0" />
               )}
-              <span className="truncate">
-                {suggestion.type === "suggestion" ? (
-                  suggestion.title
-                ) : (
-                  <span className="text-sm">{suggestion.title}</span>
-                )}
+
+              <span className="truncate flex-1 text-sm">
+                {suggestion.title}
               </span>
-              {suggestion.type === "suggestion" && (
-                <span className="text-xs text-foreground-muted ml-auto">Search</span>
+
+              {suggestion.type !== "result" && (
+                <span className="text-xs text-[#a1a1aa] flex-shrink-0">
+                  {suggestion.type === "trending" ? "Trending" : "Search"}
+                </span>
               )}
             </button>
           ))}
 
-          {/* Search hint */}
-          <div className="px-4 py-2 text-xs text-foreground-muted border-t border-border bg-background-tertiary/50">
-            Press Enter to search or use arrow keys to navigate
+          {/* Footer hint */}
+          <div className="px-4 py-2 text-xs text-[#a1a1aa] border-t border-[#27272a] bg-[#0a0a0a]/50 flex items-center justify-between">
+            <span>Press Enter to search</span>
+            <span className="hidden sm:inline">Use arrow keys to navigate</span>
           </div>
         </div>
       )}
-    </form>
+    </div>
   );
 }
