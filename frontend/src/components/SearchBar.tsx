@@ -221,11 +221,11 @@ export default function SearchBar({
       <form onSubmit={handleSubmit}>
         <div className="relative">
           {/* Search Icon */}
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+          <div className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
             {isLoading ? (
-              <Loader2 className="w-5 h-5 text-foreground-muted animate-spin" />
+              <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 text-foreground-muted animate-spin" />
             ) : (
-              <Search className="w-5 h-5 text-foreground-muted" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5 text-foreground-muted" />
             )}
           </div>
 
@@ -238,7 +238,7 @@ export default function SearchBar({
             onKeyDown={handleKeyDown}
             onFocus={handleFocus}
             placeholder={placeholder}
-            className="w-full bg-background-secondary border border-border rounded-lg pl-12 pr-28 py-3 text-base text-foreground placeholder-foreground-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all duration-200"
+            className="w-full bg-background-secondary border border-border rounded-lg pl-11 pr-20 sm:pr-28 py-2.5 sm:py-3 text-sm sm:text-base text-foreground placeholder-foreground-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all duration-200"
             autoComplete="off"
             spellCheck={false}
           />
@@ -248,7 +248,8 @@ export default function SearchBar({
             <button
               type="button"
               onClick={clearSearch}
-              className="absolute right-24 top-1/2 -translate-y-1/2 p-1.5 text-foreground-muted hover:text-foreground transition-colors rounded-full hover:bg-background-tertiary"
+              className="absolute right-20 sm:right-24 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-foreground-muted hover:text-foreground transition-colors rounded-full hover:bg-[#27272a]"
+              aria-label="Clear search"
             >
               <X className="w-4 h-4" />
             </button>
@@ -257,7 +258,8 @@ export default function SearchBar({
           {/* Search Button */}
           <button
             type="submit"
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
+            className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 p-2 sm:px-3 sm:py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md sm:rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
+            aria-label="Search"
           >
             <Search className="w-4 h-4" />
             <span className="hidden sm:inline">Search</span>

@@ -152,3 +152,43 @@ export async function getVideoWithAffiliatesServer(id: number): Promise<VideoWit
 
   return response.json();
 }
+
+// Get top video thumbnail for a category (for category images)
+export async function getCategoryThumbnail(category: string): Promise<string | null> {
+  try {
+    const data = await getVideosServer({
+      category,
+      sort: "rating",
+      per_page: 1,
+      page: 1,
+    });
+
+    if (data.videos && data.videos.length > 0) {
+      return data.videos[0].thumbnail_lg || data.videos[0].thumbnail;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Get thumbnails for multiple categories
+export async function getCategoryThumbnails(categories: string[]): Promise<Record<string, string>> {
+  const thumbnails: Record<string, string> = {};
+
+  // Fetch in parallel with a small batch to avoid overwhelming the API
+  const results = await Promise.allSettled(
+    categories.map(async (cat) => {
+      const thumb = await getCategoryThumbnail(cat);
+      return { category: cat, thumbnail: thumb };
+    })
+  );
+
+  for (const result of results) {
+    if (result.status === "fulfilled" && result.value.thumbnail) {
+      thumbnails[result.value.category] = result.value.thumbnail;
+    }
+  }
+
+  return thumbnails;
+}

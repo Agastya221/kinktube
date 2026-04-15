@@ -46,8 +46,8 @@ func (h *Handler) ListVideos(c *fiber.Ctx) error {
 
 // liveSearch queries Eporner API directly and filters for BDSM relevance
 func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) error {
-	// Get sort preference from query params
-	sortBy := c.Query("sort", "top-rated") // Default to top-rated for better quality
+	// Get sort preference from query params - empty means let Eporner decide (relevance)
+	sortBy := c.Query("sort", "")
 
 	// Enhance query for better BDSM results
 	enhancedQuery := services.EnhanceQueryForBDSM(query)
@@ -70,6 +70,7 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 	}
 
 	// Map sort option to Eporner API order
+	// Empty string = let Eporner decide based on relevance
 	opts := &services.SearchOptions{}
 	switch sortBy {
 	case "latest":
@@ -81,7 +82,7 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 	case "duration":
 		opts.Order = "longest"
 	default:
-		opts.Order = "top-rated" // Default to top-rated for quality
+		opts.Order = "" // Let Eporner decide (relevance-based)
 	}
 
 	response, err := h.eporner.SearchVideosWithOptions(c.Context(), enhancedQuery, page, fetchPerPage, opts)
@@ -96,14 +97,22 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 		return c.JSON(result)
 	}
 
-	// Filter and convert results
+	// Filter and convert results, tracking seen IDs to prevent duplicates
 	var videos []models.Video
+	seenIDs := make(map[string]bool)
+
 	for _, ev := range response.Videos {
+		// Skip duplicates based on external ID
+		if seenIDs[ev.ID] {
+			continue
+		}
+
 		// For BDSM queries, only include relevant results
 		// For non-BDSM queries, heavily filter (show fewer results)
 		if isBDSMQuery {
 			if services.MatchesTopicAndBDSM(&ev, query) {
 				video := services.ConvertToVideo(&ev, query)
+				seenIDs[ev.ID] = true
 				videos = append(videos, *video)
 			}
 		} else {
@@ -111,6 +120,7 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 			// This gives limited results for off-topic searches
 			if services.MatchesQueryIntent(&ev, query) && services.IsRelevantBDSMVideo(&ev) && services.IsStrongBDSMMatch(&ev) {
 				video := services.ConvertToVideo(&ev, query)
+				seenIDs[ev.ID] = true
 				videos = append(videos, *video)
 			}
 		}

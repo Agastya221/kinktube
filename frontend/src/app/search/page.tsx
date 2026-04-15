@@ -30,14 +30,22 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const query = params.q || "";
   const page = parseInt(params.page || "1", 10);
-  const sort = (params.sort as "latest" | "views" | "rating" | "extreme") || "latest";
+  // Don't force a default sort - let Eporner decide based on relevance
+  // Only pass sort if user explicitly selected one
+  const sort = params.sort as "latest" | "views" | "rating" | "extreme" | undefined;
 
   // Fetch search results
   let videosData;
 
   try {
     if (query) {
-      videosData = await getVideosServer({ page, per_page: 24, sort, q: query });
+      // Only include sort param if user explicitly selected one
+      videosData = await getVideosServer({
+        page,
+        per_page: 24,
+        q: query,
+        ...(sort && { sort }),
+      });
     } else {
       videosData = { videos: [], total: 0, page: 1, per_page: 24, total_pages: 0 };
     }
@@ -59,12 +67,15 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           )}
         </h1>
 
-        <Suspense fallback={null}>
-          <SearchBar className="max-w-2xl" placeholder="Search for videos..." />
-        </Suspense>
+        {/* Mobile Search Bar - hidden on desktop (desktop uses header search) */}
+        <div className="md:hidden mb-4">
+          <Suspense fallback={null}>
+            <SearchBar placeholder="Search videos..." className="w-full" />
+          </Suspense>
+        </div>
 
         {query && (
-          <p className="text-foreground-muted mt-4">
+          <p className="text-foreground-muted mt-2">
             Found {videosData.total.toLocaleString()} video{videosData.total !== 1 ? "s" : ""}
           </p>
         )}
@@ -78,7 +89,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             <section className="mb-6 flex items-center justify-end">
               <div className="flex items-center gap-2">
                 <span className="text-foreground-muted text-sm">Sort by:</span>
-                <SortSelect current={sort} />
+                <SortSelect current={sort} showRelevance />
               </div>
             </section>
           )}

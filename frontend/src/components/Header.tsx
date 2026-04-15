@@ -3,54 +3,63 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Menu, X, ChevronRight } from "lucide-react";
+import { Menu, X, ChevronRight, Flame, Search } from "lucide-react";
 import SearchBar from "./SearchBar";
-import type { Category } from "@/lib/types";
-
-// Category images (placeholder URLs - replace with actual thumbnails)
-const categoryImages: Record<string, string> = {
-  "extreme-bondage": "/categories/extreme-bondage.jpg",
-  "femdom": "/categories/femdom.jpg",
-  "bondage": "/categories/bondage.jpg",
-  "shibari": "/categories/shibari.jpg",
-  "latex": "/categories/latex.jpg",
-  "leather": "/categories/leather.jpg",
-  "dominatrix": "/categories/dominatrix.jpg",
-  "slave": "/categories/slave.jpg",
-  "submission": "/categories/submission.jpg",
-  "pet-play": "/categories/pet-play.jpg",
-  "mummification": "/categories/mummification.jpg",
-  "spanking": "/categories/spanking.jpg",
-  "cbt": "/categories/cbt.jpg",
-  "strapon": "/categories/strapon.jpg",
-  "facesitting": "/categories/facesitting.jpg",
-};
 
 // Featured categories for hamburger menu
-const menuCategories: Category[] = [
-  { slug: "extreme-bondage", name: "Extreme Bondage", video_count: 0 },
-  { slug: "femdom", name: "Femdom", video_count: 0 },
-  { slug: "bondage", name: "Bondage", video_count: 0 },
-  { slug: "shibari", name: "Shibari", video_count: 0 },
-  { slug: "dominatrix", name: "Dominatrix", video_count: 0 },
-  { slug: "slave", name: "Slave", video_count: 0 },
-  { slug: "submission", name: "Submission", video_count: 0 },
-  { slug: "latex", name: "Latex", video_count: 0 },
-  { slug: "leather", name: "Leather", video_count: 0 },
-  { slug: "pet-play", name: "Pet Play", video_count: 0 },
-  { slug: "mummification", name: "Mummification", video_count: 0 },
-  { slug: "spanking", name: "Spanking", video_count: 0 },
-  { slug: "cbt", name: "CBT", video_count: 0 },
-  { slug: "strapon", name: "Strapon", video_count: 0 },
-  { slug: "facesitting", name: "Facesitting", video_count: 0 },
+const menuCategories = [
+  { slug: "extreme-bondage", name: "Extreme Bondage" },
+  { slug: "femdom", name: "Femdom" },
+  { slug: "bondage", name: "Bondage" },
+  { slug: "shibari", name: "Shibari" },
+  { slug: "dominatrix", name: "Dominatrix" },
+  { slug: "slave", name: "Slave" },
+  { slug: "submission", name: "Submission" },
+  { slug: "latex", name: "Latex" },
+  { slug: "leather", name: "Leather" },
+  { slug: "pet-play", name: "Pet Play" },
+  { slug: "mummification", name: "Mummification" },
+  { slug: "spanking", name: "Spanking" },
+  { slug: "cbt", name: "CBT" },
+  { slug: "strapon", name: "Strapon" },
+  { slug: "facesitting", name: "Facesitting" },
 ];
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [categoryThumbnails, setCategoryThumbnails] = useState<Record<string, string>>({});
 
-  // Close menu on route change
+  // Fetch category thumbnails on mount
   useEffect(() => {
-    setMobileMenuOpen(false);
+    const fetchThumbnails = async () => {
+      const thumbnails: Record<string, string> = {};
+
+      // Fetch top-rated video thumbnail for each category
+      await Promise.all(
+        menuCategories.map(async (cat) => {
+          try {
+            const response = await fetch(
+              `${API_BASE_URL}/api/videos?category=${cat.slug}&sort=rating&per_page=1`,
+              { cache: "force-cache" }
+            );
+            if (response.ok) {
+              const data = await response.json();
+              if (data.videos && data.videos.length > 0) {
+                thumbnails[cat.slug] = data.videos[0].thumbnail_lg || data.videos[0].thumbnail;
+              }
+            }
+          } catch {
+            // Ignore errors, will use fallback
+          }
+        })
+      );
+
+      setCategoryThumbnails(thumbnails);
+    };
+
+    fetchThumbnails();
   }, []);
 
   // Prevent body scroll when menu is open
@@ -121,13 +130,19 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* Search Bar - Always visible */}
-          <div className="flex-1 max-w-xl ml-auto">
-            <SearchBar
-              placeholder="Search videos..."
-              className="w-full"
-            />
+          {/* Search Bar - Desktop only */}
+          <div className="hidden md:block flex-1 max-w-xl ml-auto">
+            <SearchBar placeholder="Search videos..." className="w-full" />
           </div>
+
+          {/* Mobile Search Button - links to search page */}
+          <Link
+            href="/search"
+            className="md:hidden ml-auto p-2 text-foreground-muted hover:text-foreground transition-colors"
+            aria-label="Search"
+          >
+            <Search className="w-6 h-6" />
+          </Link>
         </div>
       </div>
 
@@ -141,12 +156,12 @@ export default function Header() {
 
       {/* Mobile Menu Panel */}
       <div
-        className={`fixed top-0 left-0 h-full w-[85%] max-w-sm bg-background-secondary z-50 transform transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed top-0 left-0 h-full w-[85%] max-w-sm bg-[#0a0a0a] z-50 transform transition-transform duration-300 ease-in-out lg:hidden ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Menu Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
           <Link
             href="/"
             onClick={() => setMobileMenuOpen(false)}
@@ -166,7 +181,7 @@ export default function Header() {
         {/* Menu Content */}
         <div className="overflow-y-auto h-[calc(100%-65px)]">
           {/* Quick Links */}
-          <div className="p-4 border-b border-border">
+          <div className="p-4 border-b border-[#27272a]">
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
@@ -180,15 +195,10 @@ export default function Header() {
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
             >
-              <span className="font-medium">Top Rated</span>
-              <ChevronRight className="w-5 h-5 text-foreground-muted" />
-            </Link>
-            <Link
-              href="/?sort=views"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
-            >
-              <span className="font-medium">Most Viewed</span>
+              <div className="flex items-center gap-2">
+                <Flame className="w-4 h-4 text-accent" />
+                <span className="font-medium">Popular</span>
+              </div>
               <ChevronRight className="w-5 h-5 text-foreground-muted" />
             </Link>
             <Link
@@ -199,9 +209,17 @@ export default function Header() {
               <span className="font-medium">Newest</span>
               <ChevronRight className="w-5 h-5 text-foreground-muted" />
             </Link>
+            <Link
+              href="/?sort=views"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
+            >
+              <span className="font-medium">Most Viewed</span>
+              <ChevronRight className="w-5 h-5 text-foreground-muted" />
+            </Link>
           </div>
 
-          {/* Categories Grid */}
+          {/* Categories Grid with Dynamic Thumbnails */}
           <div className="p-4">
             <h3 className="text-xs font-semibold text-foreground-muted uppercase tracking-wider mb-3">
               Categories
@@ -212,25 +230,28 @@ export default function Header() {
                   key={category.slug}
                   href={`/category/${category.slug}`}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="relative group overflow-hidden rounded-lg aspect-[4/3] bg-background-tertiary"
+                  className="relative group overflow-hidden rounded-lg aspect-[4/3] bg-[#1a1a1a]"
                 >
-                  {/* Category Image or Gradient */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-background-tertiary">
-                    {categoryImages[category.slug] && (
-                      <Image
-                        src={categoryImages[category.slug]}
-                        alt={category.name}
-                        fill
-                        className="object-cover opacity-60 group-hover:opacity-80 transition-opacity"
-                        sizes="150px"
-                      />
-                    )}
-                  </div>
-                  {/* Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-                  {/* Label */}
+                  {/* Category Thumbnail from Top Rated Video */}
+                  {categoryThumbnails[category.slug] ? (
+                    <Image
+                      src={categoryThumbnails[category.slug]}
+                      alt={category.name}
+                      fill
+                      className="object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-300"
+                      sizes="150px"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-accent/30 to-[#1a1a1a]" />
+                  )}
+
+                  {/* Overlay Gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+
+                  {/* Category Label */}
                   <div className="absolute bottom-0 left-0 right-0 p-2">
-                    <span className="text-white text-sm font-medium">
+                    <span className="text-white text-sm font-semibold drop-shadow-lg">
                       {category.name}
                     </span>
                   </div>
@@ -242,7 +263,7 @@ export default function Header() {
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
-              className="mt-4 flex items-center justify-center gap-2 py-3 bg-background-tertiary rounded-lg text-foreground-muted hover:text-foreground hover:bg-border transition-colors"
+              className="mt-4 flex items-center justify-center gap-2 py-3 bg-[#1a1a1a] rounded-lg text-foreground-muted hover:text-foreground hover:bg-[#27272a] transition-colors"
             >
               <span className="text-sm font-medium">View All Categories</span>
               <ChevronRight className="w-4 h-4" />
