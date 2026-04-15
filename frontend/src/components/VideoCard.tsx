@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Eye, Clock, Star } from "lucide-react";
 import { useState } from "react";
 import type { Video } from "@/lib/types";
-import { formatViews, formatDuration, formatRelativeTime } from "@/lib/types";
+import { formatViews, formatDuration, formatRelativeTime, getVideoPath } from "@/lib/types";
 
 interface VideoCardProps {
   video: Video;
@@ -25,7 +25,7 @@ export default function VideoCard({ video, priority = false }: VideoCardProps) {
 
   return (
     <Link
-      href={`/video/${video.id}`}
+      href={getVideoPath(video)}
       className="video-card block group focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
       prefetch={false}
     >
@@ -130,7 +130,7 @@ export function VideoCardSkeleton() {
 export function VideoCardCompact({ video }: VideoCardProps) {
   return (
     <Link
-      href={`/video/${video.id}`}
+      href={getVideoPath(video)}
       className="flex gap-3 group"
       prefetch={false}
     >

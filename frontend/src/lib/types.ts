@@ -83,6 +83,14 @@ export interface VideoQueryParams {
   q?: string;
 }
 
+export function getVideoIdentifier(video: Pick<Video, "external_id" | "id">): string {
+  return video.external_id || video.id.toString();
+}
+
+export function getVideoPath(video: Pick<Video, "external_id" | "id">): string {
+  return `/video/${encodeURIComponent(getVideoIdentifier(video))}`;
+}
+
 // Format view count to human readable
 export function formatViews(views: number): string {
   if (views >= 1000000) {

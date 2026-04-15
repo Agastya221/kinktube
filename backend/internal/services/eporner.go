@@ -369,6 +369,10 @@ func (c *EpornerClient) SearchVideosWithOptions(ctx context.Context, query strin
 
 // IsRelevantBDSMVideo filters out generic porn results that slip into broad searches.
 func IsRelevantBDSMVideo(ev *EpornerVideo) bool {
+	if !models.IsLikelyEnglishText(ev.Title, ev.Keywords) {
+		return false
+	}
+
 	text := strings.ToLower(ev.Title + " " + ev.Keywords)
 
 	for _, term := range bdsmRelevanceTerms {

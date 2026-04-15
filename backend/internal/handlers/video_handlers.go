@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/redis/go-redis/v9"
@@ -36,7 +37,7 @@ func categorySearchQuery(slug string) string {
 
 func menuCategoryThumbnailQueryKey(slug string) string {
 	query := services.EnhanceQueryForBDSM(categorySearchQuery(slug))
-	return "thumb-v2:" + query + ":top-rated-first"
+	return "thumb-v3:" + query + ":top-rated-first"
 }
 
 func normalizeSearchDedupText(value string) string {
@@ -101,18 +102,88 @@ func matchesLiveSearchResult(ev *services.EpornerVideo, query string, isBDSMQuer
 		services.IsStrongBDSMMatch(ev)
 }
 
-func (h *Handler) ensureLiveSearchVideoID(ctx context.Context, video *models.Video) {
-	if video == nil || video.ExternalID == "" {
+func (h *Handler) cacheVideoRecord(ctx context.Context, video *models.Video) {
+	if video == nil {
 		return
 	}
 
-	existing, err := h.db.GetVideoByExternalID(ctx, video.ExternalID)
-	if err == nil && existing != nil {
-		video.ID = existing.ID
+	if video.ID != 0 {
+		_ = h.cache.Set(ctx, database.VideoCacheKey(video.ID), video)
+	}
+
+	if video.ExternalID != "" {
+		_ = h.cache.Set(ctx, database.VideoExternalCacheKey(video.ExternalID), video)
+	}
+}
+
+func (h *Handler) resolveVideoIdentifier(ctx context.Context, rawID string) (*models.Video, error) {
+	rawID = strings.TrimSpace(rawID)
+	if rawID == "" {
+		return nil, nil
+	}
+
+	if numericID, err := strconv.ParseInt(rawID, 10, 64); err == nil {
+		var cached models.Video
+		if err := h.cache.Get(ctx, database.VideoCacheKey(numericID), &cached); err == nil {
+			return &cached, nil
+		}
+
+		video, err := h.db.GetVideoByID(ctx, numericID)
+		if err != nil {
+			return nil, err
+		}
+		if video != nil {
+			h.cacheVideoRecord(ctx, video)
+			return video, nil
+		}
+	}
+
+	var cached models.Video
+	if err := h.cache.Get(ctx, database.VideoExternalCacheKey(rawID), &cached); err == nil {
+		if cached.ID == 0 {
+			if _, err := h.db.UpsertVideo(ctx, &cached); err != nil {
+				return nil, err
+			}
+		}
+		h.cacheVideoRecord(ctx, &cached)
+		return &cached, nil
+	}
+
+	video, err := h.db.GetVideoByExternalID(ctx, rawID)
+	if err != nil {
+		return nil, err
+	}
+	if video != nil {
+		h.cacheVideoRecord(ctx, video)
+	}
+
+	return video, nil
+}
+
+func (h *Handler) backfillVisibleLiveVideos(videos []models.Video) {
+	if len(videos) == 0 {
 		return
 	}
 
-	_, _ = h.db.UpsertVideo(ctx, video)
+	videoCopies := make([]models.Video, len(videos))
+	copy(videoCopies, videos)
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		for _, video := range videoCopies {
+			if video.ExternalID == "" {
+				continue
+			}
+
+			videoCopy := video
+			if _, err := h.db.UpsertVideo(ctx, &videoCopy); err != nil {
+				continue
+			}
+			h.cacheVideoRecord(ctx, &videoCopy)
+		}
+	}()
 }
 
 func (h *Handler) getRelevantCategoryThumbnail(c *fiber.Ctx, slug string) string {
@@ -210,7 +281,7 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 	isBDSMQuery := services.IsBDSMRelatedQuery(query)
 
 	// Try cache first
-	cacheKey := database.VideoListCacheKey("search-v4-"+sortBy, page, perPage, "", enhancedQuery)
+	cacheKey := database.VideoListCacheKey("search-v6-"+sortBy, page, perPage, "", enhancedQuery)
 	var cached models.VideoListResponse
 	err := h.cache.Get(c.Context(), cacheKey, &cached)
 	if err == nil {
@@ -296,10 +367,7 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 			}
 
 			video := services.ConvertToVideo(&ev, query)
-			h.ensureLiveSearchVideoID(c.Context(), video)
-			if video.ID == 0 {
-				continue
-			}
+			h.cacheVideoRecord(c.Context(), video)
 			markSearchResultSeen(seenResults, dedupKeys)
 			matches = append(matches, *video)
 			if len(matches) >= targetEnd {
@@ -341,6 +409,8 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 		TotalPages: totalPages,
 	}
 
+	h.backfillVisibleLiveVideos(videos)
+
 	// Cache for shorter time for live searches
 	_ = h.cache.Set(c.Context(), cacheKey, result)
 
@@ -373,24 +443,7 @@ func (h *Handler) SearchVideos(c *fiber.Ctx) error {
 
 // GetVideo handles GET /api/videos/:id
 func (h *Handler) GetVideo(c *fiber.Ctx) error {
-	idStr := c.Params("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid video ID",
-		})
-	}
-
-	// Try cache first
-	cacheKey := database.VideoCacheKey(id)
-	var cached models.Video
-	err = h.cache.Get(c.Context(), cacheKey, &cached)
-	if err == nil {
-		return c.JSON(cached)
-	}
-
-	// Fetch from database
-	video, err := h.db.GetVideoByID(c.Context(), id)
+	video, err := h.resolveVideoIdentifier(c.Context(), c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch video",
@@ -403,19 +456,20 @@ func (h *Handler) GetVideo(c *fiber.Ctx) error {
 		})
 	}
 
-	// Cache the result
-	_ = h.cache.Set(c.Context(), cacheKey, video)
-
 	return c.JSON(video)
 }
 
 // GetRelatedVideos handles GET /api/videos/:id/related
 func (h *Handler) GetRelatedVideos(c *fiber.Ctx) error {
-	idStr := c.Params("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	video, err := h.resolveVideoIdentifier(c.Context(), c.Params("id"))
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid video ID",
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch video",
+		})
+	}
+	if video == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Video not found",
 		})
 	}
 
@@ -428,7 +482,7 @@ func (h *Handler) GetRelatedVideos(c *fiber.Ctx) error {
 	}
 
 	// Try cache first
-	cacheKey := database.RelatedVideosCacheKey(id, limit)
+	cacheKey := database.RelatedVideosCacheKey(video.ID, limit)
 	var cached []models.Video
 	err = h.cache.Get(c.Context(), cacheKey, &cached)
 	if err == nil {
@@ -438,7 +492,7 @@ func (h *Handler) GetRelatedVideos(c *fiber.Ctx) error {
 	}
 
 	// Fetch from database
-	videos, err := h.db.GetRelatedVideos(c.Context(), id, limit)
+	videos, err := h.db.GetRelatedVideos(c.Context(), video.ID, limit)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch related videos",
@@ -650,16 +704,7 @@ func (h *Handler) HealthCheck(c *fiber.Ctx) error {
 // GetAffiliateLinks handles GET /api/videos/:id/affiliates
 // Returns matched affiliate links based on video tags and keywords
 func (h *Handler) GetAffiliateLinks(c *fiber.Ctx) error {
-	idStr := c.Params("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid video ID",
-		})
-	}
-
-	// Get the video to access its tags and keywords
-	video, err := h.db.GetVideoByID(c.Context(), id)
+	video, err := h.resolveVideoIdentifier(c.Context(), c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch video",
@@ -688,38 +733,16 @@ func (h *Handler) GetAffiliateLinks(c *fiber.Ctx) error {
 // GetVideoWithAffiliates handles GET /api/videos/:id/full
 // Returns video data along with matched affiliate links
 func (h *Handler) GetVideoWithAffiliates(c *fiber.Ctx) error {
-	idStr := c.Params("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	video, err := h.resolveVideoIdentifier(c.Context(), c.Params("id"))
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid video ID",
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch video",
 		})
 	}
-
-	// Try cache first
-	cacheKey := database.VideoCacheKey(id)
-	var video *models.Video
-	var cached models.Video
-	err = h.cache.Get(c.Context(), cacheKey, &cached)
-	if err == nil {
-		video = &cached
-	} else {
-		// Fetch from database
-		video, err = h.db.GetVideoByID(c.Context(), id)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to fetch video",
-			})
-		}
-
-		if video == nil {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Video not found",
-			})
-		}
-
-		// Cache the video
-		_ = h.cache.Set(c.Context(), cacheKey, video)
+	if video == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Video not found",
+		})
 	}
 
 	// Get affiliate links

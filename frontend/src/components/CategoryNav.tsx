@@ -55,11 +55,6 @@ export default function CategoryNav({ categories }: CategoryNavProps) {
             className={`category-pill ${currentCategory === category.slug ? "active" : ""}`}
           >
             {category.name}
-            {category.video_count > 0 && (
-              <span className="ml-1.5 text-xs opacity-70">
-                ({category.video_count.toLocaleString()})
-              </span>
-            )}
           </Link>
         ))}
         {extraCategories.length > 0 && (
@@ -82,11 +77,6 @@ export default function CategoryNav({ categories }: CategoryNavProps) {
               className={`category-pill ${currentCategory === category.slug ? "active" : ""}`}
             >
               {category.name}
-              {category.video_count > 0 && (
-                <span className="ml-1.5 text-xs opacity-70">
-                  ({category.video_count.toLocaleString()})
-                </span>
-              )}
             </Link>
           ))}
         </div>

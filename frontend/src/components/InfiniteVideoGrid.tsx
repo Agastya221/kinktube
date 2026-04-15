@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import VideoCard, { VideoCardSkeleton } from "./VideoCard";
-import type { Video, VideoQueryParams } from "@/lib/types";
+import { getVideoIdentifier, type Video, type VideoQueryParams } from "@/lib/types";
 import { getVideos } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
@@ -151,7 +151,7 @@ export default function InfiniteVideoGrid({
       {/* Video Grid */}
       <div className="video-grid">
         {videos.map((video) => (
-          <VideoCard key={video.id} video={video} />
+          <VideoCard key={getVideoIdentifier(video)} video={video} />
         ))}
 
         {/* Loading skeletons */}

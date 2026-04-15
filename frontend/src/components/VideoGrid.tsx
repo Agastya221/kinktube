@@ -1,4 +1,5 @@
 import type { Video } from "@/lib/types";
+import { getVideoIdentifier } from "@/lib/types";
 import VideoCard, { VideoCardSkeleton } from "./VideoCard";
 
 interface VideoGridProps {
@@ -31,7 +32,7 @@ export default function VideoGrid({ videos, loading }: VideoGridProps) {
   return (
     <div className="video-grid">
       {videos.map((video) => (
-        <VideoCard key={video.id} video={video} />
+        <VideoCard key={getVideoIdentifier(video)} video={video} />
       ))}
     </div>
   );

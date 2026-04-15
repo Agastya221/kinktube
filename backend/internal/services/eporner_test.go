@@ -39,3 +39,14 @@ func TestMatchesQueryIntentForLatex(t *testing.T) {
 		}
 	})
 }
+
+func TestMatchesTopicAndBDSMRejectsNonEnglishMetadata(t *testing.T) {
+	video := &EpornerVideo{
+		Title:    "Латекс БДСМ связывание",
+		Keywords: "латекс, bdsm, рабыня",
+	}
+
+	if MatchesTopicAndBDSM(video, "latex") {
+		t.Fatal("expected non-english metadata to be rejected")
+	}
+}

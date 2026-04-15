@@ -129,11 +129,11 @@ export default function SearchBar({
 
       // Add live video results if available
       if (data.videos && data.videos.length > 0) {
-        const videoResults = data.videos.slice(0, 5).map((v: { id: number; title: string }) => ({
-          id: `video-${v.id}`,
+        const videoResults = data.videos.slice(0, 5).map((v: { id: number; title: string; external_id?: string }) => ({
+          id: `video-${v.external_id || v.id}`,
           title: v.title,
           type: "result" as const,
-          href: `/video/${v.id}`,
+          href: `/video/${encodeURIComponent(v.external_id || String(v.id))}`,
         }));
         results.push(...videoResults);
       }

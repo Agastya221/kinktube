@@ -12,6 +12,16 @@ import (
 	"kinktube/internal/models"
 )
 
+func scanVideoRow(rows pgx.Rows, v *models.Video) error {
+	return rows.Scan(
+		&v.ID, &v.ExternalID, &v.Title, &v.Description,
+		&v.Duration, &v.DurationStr, &v.Views, &v.Rating,
+		&v.Thumbnail, &v.ThumbnailLg, &v.EmbedURL, &v.SourceURL,
+		&v.Tags, &v.Categories, &v.Keywords, &v.AddedAt,
+		&v.PublishedAt, &v.LastUpdatedAt,
+	)
+}
+
 // PostgresDB wraps the connection pool
 type PostgresDB struct {
 	pool *pgxpool.Pool
@@ -351,7 +361,7 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 			views DESC`
 	}
 
-	// Count total
+	// Count total before language filtering. Page contents are filtered again below.
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM videos %s", whereClause)
 	var total int64
 	err := db.pool.QueryRow(ctx, countQuery, args...).Scan(&total)
@@ -359,8 +369,6 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 		return nil, err
 	}
 
-	// Fetch videos
-	args = append(args, perPage, offset)
 	query := fmt.Sprintf(`
 		SELECT id, external_id, title, description, duration, duration_str,
 			views, rating, thumbnail, thumbnail_lg, embed_url, source_url,
@@ -368,26 +376,52 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 		FROM videos %s %s LIMIT $%d OFFSET $%d
 	`, whereClause, orderClause, argIndex, argIndex+1)
 
-	rows, err := db.pool.Query(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var videos []models.Video
-	for rows.Next() {
-		var v models.Video
-		err := rows.Scan(
-			&v.ID, &v.ExternalID, &v.Title, &v.Description,
-			&v.Duration, &v.DurationStr, &v.Views, &v.Rating,
-			&v.Thumbnail, &v.ThumbnailLg, &v.EmbedURL, &v.SourceURL,
-			&v.Tags, &v.Categories, &v.Keywords, &v.AddedAt,
-			&v.PublishedAt, &v.LastUpdatedAt,
-		)
+	batchLimit := perPage * 2
+	if batchLimit < 24 {
+		batchLimit = 24
+	}
+	maxBatches := 4
+	currentOffset := offset
+
+	for batch := 0; batch < maxBatches && len(videos) < perPage; batch++ {
+		batchArgs := append(append([]interface{}{}, args...), batchLimit, currentOffset)
+		rows, err := db.pool.Query(ctx, query, batchArgs...)
 		if err != nil {
 			return nil, err
 		}
-		videos = append(videos, v)
+
+		rawCount := 0
+		for rows.Next() {
+			rawCount++
+
+			var v models.Video
+			if err := scanVideoRow(rows, &v); err != nil {
+				rows.Close()
+				return nil, err
+			}
+
+			if !models.IsLikelyEnglishVideo(&v) {
+				continue
+			}
+
+			videos = append(videos, v)
+			if len(videos) >= perPage {
+				break
+			}
+		}
+
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		rows.Close()
+
+		if rawCount < batchLimit {
+			break
+		}
+
+		currentOffset += batchLimit
 	}
 
 	if videos == nil {
@@ -446,6 +480,11 @@ func (db *PostgresDB) GetTotalVideoCount(ctx context.Context) (int64, error) {
 // GetRelatedVideos fetches videos related by category or tags
 // Prioritizes videos that share the FIRST (primary) category and specific keywords
 func (db *PostgresDB) GetRelatedVideos(ctx context.Context, videoID int64, limit int) ([]models.Video, error) {
+	rawLimit := limit * 3
+	if rawLimit < 12 {
+		rawLimit = 12
+	}
+
 	query := `
 		WITH target AS (
 			SELECT
@@ -481,7 +520,7 @@ func (db *PostgresDB) GetRelatedVideos(ctx context.Context, videoID int64, limit
 		LIMIT $2
 	`
 
-	rows, err := db.pool.Query(ctx, query, videoID, limit)
+	rows, err := db.pool.Query(ctx, query, videoID, rawLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -490,17 +529,18 @@ func (db *PostgresDB) GetRelatedVideos(ctx context.Context, videoID int64, limit
 	var videos []models.Video
 	for rows.Next() {
 		var v models.Video
-		err := rows.Scan(
-			&v.ID, &v.ExternalID, &v.Title, &v.Description,
-			&v.Duration, &v.DurationStr, &v.Views, &v.Rating,
-			&v.Thumbnail, &v.ThumbnailLg, &v.EmbedURL, &v.SourceURL,
-			&v.Tags, &v.Categories, &v.Keywords, &v.AddedAt,
-			&v.PublishedAt, &v.LastUpdatedAt,
-		)
-		if err != nil {
+		if err := scanVideoRow(rows, &v); err != nil {
 			return nil, err
 		}
+
+		if !models.IsLikelyEnglishVideo(&v) {
+			continue
+		}
+
 		videos = append(videos, v)
+		if len(videos) >= limit {
+			break
+		}
 	}
 
 	return videos, nil

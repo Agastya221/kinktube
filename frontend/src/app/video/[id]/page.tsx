@@ -8,7 +8,7 @@ import VideoGrid from "@/components/VideoGrid";
 import { AffiliateButtons } from "@/components/affiliate";
 import { AdBanner, SidebarAds } from "@/components/ads";
 import { getVideoWithAffiliatesServer, getRelatedVideosServer } from "@/lib/api";
-import { formatViews, formatDuration, formatRelativeTime } from "@/lib/types";
+import { formatViews, formatDuration, formatRelativeTime, getVideoPath } from "@/lib/types";
 
 interface VideoPageProps {
   params: Promise<{
@@ -19,14 +19,9 @@ interface VideoPageProps {
 // Generate dynamic SEO metadata
 export async function generateMetadata({ params }: VideoPageProps): Promise<Metadata> {
   const { id } = await params;
-  const videoId = parseInt(id, 10);
-
-  if (isNaN(videoId)) {
-    return { title: "Video Not Found" };
-  }
 
   try {
-    const { video } = await getVideoWithAffiliatesServer(videoId);
+    const { video } = await getVideoWithAffiliatesServer(id);
 
     // Build SEO-optimized title and description with BDSM keywords
     const seoTitle = `${video.title} - Free BDSM Video`;
@@ -80,7 +75,7 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
         follow: true,
       },
       alternates: {
-        canonical: `/video/${video.id}`,
+        canonical: getVideoPath(video),
       },
     };
   } catch {
@@ -121,19 +116,14 @@ function generateVideoSchema(video: {
 
 export default async function VideoPage({ params }: VideoPageProps) {
   const { id } = await params;
-  const videoId = parseInt(id, 10);
-
-  if (isNaN(videoId)) {
-    notFound();
-  }
 
   let videoData;
   let relatedVideos;
 
   try {
     [videoData, relatedVideos] = await Promise.all([
-      getVideoWithAffiliatesServer(videoId),
-      getRelatedVideosServer(videoId, 12),
+      getVideoWithAffiliatesServer(id),
+      getRelatedVideosServer(id, 12),
     ]);
   } catch {
     notFound();
@@ -291,8 +281,8 @@ export default async function VideoPage({ params }: VideoPageProps) {
                 <div className="space-y-4">
                   {relatedVideos.videos.slice(0, 6).map((relatedVideo) => (
                     <Link
-                      key={relatedVideo.id}
-                      href={`/video/${relatedVideo.id}`}
+                      key={relatedVideo.external_id || relatedVideo.id}
+                      href={getVideoPath(relatedVideo)}
                       className="flex gap-3 group"
                     >
                       <div className="relative w-28 sm:w-36 flex-shrink-0">

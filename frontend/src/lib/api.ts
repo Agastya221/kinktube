@@ -45,12 +45,12 @@ export async function getVideos(params: VideoQueryParams = {}): Promise<VideoLis
   return fetchAPI<VideoListResponse>(`/api/videos${query ? `?${query}` : ""}`);
 }
 
-export async function getVideo(id: number): Promise<Video> {
-  return fetchAPI<Video>(`/api/videos/${id}`);
+export async function getVideo(id: string | number): Promise<Video> {
+  return fetchAPI<Video>(`/api/videos/${encodeURIComponent(String(id))}`);
 }
 
-export async function getRelatedVideos(id: number, limit = 12): Promise<RelatedVideosResponse> {
-  return fetchAPI<RelatedVideosResponse>(`/api/videos/${id}/related?limit=${limit}`);
+export async function getRelatedVideos(id: string | number, limit = 12): Promise<RelatedVideosResponse> {
+  return fetchAPI<RelatedVideosResponse>(`/api/videos/${encodeURIComponent(String(id))}/related?limit=${limit}`);
 }
 
 // Category API functions
@@ -87,8 +87,8 @@ export async function getVideosServer(params: VideoQueryParams = {}): Promise<Vi
   return response.json();
 }
 
-export async function getVideoServer(id: number): Promise<Video> {
-  const url = `${API_BASE_URL}/api/videos/${id}`;
+export async function getVideoServer(id: string | number): Promise<Video> {
+  const url = `${API_BASE_URL}/api/videos/${encodeURIComponent(String(id))}`;
 
   const response = await fetch(url, {
     next: { revalidate: 300 }, // Cache for 5 minutes
@@ -101,8 +101,8 @@ export async function getVideoServer(id: number): Promise<Video> {
   return response.json();
 }
 
-export async function getRelatedVideosServer(id: number, limit = 12): Promise<RelatedVideosResponse> {
-  const url = `${API_BASE_URL}/api/videos/${id}/related?limit=${limit}`;
+export async function getRelatedVideosServer(id: string | number, limit = 12): Promise<RelatedVideosResponse> {
+  const url = `${API_BASE_URL}/api/videos/${encodeURIComponent(String(id))}/related?limit=${limit}`;
 
   const response = await fetch(url, {
     next: { revalidate: 300 }, // Cache for 5 minutes
@@ -130,17 +130,17 @@ export async function getCategoriesServer(): Promise<CategoriesResponse> {
 }
 
 // Affiliate API functions
-export async function getAffiliateLinks(videoId: number, max = 2): Promise<AffiliateLinksResponse> {
-  return fetchAPI<AffiliateLinksResponse>(`/api/videos/${videoId}/affiliates?max=${max}`);
+export async function getAffiliateLinks(videoId: string | number, max = 2): Promise<AffiliateLinksResponse> {
+  return fetchAPI<AffiliateLinksResponse>(`/api/videos/${encodeURIComponent(String(videoId))}/affiliates?max=${max}`);
 }
 
-export async function getVideoWithAffiliates(id: number): Promise<VideoWithAffiliates> {
-  return fetchAPI<VideoWithAffiliates>(`/api/videos/${id}/full`);
+export async function getVideoWithAffiliates(id: string | number): Promise<VideoWithAffiliates> {
+  return fetchAPI<VideoWithAffiliates>(`/api/videos/${encodeURIComponent(String(id))}/full`);
 }
 
 // Server-side affiliate fetch
-export async function getVideoWithAffiliatesServer(id: number): Promise<VideoWithAffiliates> {
-  const url = `${API_BASE_URL}/api/videos/${id}/full`;
+export async function getVideoWithAffiliatesServer(id: string | number): Promise<VideoWithAffiliates> {
+  const url = `${API_BASE_URL}/api/videos/${encodeURIComponent(String(id))}/full`;
 
   const response = await fetch(url, {
     next: { revalidate: 300 }, // Cache for 5 minutes

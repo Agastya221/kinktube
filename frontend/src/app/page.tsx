@@ -3,7 +3,6 @@ import VideoGrid from "@/components/VideoGrid";
 import InfiniteVideoGrid from "@/components/InfiniteVideoGrid";
 import CategoryNav, { defaultCategories } from "@/components/CategoryNav";
 import Pagination from "@/components/Pagination";
-import SearchBar from "@/components/SearchBar";
 import { AdBanner, NativeAd } from "@/components/ads";
 import { SortSelect } from "@/components/SortSelect";
 import { getVideosServer, getCategoriesServer } from "@/lib/api";
@@ -42,53 +41,36 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-6">
       {/* Top Ad Banner */}
       <div className="mb-6 hidden md:block">
         <AdBanner position="top" />
       </div>
 
-      {/* Hero Section */}
-      <section className="mb-8">
+      {/* Hero Section - Hidden on mobile for content-first experience */}
+      <section className="hidden md:block mb-8">
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">
           <span className="text-accent">Extreme</span> BDSM & Hardcore Fetish
         </h1>
-        <p className="text-foreground-muted text-lg mb-6 max-w-2xl">
+        <p className="text-foreground-muted text-lg max-w-2xl">
           Dive into intense femdom, predicament bondage, severe discipline, mummification,
           and hardcore fetish scenes. Curated for serious kink enthusiasts. Not your average tube site.
         </p>
-
-        {/* Search Bar */}
-        <Suspense fallback={null}>
-          <SearchBar className="max-w-2xl" />
-        </Suspense>
       </section>
 
-      {/* Category Navigation */}
-      <section className="mb-8">
+      {/* Category Navigation - Collapsible on mobile for content-first */}
+      <section className="mb-4 md:mb-8">
         <CategoryNav categories={categories.categories} />
       </section>
 
-      {/* Mobile Ad */}
-      <div className="mb-6 md:hidden">
-        <AdBanner position="mobile" />
-      </div>
-
-      {/* Sort Options */}
-      <section className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-semibold">
-            {sort === "latest" ? "Latest Kink Videos" : sort === "views" ? "Most Viewed" : sort === "extreme" ? "Most Extreme" : "Top Rated"}
-          </h2>
-          <p className="text-foreground-muted text-sm mt-1">
-            {videosData.total.toLocaleString()} videos available
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-foreground-muted text-sm">Sort by:</span>
-            <SortSelect current={sort} />
-          </div>
+      {/* Sort Options - Compact on mobile */}
+      <section className="mb-4 md:mb-6 flex items-center justify-between gap-2">
+        <h2 className="text-base sm:text-xl md:text-2xl font-semibold truncate">
+          {sort === "latest" ? "Latest Videos" : sort === "views" ? "Most Viewed" : sort === "extreme" ? "Most Extreme" : "Top Rated"}
+        </h2>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-foreground-muted text-xs sm:text-sm hidden sm:inline">Sort:</span>
+          <SortSelect current={sort} />
         </div>
       </section>
 
@@ -122,13 +104,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </>
       )}
 
+      {/* Mobile Ad - After content */}
+      <div className="mt-6 md:hidden">
+        <AdBanner position="mobile" />
+      </div>
+
       {/* Bottom Ad Banner */}
       <div className="mt-8 hidden md:block">
         <AdBanner position="bottom" />
       </div>
 
-      {/* SEO Content */}
-      <section className="mt-12 border-t border-border pt-8">
+      {/* SEO Content - Hidden on mobile */}
+      <section className="hidden md:block mt-12 border-t border-border pt-8">
         <h2 className="text-lg font-semibold mb-4">About KinkTube</h2>
         <div className="text-foreground-muted text-sm space-y-3 max-w-3xl">
           <p>
