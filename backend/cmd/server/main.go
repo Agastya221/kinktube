@@ -122,6 +122,9 @@ func main() {
 			if err := cache.DeletePattern(ctx, "categories:*"); err != nil {
 				log.Printf("Warning: failed to clear category cache: %v", err)
 			}
+			if err := cache.DeletePattern(ctx, database.CacheKeyMenuCategories); err != nil {
+				log.Printf("Warning: failed to clear menu category cache: %v", err)
+			}
 			// Run light import to get fresh content
 			importer.RunLight(ctx)
 		}
@@ -177,6 +180,7 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	api.Get("/videos/:id/related", h.GetRelatedVideos)
 	api.Get("/videos/:id/affiliates", h.GetAffiliateLinks)
 	api.Get("/categories", h.GetCategories)
+	api.Get("/menu-categories", h.GetMenuCategories)
 	api.Get("/stats", h.GetStats)
 
 	// Admin routes (in production, add authentication middleware)

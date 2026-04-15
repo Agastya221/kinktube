@@ -99,6 +99,7 @@ const (
 	CacheKeyVideo        = "video:%d"                    // id
 	CacheKeyVideoExt     = "video:ext:%s"                // external_id
 	CacheKeyCategories   = "categories:stats"
+	CacheKeyMenuCategories = "menu-categories"
 	CacheKeyTotalCount   = "videos:total"
 	CacheKeyRelated      = "video:%d:related"
 )

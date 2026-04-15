@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Menu, X, ChevronRight, Flame, Search } from "lucide-react";
 import SearchBar from "./SearchBar";
 
@@ -31,6 +32,12 @@ interface HeaderProps {
 
 export default function Header({ categoryThumbnails = {} }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Only render portal after mount (client-side)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Prevent body scroll when menu is open
   useEffect(() => {
@@ -44,78 +51,9 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
     };
   }, [mobileMenuOpen]);
 
-  return (
-    <header className="sticky top-0 z-50 bg-background-secondary/95 backdrop-blur-sm border-b border-border">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center h-16 gap-4">
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 -ml-2 text-foreground-muted hover:text-foreground transition-colors"
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-
-          {/* Logo */}
-          <Link
-            href="/"
-            className="flex items-center gap-1 text-xl font-bold hover:opacity-80 transition-opacity flex-shrink-0"
-          >
-            <span className="text-accent">Kink</span>
-            <span className="text-foreground">Tube</span>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-5 ml-6">
-            <Link
-              href="/"
-              className="text-foreground-muted hover:text-foreground transition-colors text-sm"
-            >
-              Home
-            </Link>
-            <Link
-              href="/category/femdom"
-              className="text-foreground-muted hover:text-foreground transition-colors text-sm"
-            >
-              Femdom
-            </Link>
-            <Link
-              href="/category/bondage"
-              className="text-foreground-muted hover:text-foreground transition-colors text-sm"
-            >
-              Bondage
-            </Link>
-            <Link
-              href="/category/extreme-bondage"
-              className="text-foreground-muted hover:text-foreground transition-colors text-sm"
-            >
-              Extreme
-            </Link>
-            <Link
-              href="/category/shibari"
-              className="text-foreground-muted hover:text-foreground transition-colors text-sm"
-            >
-              Shibari
-            </Link>
-          </nav>
-
-          {/* Search Bar - Desktop only */}
-          <div className="hidden md:block flex-1 max-w-xl ml-auto">
-            <SearchBar placeholder="Search videos..." className="w-full" />
-          </div>
-
-          {/* Mobile Search Button - links to search page */}
-          <Link
-            href="/search"
-            className="md:hidden ml-auto p-2 text-foreground-muted hover:text-foreground transition-colors"
-            aria-label="Search"
-          >
-            <Search className="w-6 h-6" />
-          </Link>
-        </div>
-      </div>
-
+  // Mobile menu content - rendered via portal to document.body
+  const mobileMenu = (
+    <>
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div
@@ -126,7 +64,7 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
 
       {/* Mobile Menu Panel */}
       <div
-        className={`fixed top-0 left-0 h-full w-[85%] max-w-sm bg-[#0a0a0a] z-[70] transform transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-[70] flex h-dvh min-h-screen w-[85%] max-w-sm flex-col bg-[#0a0a0a] transform transition-transform duration-300 ease-in-out lg:hidden ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -137,19 +75,20 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-1 text-xl font-bold"
           >
-            <span className="text-accent">Kink</span>
-            <span className="text-foreground">Tube</span>
+            <span className="text-[#dc2626]">Kink</span>
+            <span className="text-[#fafafa]">Tube</span>
           </Link>
           <button
             onClick={() => setMobileMenuOpen(false)}
-            className="p-2 text-foreground-muted hover:text-foreground"
+            className="p-2 text-[#a1a1aa] hover:text-[#fafafa]"
+            aria-label="Close menu"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
 
         {/* Menu Content */}
-        <div className="overflow-y-auto h-[calc(100%-65px)]">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {/* Quick Links */}
           <div className="p-4 border-b border-[#27272a]">
             <Link
@@ -231,6 +170,85 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
           </div>
         </div>
       </div>
-    </header>
+    </>
+  );
+
+  return (
+    <>
+      <header className="sticky top-0 z-50 bg-background-secondary/95 backdrop-blur-sm border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center h-16 gap-4">
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 -ml-2 text-foreground-muted hover:text-foreground transition-colors"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+
+            {/* Logo */}
+            <Link
+              href="/"
+              className="flex items-center gap-1 text-xl font-bold hover:opacity-80 transition-opacity flex-shrink-0"
+            >
+              <span className="text-accent">Kink</span>
+              <span className="text-foreground">Tube</span>
+            </Link>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center gap-5 ml-6">
+              <Link
+                href="/"
+                className="text-foreground-muted hover:text-foreground transition-colors text-sm"
+              >
+                Home
+              </Link>
+              <Link
+                href="/category/femdom"
+                className="text-foreground-muted hover:text-foreground transition-colors text-sm"
+              >
+                Femdom
+              </Link>
+              <Link
+                href="/category/bondage"
+                className="text-foreground-muted hover:text-foreground transition-colors text-sm"
+              >
+                Bondage
+              </Link>
+              <Link
+                href="/category/extreme-bondage"
+                className="text-foreground-muted hover:text-foreground transition-colors text-sm"
+              >
+                Extreme
+              </Link>
+              <Link
+                href="/category/shibari"
+                className="text-foreground-muted hover:text-foreground transition-colors text-sm"
+              >
+                Shibari
+              </Link>
+            </nav>
+
+            {/* Search Bar - Desktop only */}
+            <div className="hidden md:block flex-1 max-w-xl ml-auto">
+              <SearchBar placeholder="Search videos..." className="w-full" />
+            </div>
+
+            {/* Mobile Search Button - links to search page */}
+            <Link
+              href="/search"
+              className="md:hidden ml-auto p-2 text-foreground-muted hover:text-foreground transition-colors"
+              aria-label="Search"
+            >
+              <Search className="w-6 h-6" />
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Render mobile menu via portal to document.body */}
+      {mounted && createPortal(mobileMenu, document.body)}
+    </>
   );
 }

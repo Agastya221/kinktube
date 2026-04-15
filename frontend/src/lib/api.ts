@@ -153,42 +153,40 @@ export async function getVideoWithAffiliatesServer(id: number): Promise<VideoWit
   return response.json();
 }
 
-// Get top video thumbnail for a category (for category images)
-export async function getCategoryThumbnail(category: string): Promise<string | null> {
-  try {
-    const data = await getVideosServer({
-      category,
-      sort: "rating",
-      per_page: 1,
-      page: 1,
-    });
-
-    if (data.videos && data.videos.length > 0) {
-      return data.videos[0].thumbnail_lg || data.videos[0].thumbnail;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+// Menu category with thumbnail
+interface MenuCategory {
+  slug: string;
+  name: string;
+  thumbnail?: string;
 }
 
-// Get thumbnails for multiple categories
-export async function getCategoryThumbnails(categories: string[]): Promise<Record<string, string>> {
-  const thumbnails: Record<string, string> = {};
+interface MenuCategoriesResponse {
+  categories: MenuCategory[];
+}
 
-  // Fetch in parallel with a small batch to avoid overwhelming the API
-  const results = await Promise.allSettled(
-    categories.map(async (cat) => {
-      const thumb = await getCategoryThumbnail(cat);
-      return { category: cat, thumbnail: thumb };
-    })
-  );
+// Get menu categories with thumbnails in a single request
+export async function getMenuCategories(): Promise<Record<string, string>> {
+  try {
+    const url = `${API_BASE_URL}/api/menu-categories`;
+    const response = await fetch(url, {
+      next: { revalidate: 600 }, // Cache for 10 minutes
+    });
 
-  for (const result of results) {
-    if (result.status === "fulfilled" && result.value.thumbnail) {
-      thumbnails[result.value.category] = result.value.thumbnail;
+    if (!response.ok) {
+      return {};
     }
-  }
 
-  return thumbnails;
+    const data: MenuCategoriesResponse = await response.json();
+    const thumbnails: Record<string, string> = {};
+
+    for (const cat of data.categories) {
+      if (cat.thumbnail) {
+        thumbnails[cat.slug] = cat.thumbnail;
+      }
+    }
+
+    return thumbnails;
+  } catch {
+    return {};
+  }
 }

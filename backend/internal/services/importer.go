@@ -181,6 +181,7 @@ func (i *Importer) invalidateCache(ctx context.Context) error {
 		"videos:*",
 		"video:*",
 		"categories:*",
+		database.CacheKeyMenuCategories,
 	}
 
 	for _, pattern := range patterns {

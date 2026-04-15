@@ -299,6 +299,80 @@ func (h *Handler) GetCategories(c *fiber.Ctx) error {
 	})
 }
 
+// MenuCategory represents a category with thumbnail for the menu
+type MenuCategory struct {
+	Slug      string `json:"slug"`
+	Name      string `json:"name"`
+	Thumbnail string `json:"thumbnail,omitempty"`
+}
+
+// GetMenuCategories handles GET /api/menu-categories
+// Returns categories with thumbnails for the mobile menu in a single request
+func (h *Handler) GetMenuCategories(c *fiber.Ctx) error {
+	// Menu categories we want thumbnails for
+	menuSlugs := []string{
+		"extreme-bondage", "femdom", "bondage", "shibari", "dominatrix",
+		"slave", "submission", "latex", "leather", "pet-play",
+		"mummification", "spanking", "cbt", "strapon", "facesitting",
+	}
+
+	slugToName := map[string]string{
+		"extreme-bondage": "Extreme Bondage",
+		"femdom":          "Femdom",
+		"bondage":         "Bondage",
+		"shibari":         "Shibari",
+		"dominatrix":      "Dominatrix",
+		"slave":           "Slave",
+		"submission":      "Submission",
+		"latex":           "Latex",
+		"leather":         "Leather",
+		"pet-play":        "Pet Play",
+		"mummification":   "Mummification",
+		"spanking":        "Spanking",
+		"cbt":             "CBT",
+		"strapon":         "Strapon",
+		"facesitting":     "Facesitting",
+	}
+
+	// Try cache first
+	cacheKey := database.CacheKeyMenuCategories
+	var cached []MenuCategory
+	err := h.cache.Get(c.Context(), cacheKey, &cached)
+	if err == nil {
+		return c.JSON(fiber.Map{
+			"categories": cached,
+		})
+	}
+
+	// Fetch top-rated video thumbnail for each category
+	categories := make([]MenuCategory, 0, len(menuSlugs))
+	for _, slug := range menuSlugs {
+		cat := MenuCategory{
+			Slug: slug,
+			Name: slugToName[slug],
+		}
+
+		// Get top-rated video for this category
+		result, err := h.db.ListVideos(c.Context(), 1, 1, "rating", slug, "")
+		if err == nil && len(result.Videos) > 0 {
+			if result.Videos[0].ThumbnailLg != "" {
+				cat.Thumbnail = result.Videos[0].ThumbnailLg
+			} else {
+				cat.Thumbnail = result.Videos[0].Thumbnail
+			}
+		}
+
+		categories = append(categories, cat)
+	}
+
+	// Cache for 10 minutes
+	_ = h.cache.Set(c.Context(), cacheKey, categories)
+
+	return c.JSON(fiber.Map{
+		"categories": categories,
+	})
+}
+
 // GetStats handles GET /api/stats
 func (h *Handler) GetStats(c *fiber.Ctx) error {
 	// Try cache first
