@@ -14,12 +14,15 @@ import (
 
 // Importer handles the automated video import process
 type Importer struct {
-	db      *database.PostgresDB
-	cache   *database.RedisCache
-	eporner *EpornerClient
-	perPage int
-	running atomic.Bool
-	mu      sync.Mutex
+	db                *database.PostgresDB
+	cache             *database.RedisCache
+	eporner           *EpornerClient
+	perPage           int
+	maxPages          int
+	lightMaxPages     int
+	lightKeywordLimit int
+	running           atomic.Bool
+	mu                sync.Mutex
 }
 
 // ImportStats tracks import statistics
@@ -34,13 +37,67 @@ type ImportStats struct {
 }
 
 // NewImporter creates a new video importer
-func NewImporter(db *database.PostgresDB, cache *database.RedisCache, eporner *EpornerClient, perPage int) *Importer {
-	return &Importer{
-		db:      db,
-		cache:   cache,
-		eporner: eporner,
-		perPage: perPage,
+func NewImporter(
+	db *database.PostgresDB,
+	cache *database.RedisCache,
+	eporner *EpornerClient,
+	perPage int,
+	maxPages int,
+	lightMaxPages int,
+	lightKeywordLimit int,
+) *Importer {
+	if perPage < 1 {
+		perPage = 100
 	}
+	if maxPages < 1 {
+		maxPages = 3
+	}
+	if lightMaxPages < 1 {
+		lightMaxPages = 1
+	}
+	if lightKeywordLimit < 1 {
+		lightKeywordLimit = 20
+	}
+
+	return &Importer{
+		db:                db,
+		cache:             cache,
+		eporner:           eporner,
+		perPage:           perPage,
+		maxPages:          maxPages,
+		lightMaxPages:     lightMaxPages,
+		lightKeywordLimit: lightKeywordLimit,
+	}
+}
+
+func maxImportPagesFromResponse(response *EpornerResponse, configuredMax int) int {
+	if configuredMax < 1 {
+		configuredMax = 1
+	}
+	if response == nil {
+		return configuredMax
+	}
+
+	responsePerPage := response.PerPage
+	if responsePerPage <= 0 {
+		responsePerPage = len(response.Videos)
+	}
+	if responsePerPage <= 0 {
+		return 1
+	}
+
+	availablePages := response.Count / responsePerPage
+	if response.Count%responsePerPage > 0 {
+		availablePages++
+	}
+	if availablePages < 1 {
+		availablePages = 1
+	}
+	if availablePages > configuredMax {
+		return configuredMax
+	}
+
+	return availablePages
 }
 
 // Run executes the import job
@@ -52,20 +109,18 @@ func (i *Importer) Run(ctx context.Context) *ImportStats {
 	}
 	defer i.running.Store(false)
 
-	stats := &ImportStats{
-		StartTime: time.Now(),
-	}
+	stats := &ImportStats{StartTime: time.Now()}
 
-	keywords := models.SearchKeywords()
+	queries := models.ImportQueries()
 
 	// Shuffle keywords to vary import order
-	shuffledKeywords := make([]string, len(keywords))
-	copy(shuffledKeywords, keywords)
+	shuffledKeywords := make([]string, len(queries))
+	copy(shuffledKeywords, queries)
 	rand.Shuffle(len(shuffledKeywords), func(i, j int) {
 		shuffledKeywords[i], shuffledKeywords[j] = shuffledKeywords[j], shuffledKeywords[i]
 	})
 
-	log.Printf("Starting import with %d keywords", len(shuffledKeywords))
+	log.Printf("Starting import with %d queries across up to %d pages each", len(shuffledKeywords), i.maxPages)
 
 	for _, keyword := range shuffledKeywords {
 		select {
@@ -76,7 +131,7 @@ func (i *Importer) Run(ctx context.Context) *ImportStats {
 		default:
 		}
 
-		keywordStats := i.importKeyword(ctx, keyword)
+		keywordStats := i.importKeywordPages(ctx, keyword, i.maxPages)
 		stats.KeywordsQueried++
 		stats.VideosFound += keywordStats.found
 		stats.VideosImported += keywordStats.imported
@@ -108,15 +163,14 @@ type keywordStats struct {
 	errors   int
 }
 
-func (i *Importer) importKeyword(ctx context.Context, keyword string) keywordStats {
+func (i *Importer) importKeywordPages(ctx context.Context, keyword string, maxPages int) keywordStats {
 	stats := keywordStats{}
 
 	// Importer wants latest content for fresh imports
 	opts := &SearchOptions{Order: "latest"}
 
-	// Fetch multiple pages per keyword for thorough coverage
-	maxPages := 3
-	for page := 1; page <= maxPages; page++ {
+	targetPages := maxPages
+	for page := 1; page <= targetPages; page++ {
 		select {
 		case <-ctx.Done():
 			return stats
@@ -132,6 +186,10 @@ func (i *Importer) importKeyword(ctx context.Context, keyword string) keywordSta
 
 		if len(response.Videos) == 0 {
 			break // No more results
+		}
+
+		if page == 1 {
+			targetPages = maxImportPagesFromResponse(response, maxPages)
 		}
 
 		stats.found += len(response.Videos)
@@ -158,8 +216,13 @@ func (i *Importer) importKeyword(ctx context.Context, keyword string) keywordSta
 			}
 		}
 
-		// If we got fewer results than requested, no more pages
-		if len(response.Videos) < i.perPage {
+		responsePerPage := response.PerPage
+		if responsePerPage <= 0 {
+			responsePerPage = i.perPage
+		}
+
+		// If we got fewer results than requested or exhausted the available pages, stop.
+		if len(response.Videos) < responsePerPage || page >= targetPages {
 			break
 		}
 
@@ -173,6 +236,10 @@ func (i *Importer) importKeyword(ctx context.Context, keyword string) keywordSta
 	}
 
 	return stats
+}
+
+func (i *Importer) importKeyword(ctx context.Context, keyword string) keywordStats {
+	return i.importKeywordPages(ctx, keyword, i.maxPages)
 }
 
 func (i *Importer) invalidateCache(ctx context.Context) error {
@@ -233,23 +300,25 @@ func (i *Importer) RunLight(ctx context.Context) *ImportStats {
 	}
 	defer i.running.Store(false)
 
-	stats := &ImportStats{
-		StartTime: time.Now(),
-	}
+	stats := &ImportStats{StartTime: time.Now()}
 
-	keywords := models.SearchKeywords()
+	queries := models.ImportQueries()
 
 	// Shuffle and limit to first 20 keywords for speed
-	shuffledKeywords := make([]string, len(keywords))
-	copy(shuffledKeywords, keywords)
+	shuffledKeywords := make([]string, len(queries))
+	copy(shuffledKeywords, queries)
 	rand.Shuffle(len(shuffledKeywords), func(i, j int) {
 		shuffledKeywords[i], shuffledKeywords[j] = shuffledKeywords[j], shuffledKeywords[i]
 	})
-	if len(shuffledKeywords) > 20 {
-		shuffledKeywords = shuffledKeywords[:20]
+	if len(shuffledKeywords) > i.lightKeywordLimit {
+		shuffledKeywords = shuffledKeywords[:i.lightKeywordLimit]
 	}
 
-	log.Printf("Starting light import with %d keywords (1 page each)", len(shuffledKeywords))
+	log.Printf(
+		"Starting light import with %d queries (%d page(s) each)",
+		len(shuffledKeywords),
+		i.lightMaxPages,
+	)
 
 	for _, keyword := range shuffledKeywords {
 		select {
@@ -260,7 +329,7 @@ func (i *Importer) RunLight(ctx context.Context) *ImportStats {
 		default:
 		}
 
-		keywordStats := i.importKeywordLight(ctx, keyword)
+		keywordStats := i.importKeywordPages(ctx, keyword, i.lightMaxPages)
 		stats.KeywordsQueried++
 		stats.VideosFound += keywordStats.found
 		stats.VideosImported += keywordStats.imported
@@ -280,50 +349,6 @@ func (i *Importer) RunLight(ctx context.Context) *ImportStats {
 	// Invalidate cache after import
 	if err := i.invalidateCache(ctx); err != nil {
 		log.Printf("Warning: failed to invalidate cache: %v", err)
-	}
-
-	return stats
-}
-
-// importKeywordLight fetches only 1 page per keyword for faster startup refresh
-func (i *Importer) importKeywordLight(ctx context.Context, keyword string) keywordStats {
-	stats := keywordStats{}
-
-	// Importer wants latest content
-	opts := &SearchOptions{Order: "latest"}
-	response, err := i.eporner.SearchVideosWithOptions(ctx, keyword, 1, i.perPage, opts)
-	if err != nil {
-		log.Printf("Error fetching keyword %q: %v", keyword, err)
-		stats.errors++
-		return stats
-	}
-
-	if len(response.Videos) == 0 {
-		return stats
-	}
-
-	stats.found = len(response.Videos)
-
-	for _, ev := range response.Videos {
-		if !MatchesTopicAndBDSM(&ev, keyword) {
-			stats.skipped++
-			continue
-		}
-
-		video := ConvertToVideo(&ev, keyword)
-
-		inserted, err := i.db.UpsertVideo(ctx, video)
-		if err != nil {
-			log.Printf("Error upserting video %s: %v", video.ExternalID, err)
-			stats.errors++
-			continue
-		}
-
-		if inserted {
-			stats.imported++
-		} else {
-			stats.skipped++
-		}
 	}
 
 	return stats

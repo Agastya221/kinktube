@@ -95,12 +95,12 @@ func (r *RedisCache) Exists(ctx context.Context, key string) bool {
 
 // Cache key generators for consistent naming
 const (
-	CacheKeyVideoList      = "videos:list:v2:%s:%d:%d:%s:%s" // sort:page:perPage:category:search
+	CacheKeyVideoList      = "videos:list:v4:%s:%d:%d:%s:%s" // sort:page:perPage:category:search
 	CacheKeyVideo          = "video:%d"                      // id
 	CacheKeyVideoExt       = "video:ext:%s"                  // external_id
-	CacheKeyCategories     = "categories:stats:v2"
+	CacheKeyCategories     = "categories:stats:v3"
 	CacheKeyMenuCategories = "menu-categories:v3"
-	CacheKeyTotalCount     = "videos:total"
+	CacheKeyTotalCount     = "videos:total:v2"
 	CacheKeyRelated        = "video:%d:related:v3:%d"
 )
 

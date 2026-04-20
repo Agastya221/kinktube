@@ -2,16 +2,19 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import VideoGrid from "@/components/VideoGrid";
+import InfiniteVideoGrid from "@/components/InfiniteVideoGrid";
 import Pagination from "@/components/Pagination";
 import SearchBar from "@/components/SearchBar";
 import { SortSelect } from "@/components/SortSelect";
 import { getVideosServer } from "@/lib/api";
+import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
 
 interface SearchPageProps {
   searchParams: Promise<{
     q?: string;
     page?: string;
     sort?: string;
+    infinite?: string;
   }>;
 }
 
@@ -31,6 +34,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const query = params.q || "";
   const page = parseInt(params.page || "1", 10);
+  const useInfiniteScroll = params.infinite === "1" || (!params.page && params.infinite !== "0");
   // Don't force a default sort - let Eporner decide based on relevance
   // Only pass sort if user explicitly selected one
   const sort = params.sort as "latest" | "views" | "rating" | "extreme" | undefined;
@@ -43,16 +47,36 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       // Only include sort param if user explicitly selected one
       videosData = await getVideosServer({
         page,
-        per_page: 24,
+        per_page: VIDEO_LIST_PAGE_SIZE,
         q: query,
         ...(sort && { sort }),
       });
     } else {
-      videosData = { videos: [], total: 0, page: 1, per_page: 24, total_pages: 0 };
+      videosData = {
+        videos: [],
+        total: 0,
+        page: 1,
+        per_page: VIDEO_LIST_PAGE_SIZE,
+        total_pages: 0,
+        has_more: false,
+        total_exact: true,
+      };
     }
   } catch {
-    videosData = { videos: [], total: 0, page: 1, per_page: 24, total_pages: 0 };
+    videosData = {
+      videos: [],
+      total: 0,
+      page: 1,
+      per_page: VIDEO_LIST_PAGE_SIZE,
+      total_pages: 0,
+      has_more: false,
+      total_exact: true,
+    };
   }
+
+  const searchSummary = videosData.total_exact
+    ? `Found ${videosData.total.toLocaleString()} video${videosData.total !== 1 ? "s" : ""}`
+    : `Showing ${videosData.videos.length.toLocaleString()} result${videosData.videos.length !== 1 ? "s" : ""} on this page. More matches are available.`;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -77,7 +101,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
         {query && (
           <p className="text-foreground-muted mt-2">
-            Found {videosData.total.toLocaleString()} video{videosData.total !== 1 ? "s" : ""}
+            {searchSummary}
           </p>
         )}
       </section>
@@ -95,17 +119,34 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             </section>
           )}
 
-          {/* Video Grid */}
-          <VideoGrid videos={videosData.videos} />
-
-          {/* Pagination */}
-          <Suspense fallback={null}>
-            <Pagination
-              currentPage={videosData.page}
+          {useInfiniteScroll ? (
+            <InfiniteVideoGrid
+              initialVideos={videosData.videos}
+              initialPage={videosData.page}
               totalPages={videosData.total_pages}
-              total={videosData.total}
+              queryParams={{
+                per_page: VIDEO_LIST_PAGE_SIZE,
+                q: query,
+                ...(sort && { sort }),
+              }}
             />
-          </Suspense>
+          ) : (
+            <>
+              {/* Video Grid */}
+              <VideoGrid videos={videosData.videos} />
+
+              {/* Pagination */}
+              <Suspense fallback={null}>
+                <Pagination
+                  currentPage={videosData.page}
+                  totalPages={videosData.total_pages}
+                  total={videosData.total}
+                  hasMore={videosData.has_more}
+                  totalExact={videosData.total_exact}
+                />
+              </Suspense>
+            </>
+          )}
         </>
       ) : (
         <div className="text-center py-12">

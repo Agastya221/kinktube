@@ -12,6 +12,8 @@ import (
 	"kinktube/internal/models"
 )
 
+const defaultListPerPage = 100
+
 func scanVideoRow(rows pgx.Rows, v *models.Video) error {
 	return rows.Scan(
 		&v.ID, &v.ExternalID, &v.Title, &v.Description,
@@ -108,6 +110,14 @@ func (db *PostgresDB) InitSchema(ctx context.Context) error {
 
 		ALTER TABLE category_menu_thumbnails
 		ADD COLUMN IF NOT EXISTS query_key TEXT NOT NULL DEFAULT '';
+
+		ALTER TABLE videos
+		ADD COLUMN IF NOT EXISTS is_english BOOLEAN NOT NULL DEFAULT TRUE;
+
+		ALTER TABLE videos
+		ADD COLUMN IF NOT EXISTS language_checked BOOLEAN NOT NULL DEFAULT FALSE;
+
+		CREATE INDEX IF NOT EXISTS idx_videos_is_english ON videos(is_english);
 	`
 
 	_, err := db.pool.Exec(ctx, schema)
@@ -174,15 +184,98 @@ func (db *PostgresDB) ClearCategoryMenuThumbnailCache(ctx context.Context) error
 	return err
 }
 
+// BackfillEnglishFlags evaluates existing rows with the current language heuristic so
+// counts and list filters stay accurate for already-imported content.
+func (db *PostgresDB) BackfillEnglishFlags(ctx context.Context, batchSize int) (int64, error) {
+	if batchSize < 1 {
+		batchSize = 500
+	}
+
+	var totalUpdated int64
+
+	for {
+		rows, err := db.pool.Query(ctx, `
+			SELECT id, title, tags, keywords
+			FROM videos
+			WHERE language_checked = FALSE
+			ORDER BY id
+			LIMIT $1
+		`, batchSize)
+		if err != nil {
+			return totalUpdated, err
+		}
+
+		type visibilityUpdate struct {
+			id        int64
+			isEnglish bool
+		}
+
+		updates := make([]visibilityUpdate, 0, batchSize)
+		for rows.Next() {
+			var id int64
+			var title string
+			var tags []string
+			var keywords string
+			if err := rows.Scan(&id, &title, &tags, &keywords); err != nil {
+				rows.Close()
+				return totalUpdated, err
+			}
+
+			updates = append(updates, visibilityUpdate{
+				id: id,
+				isEnglish: models.IsLikelyEnglishText(
+					title,
+					strings.Join(tags, " "),
+					keywords,
+				),
+			})
+		}
+
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return totalUpdated, err
+		}
+		rows.Close()
+
+		if len(updates) == 0 {
+			return totalUpdated, nil
+		}
+
+		batch := &pgx.Batch{}
+		for _, update := range updates {
+			batch.Queue(`
+				UPDATE videos
+				SET is_english = $1, language_checked = TRUE
+				WHERE id = $2
+			`, update.isEnglish, update.id)
+		}
+
+		results := db.pool.SendBatch(ctx, batch)
+		for range updates {
+			if _, err := results.Exec(); err != nil {
+				_ = results.Close()
+				return totalUpdated, err
+			}
+		}
+		if err := results.Close(); err != nil {
+			return totalUpdated, err
+		}
+
+		totalUpdated += int64(len(updates))
+	}
+}
+
 // UpsertVideo inserts or updates a video (handles deduplication by external_id).
 func (db *PostgresDB) UpsertVideo(ctx context.Context, video *models.Video) (bool, error) {
+	isEnglish := models.IsLikelyEnglishVideo(video)
+
 	query := `
 		INSERT INTO videos (
 			external_id, title, description, duration, duration_str,
 			views, rating, thumbnail, thumbnail_lg, embed_url, source_url,
-			tags, categories, keywords, published_at, last_updated_at
+			tags, categories, keywords, published_at, is_english, language_checked, last_updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW()
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, TRUE, NOW()
 		)
 		ON CONFLICT (external_id) DO UPDATE SET
 			title = EXCLUDED.title,
@@ -195,10 +288,31 @@ func (db *PostgresDB) UpsertVideo(ctx context.Context, video *models.Video) (boo
 			thumbnail_lg = EXCLUDED.thumbnail_lg,
 			embed_url = EXCLUDED.embed_url,
 			source_url = EXCLUDED.source_url,
-			tags = EXCLUDED.tags,
-			categories = EXCLUDED.categories,
+			tags = ARRAY(
+				SELECT merged_tag.tag
+				FROM (
+					SELECT tag, MIN(ord) AS ord
+					FROM unnest(EXCLUDED.tags || videos.tags) WITH ORDINALITY AS merged(tag, ord)
+					WHERE tag IS NOT NULL AND tag <> ''
+					GROUP BY tag
+					ORDER BY MIN(ord)
+					LIMIT 32
+				) AS merged_tag
+			),
+			categories = ARRAY(
+				SELECT merged_category.category
+				FROM (
+					SELECT category, MIN(ord) AS ord
+					FROM unnest(EXCLUDED.categories || videos.categories) WITH ORDINALITY AS merged(category, ord)
+					WHERE category IS NOT NULL AND category <> ''
+					GROUP BY category
+					ORDER BY MIN(ord)
+				) AS merged_category
+			),
 			keywords = EXCLUDED.keywords,
 			published_at = EXCLUDED.published_at,
+			is_english = EXCLUDED.is_english,
+			language_checked = TRUE,
 			last_updated_at = NOW()
 		RETURNING id, added_at, (xmax = 0) AS inserted
 	`
@@ -207,7 +321,7 @@ func (db *PostgresDB) UpsertVideo(ctx context.Context, video *models.Video) (boo
 	err := db.pool.QueryRow(ctx, query,
 		video.ExternalID, video.Title, video.Description, video.Duration, video.DurationStr,
 		video.Views, video.Rating, video.Thumbnail, video.ThumbnailLg, video.EmbedURL,
-		video.SourceURL, video.Tags, video.Categories, video.Keywords, video.PublishedAt,
+		video.SourceURL, video.Tags, video.Categories, video.Keywords, video.PublishedAt, isEnglish,
 	).Scan(&video.ID, &video.AddedAt, &inserted)
 	if err != nil {
 		return false, err
@@ -278,7 +392,7 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 		page = 1
 	}
 	if perPage < 1 || perPage > 100 {
-		perPage = 24
+		perPage = defaultListPerPage
 	}
 
 	offset := (page - 1) * perPage
@@ -287,6 +401,8 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 	var conditions []string
 	var args []interface{}
 	argIndex := 1
+
+	conditions = append(conditions, "is_english = TRUE")
 
 	if category != "" {
 		// Category must be present in the categories array
@@ -361,7 +477,7 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 			views DESC`
 	}
 
-	// Count total before language filtering. Page contents are filtered again below.
+	// Count exact total using the same visibility filter as the page query.
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM videos %s", whereClause)
 	var total int64
 	err := db.pool.QueryRow(ctx, countQuery, args...).Scan(&total)
@@ -401,10 +517,6 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 				return nil, err
 			}
 
-			if !models.IsLikelyEnglishVideo(&v) {
-				continue
-			}
-
 			videos = append(videos, v)
 			if len(videos) >= perPage {
 				break
@@ -439,6 +551,8 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 		Page:       page,
 		PerPage:    perPage,
 		TotalPages: totalPages,
+		HasMore:    page < totalPages,
+		TotalExact: true,
 	}, nil
 }
 
@@ -447,6 +561,7 @@ func (db *PostgresDB) GetCategoryStats(ctx context.Context) (map[string]int64, e
 	query := `
 		SELECT unnest(categories) as category, COUNT(*) as count
 		FROM videos
+		WHERE is_english = TRUE
 		GROUP BY category
 		ORDER BY count DESC
 	`
@@ -473,7 +588,7 @@ func (db *PostgresDB) GetCategoryStats(ctx context.Context) (map[string]int64, e
 // GetTotalVideoCount returns the total number of videos
 func (db *PostgresDB) GetTotalVideoCount(ctx context.Context) (int64, error) {
 	var count int64
-	err := db.pool.QueryRow(ctx, "SELECT COUNT(*) FROM videos").Scan(&count)
+	err := db.pool.QueryRow(ctx, "SELECT COUNT(*) FROM videos WHERE is_english = TRUE").Scan(&count)
 	return count, err
 }
 
@@ -499,6 +614,7 @@ func (db *PostgresDB) GetRelatedVideos(ctx context.Context, videoID int64, limit
 			v.tags, v.categories, v.keywords, v.added_at, v.published_at, v.last_updated_at
 		FROM videos v, target t
 		WHERE v.id != $1
+		AND v.is_english = TRUE
 		AND (
 			-- Must share primary category OR have same keywords
 			t.primary_category = ANY(v.categories)
@@ -531,10 +647,6 @@ func (db *PostgresDB) GetRelatedVideos(ctx context.Context, videoID int64, limit
 		var v models.Video
 		if err := scanVideoRow(rows, &v); err != nil {
 			return nil, err
-		}
-
-		if !models.IsLikelyEnglishVideo(&v) {
-			continue
 		}
 
 		videos = append(videos, v)

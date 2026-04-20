@@ -14,29 +14,16 @@ import (
 	"kinktube/internal/services"
 )
 
-var categorySearchQueryOverrides = map[string]string{
-	"device-bondage":      "device bondage",
-	"extreme-bondage":     "extreme bondage",
-	"foot-fetish":         "foot fetish",
-	"medical-bondage":     "medical bondage",
-	"pet-play":            "pet play",
-	"public-humiliation":  "public humiliation",
-	"sensory-deprivation": "sensory deprivation",
-	"severe-discipline":   "severe discipline",
-	"slave":               "slave training",
-	"vacbed":              "vacbed",
-}
+const defaultListPerPage = 100
 
-func categorySearchQuery(slug string) string {
-	if query, ok := categorySearchQueryOverrides[slug]; ok {
-		return query
-	}
-
-	return strings.ReplaceAll(slug, "-", " ")
-}
+const (
+	categoryBootstrapTargetPages = 3
+	categoryBootstrapMaxPages    = 4
+	categoryBootstrapTTL         = 15 * time.Minute
+)
 
 func menuCategoryThumbnailQueryKey(slug string) string {
-	query := services.EnhanceQueryForBDSM(categorySearchQuery(slug))
+	query := services.EnhanceQueryForBDSM(models.CategorySearchQuery(slug))
 	return "thumb-v3:" + query + ":top-rated-first"
 }
 
@@ -204,7 +191,7 @@ func (h *Handler) backfillVisibleLiveVideos(videos []models.Video) {
 }
 
 func (h *Handler) getRelevantCategoryThumbnail(c *fiber.Ctx, slug string) string {
-	query := categorySearchQuery(slug)
+	query := models.CategorySearchQuery(slug)
 
 	searchAttempts := []*services.SearchOptions{
 		{Order: "top-rated"},
@@ -243,10 +230,139 @@ func (h *Handler) getRelevantCategoryThumbnail(c *fiber.Ctx, slug string) string
 	return ""
 }
 
+func categoryBootstrapCacheKey(slug string) string {
+	return "category:bootstrap:v1:" + slug
+}
+
+func desiredCategoryInventory(page, perPage int) int64 {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = defaultListPerPage
+	}
+
+	targetPages := page + 1
+	if targetPages < categoryBootstrapTargetPages {
+		targetPages = categoryBootstrapTargetPages
+	}
+
+	return int64(targetPages * perPage)
+}
+
+func shouldBootstrapCategory(result *models.VideoListResponse, page, perPage int) bool {
+	if result == nil {
+		return false
+	}
+
+	if len(result.Videos) < perPage {
+		return true
+	}
+
+	return result.Total < desiredCategoryInventory(page, perPage)
+}
+
+func (h *Handler) invalidateBrowseCaches(ctx context.Context) {
+	_ = h.cache.DeletePattern(ctx, "videos:*")
+	_ = h.cache.DeletePattern(ctx, "categories:*")
+	_ = h.cache.Delete(ctx, database.CacheKeyTotalCount)
+	_ = h.cache.Delete(ctx, database.CacheKeyMenuCategories)
+}
+
+func (h *Handler) topUpCategoryInventory(
+	c *fiber.Ctx,
+	category string,
+	page, perPage int,
+	sortBy string,
+	current *models.VideoListResponse,
+) *models.VideoListResponse {
+	if category == "" || current == nil || !shouldBootstrapCategory(current, page, perPage) {
+		return current
+	}
+
+	cooldownKey := categoryBootstrapCacheKey(category)
+	if h.cache.Exists(c.Context(), cooldownKey) {
+		return current
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	query := models.CategorySearchQuery(category)
+	missingInventory := int(desiredCategoryInventory(page, perPage) - current.Total)
+	pagesToFetch := 1
+	if missingInventory > 100 {
+		pagesToFetch = (missingInventory + 99) / 100
+	}
+	if pagesToFetch > categoryBootstrapMaxPages {
+		pagesToFetch = categoryBootstrapMaxPages
+	}
+
+	opts := &services.SearchOptions{Order: "latest"}
+	persistedAny := false
+
+	for sourcePage := 1; sourcePage <= pagesToFetch; sourcePage++ {
+		response, err := h.eporner.SearchVideosWithOptions(ctx, query, sourcePage, 100, opts)
+		if err != nil {
+			break
+		}
+
+		if len(response.Videos) == 0 {
+			break
+		}
+
+		for _, ev := range response.Videos {
+			if !services.MatchesTopicAndBDSM(&ev, query) {
+				continue
+			}
+
+			video := services.ConvertToVideo(&ev, query)
+			if video.Thumbnail == "" && video.ThumbnailLg == "" {
+				continue
+			}
+
+			if _, err := h.db.UpsertVideo(ctx, video); err != nil {
+				continue
+			}
+
+			persistedAny = true
+			h.cacheVideoRecord(ctx, video)
+		}
+
+		responsePerPage := response.PerPage
+		if responsePerPage <= 0 {
+			responsePerPage = 100
+		}
+
+		if len(response.Videos) < responsePerPage || (response.Page*responsePerPage) >= response.Count {
+			break
+		}
+	}
+
+	if !persistedAny {
+		_ = h.cache.SetWithTTL(ctx, cooldownKey, true, categoryBootstrapTTL)
+		return current
+	}
+
+	refreshed, err := h.db.ListVideos(ctx, page, perPage, sortBy, category, "")
+	if err != nil {
+		return current
+	}
+
+	if refreshed.Total > current.Total || len(refreshed.Videos) > len(current.Videos) {
+		h.invalidateBrowseCaches(ctx)
+		_ = h.cache.Delete(ctx, cooldownKey)
+		return refreshed
+	}
+
+	_ = h.cache.SetWithTTL(ctx, cooldownKey, true, categoryBootstrapTTL)
+	return current
+}
+
 // ListVideos handles GET /api/videos
 func (h *Handler) ListVideos(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
-	perPage, _ := strconv.Atoi(c.Query("per_page", "24"))
+	perPage, _ := strconv.Atoi(c.Query("per_page", strconv.Itoa(defaultListPerPage)))
 	sortBy := c.Query("sort", "latest")
 	category := c.Query("category", "")
 	search := c.Query("q", "")
@@ -261,6 +377,10 @@ func (h *Handler) ListVideos(c *fiber.Ctx) error {
 	var cached models.VideoListResponse
 	err := h.cache.Get(c.Context(), cacheKey, &cached)
 	if err == nil {
+		if category != "" {
+			return c.JSON(h.topUpCategoryInventory(c, category, page, perPage, sortBy, &cached))
+		}
+
 		return c.JSON(cached)
 	}
 
@@ -269,6 +389,10 @@ func (h *Handler) ListVideos(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch videos",
 		})
+	}
+
+	if category != "" {
+		result = h.topUpCategoryInventory(c, category, page, perPage, sortBy, result)
 	}
 
 	_ = h.cache.Set(c.Context(), cacheKey, result)
@@ -282,10 +406,10 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 		page = 1
 	}
 	if perPage < 1 {
-		perPage = 24
+		perPage = defaultListPerPage
 	}
-	if perPage > 50 {
-		perPage = 50
+	if perPage > 100 {
+		perPage = 100
 	}
 
 	// Get sort preference from query params - empty means let Eporner decide (relevance)
@@ -419,6 +543,7 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 	if hasMore {
 		total++
 	}
+	totalExact := !hasMore
 	totalPages := int(total) / perPage
 	if int(total)%perPage > 0 {
 		totalPages++
@@ -430,6 +555,8 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 		Page:       page,
 		PerPage:    perPage,
 		TotalPages: totalPages,
+		HasMore:    hasMore,
+		TotalExact: totalExact,
 	}
 
 	h.backfillVisibleLiveVideos(videos)
@@ -443,12 +570,12 @@ func (h *Handler) liveSearch(c *fiber.Ctx, query string, page, perPage int) erro
 // SearchVideos handles GET /api/search - dedicated live search endpoint
 func (h *Handler) SearchVideos(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
-	perPage, _ := strconv.Atoi(c.Query("per_page", "36")) // Default to 36 for search
+	perPage, _ := strconv.Atoi(c.Query("per_page", strconv.Itoa(defaultListPerPage)))
 	query := c.Query("q", "")
 
-	// Cap per_page at 50 for search
-	if perPage > 50 {
-		perPage = 50
+	// Cap per_page at 100 for search
+	if perPage > 100 {
+		perPage = 100
 	}
 
 	if query == "" {
@@ -458,6 +585,8 @@ func (h *Handler) SearchVideos(c *fiber.Ctx) error {
 			Page:       page,
 			PerPage:    perPage,
 			TotalPages: 0,
+			HasMore:    false,
+			TotalExact: true,
 		})
 	}
 

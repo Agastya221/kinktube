@@ -129,6 +129,20 @@ export async function getCategoriesServer(): Promise<CategoriesResponse> {
   return response.json();
 }
 
+export async function getStatsServer(): Promise<StatsResponse> {
+  const url = `${API_BASE_URL}/api/stats`;
+
+  const response = await fetch(url, {
+    next: { revalidate: 600 }, // Cache for 10 minutes
+  });
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 // Affiliate API functions
 export async function getAffiliateLinks(videoId: string | number, max = 2): Promise<AffiliateLinksResponse> {
   return fetchAPI<AffiliateLinksResponse>(`/api/videos/${encodeURIComponent(String(videoId))}/affiliates?max=${max}`);

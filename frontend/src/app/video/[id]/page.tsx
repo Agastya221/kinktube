@@ -123,7 +123,7 @@ export default async function VideoPage({ params }: VideoPageProps) {
   try {
     [videoData, relatedVideos] = await Promise.all([
       getVideoWithAffiliatesServer(id),
-      getRelatedVideosServer(id, 12),
+      getRelatedVideosServer(id, 24),
     ]);
   } catch {
     notFound();

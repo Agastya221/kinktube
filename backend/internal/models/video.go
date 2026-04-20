@@ -33,6 +33,8 @@ type VideoListResponse struct {
 	Page       int     `json:"page"`
 	PerPage    int     `json:"per_page"`
 	TotalPages int     `json:"total_pages"`
+	HasMore    bool    `json:"has_more"`
+	TotalExact bool    `json:"total_exact"`
 }
 
 // Category represents a BDSM category for navigation

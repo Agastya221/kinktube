@@ -26,6 +26,9 @@ type Config struct {
 	ImportSchedule      string // Cron expression
 	RefreshOnStartup    bool   // Whether to refresh cache/content on startup
 	StartupRefreshDelay int    // Seconds to wait before startup refresh
+	ImportMaxPages      int
+	LightImportMaxPages int
+	LightImportKeywords int
 
 	// Cache TTL in seconds
 	CacheTTL int
@@ -44,6 +47,9 @@ func Load() *Config {
 	importEnabled, _ := strconv.ParseBool(getEnv("IMPORT_ENABLED", "true"))
 	refreshOnStartup, _ := strconv.ParseBool(getEnv("REFRESH_ON_STARTUP", "true"))
 	startupDelay, _ := strconv.Atoi(getEnv("STARTUP_REFRESH_DELAY", "10"))
+	importMaxPages, _ := strconv.Atoi(getEnv("IMPORT_MAX_PAGES", "8"))
+	lightImportMaxPages, _ := strconv.Atoi(getEnv("LIGHT_IMPORT_MAX_PAGES", "2"))
+	lightImportKeywords, _ := strconv.Atoi(getEnv("LIGHT_IMPORT_KEYWORDS", "40"))
 
 	return &Config{
 		ServerPort:          getEnv("SERVER_PORT", "8080"),
@@ -56,6 +62,9 @@ func Load() *Config {
 		ImportSchedule:      getEnv("IMPORT_SCHEDULE", "0 */6 * * *"), // Every 6 hours by default
 		RefreshOnStartup:    refreshOnStartup,
 		StartupRefreshDelay: startupDelay,
+		ImportMaxPages:      importMaxPages,
+		LightImportMaxPages: lightImportMaxPages,
+		LightImportKeywords: lightImportKeywords,
 		CacheTTL:            cacheTTL,
 		FrontendURL:         getEnv("FRONTEND_URL", "http://localhost:3000"),
 		AdminAPIKey:         getEnv("ADMIN_API_KEY", ""),

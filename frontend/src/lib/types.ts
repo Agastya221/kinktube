@@ -27,6 +27,8 @@ export interface VideoListResponse {
   page: number;
   per_page: number;
   total_pages: number;
+  has_more: boolean;
+  total_exact: boolean;
 }
 
 // Category represents a video category

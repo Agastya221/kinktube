@@ -7,14 +7,26 @@ interface PaginationProps {
   currentPage: number;
   totalPages: number;
   total: number;
+  hasMore?: boolean;
+  totalExact?: boolean;
 }
 
-export default function Pagination({ currentPage, totalPages, total }: PaginationProps) {
+export default function Pagination({
+  currentPage,
+  totalPages,
+  total,
+  hasMore = false,
+  totalExact = true,
+}: PaginationProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  if (totalPages <= 1) return null;
+  const usesEstimatedTotals = !totalExact;
+  const canGoPrevious = currentPage > 1;
+  const canGoNext = usesEstimatedTotals ? hasMore : currentPage < totalPages;
+
+  if (!canGoPrevious && !canGoNext) return null;
 
   const navigateToPage = (page: number) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -59,19 +71,21 @@ export default function Pagination({ currentPage, totalPages, total }: Paginatio
     return pages;
   };
 
-  const pageNumbers = getPageNumbers();
+  const pageNumbers = usesEstimatedTotals ? [] : getPageNumbers();
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
       <p className="text-foreground-muted text-sm">
-        Showing page {currentPage} of {totalPages} ({total.toLocaleString()} videos)
+        {usesEstimatedTotals
+          ? `Showing page ${currentPage} of live results${hasMore ? " with more available" : ""}`
+          : `Showing page ${currentPage} of ${totalPages} (${total.toLocaleString()} videos)`}
       </p>
 
       <div className="flex items-center gap-2">
         {/* Previous Button */}
         <button
           onClick={() => navigateToPage(currentPage - 1)}
-          disabled={currentPage <= 1}
+          disabled={!canGoPrevious}
           className="pagination-btn flex items-center gap-1"
           aria-label="Previous page"
         >
@@ -80,30 +94,32 @@ export default function Pagination({ currentPage, totalPages, total }: Paginatio
         </button>
 
         {/* Page Numbers */}
-        <div className="flex items-center gap-1">
-          {pageNumbers.map((page, index) =>
-            page === "ellipsis" ? (
-              <span key={`ellipsis-${index}`} className="px-2 text-foreground-muted">
-                ...
-              </span>
-            ) : (
-              <button
-                key={page}
-                onClick={() => navigateToPage(page)}
-                className={`pagination-btn min-w-[40px] ${currentPage === page ? "active" : ""}`}
-                aria-label={`Page ${page}`}
-                aria-current={currentPage === page ? "page" : undefined}
-              >
-                {page}
-              </button>
-            )
-          )}
-        </div>
+        {!usesEstimatedTotals && (
+          <div className="flex items-center gap-1">
+            {pageNumbers.map((page, index) =>
+              page === "ellipsis" ? (
+                <span key={`ellipsis-${index}`} className="px-2 text-foreground-muted">
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={page}
+                  onClick={() => navigateToPage(page)}
+                  className={`pagination-btn min-w-[40px] ${currentPage === page ? "active" : ""}`}
+                  aria-label={`Page ${page}`}
+                  aria-current={currentPage === page ? "page" : undefined}
+                >
+                  {page}
+                </button>
+              )
+            )}
+          </div>
+        )}
 
         {/* Next Button */}
         <button
           onClick={() => navigateToPage(currentPage + 1)}
-          disabled={currentPage >= totalPages}
+          disabled={!canGoNext}
           className="pagination-btn flex items-center gap-1"
           aria-label="Next page"
         >

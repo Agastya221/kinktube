@@ -7,6 +7,7 @@ import Pagination from "@/components/Pagination";
 import { AdBanner } from "@/components/ads";
 import { SortSelect } from "@/components/SortSelect";
 import { getVideosServer, getCategoriesServer } from "@/lib/api";
+import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
 
 // ISR: Revalidate category pages every hour
 export const revalidate = 3600;
@@ -94,19 +95,6 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
   },
 };
 
-const categorySearchQueryMap: Record<string, string> = {
-  "device-bondage": "device bondage",
-  "medical-bondage": "medical bondage",
-  "extreme-bondage": "extreme bondage",
-  "foot-fetish": "foot fetish",
-  "pet-play": "pet play",
-  "public-humiliation": "public humiliation",
-  "sensory-deprivation": "sensory deprivation",
-  "severe-discipline": "severe discipline",
-  slave: "slave training",
-  vacbed: "vacbed",
-};
-
 // Generate metadata for SEO
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -140,9 +128,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const { slug } = await params;
   const search = await searchParams;
   const page = parseInt(search.page || "1", 10);
-  const sort = search.sort as "latest" | "views" | "rating" | "extreme" | undefined;
-  const useInfiniteScroll = search.infinite === "1";
-  const categoryQuery = categorySearchQueryMap[slug] || slug.replace(/-/g, " ");
+  const sort = (search.sort as "latest" | "views" | "rating" | "extreme" | undefined) || "latest";
+  const useInfiniteScroll = search.infinite === "1" || (!search.page && search.infinite !== "0");
 
   // Format category name for display
   const categoryName = slug
@@ -158,18 +145,27 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     [videosData, categories] = await Promise.all([
       getVideosServer({
         page,
-        per_page: 24,
-        q: categoryQuery,
-        ...(sort && { sort }),
+        per_page: VIDEO_LIST_PAGE_SIZE,
+        category: slug,
+        sort,
       }),
       getCategoriesServer().catch(() => ({ categories: defaultCategories })),
     ]);
   } catch {
-    videosData = { videos: [], total: 0, page: 1, per_page: 24, total_pages: 0 };
+    videosData = {
+      videos: [],
+      total: 0,
+      page: 1,
+      per_page: VIDEO_LIST_PAGE_SIZE,
+      total_pages: 0,
+      has_more: false,
+      total_exact: true,
+    };
     categories = { categories: defaultCategories };
   }
 
   const meta = categoryMeta[slug];
+  const currentCategory = categories.categories.find((category) => category.slug === slug);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-6">
@@ -184,7 +180,14 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           <span className="text-accent">{categoryName}</span> Videos
         </h1>
         {meta && (
-          <p className="text-foreground-muted max-w-2xl">{meta.description}</p>
+          <div className="space-y-2 max-w-2xl">
+            <p className="text-foreground-muted">{meta.description}</p>
+            {currentCategory && currentCategory.video_count > 0 && (
+              <p className="text-sm font-medium uppercase tracking-[0.14em] text-accent/80">
+                {currentCategory.video_count.toLocaleString()} indexed videos in this category
+              </p>
+            )}
+          </div>
         )}
       </section>
 
@@ -203,19 +206,17 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       {/* Sort Options - Compact on mobile */}
       <section className="mb-4 md:mb-6 flex items-center justify-between gap-2">
         <h2 className="text-base sm:text-xl font-semibold truncate">
-          {!sort
-            ? "Most Relevant"
-            : sort === "latest"
-              ? "Latest"
-              : sort === "views"
-                ? "Most Viewed"
-                : sort === "extreme"
-                  ? "Most Extreme"
-                  : "Top Rated"}
+          {sort === "latest"
+            ? "Latest"
+            : sort === "views"
+              ? "Most Viewed"
+              : sort === "extreme"
+                ? "Most Extreme"
+                : "Top Rated"}
         </h2>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="text-foreground-muted text-xs sm:text-sm hidden sm:inline">Sort:</span>
-          <SortSelect current={sort} showRelevance />
+          <SortSelect current={sort} />
         </div>
       </section>
 
@@ -225,7 +226,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           initialVideos={videosData.videos}
           initialPage={videosData.page}
           totalPages={videosData.total_pages}
-          queryParams={{ per_page: 24, q: categoryQuery, ...(sort && { sort }) }}
+          queryParams={{ per_page: VIDEO_LIST_PAGE_SIZE, category: slug, sort }}
         />
       ) : (
         <>
@@ -237,6 +238,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
               currentPage={videosData.page}
               totalPages={videosData.total_pages}
               total={videosData.total}
+              hasMore={videosData.has_more}
+              totalExact={videosData.total_exact}
             />
           </Suspense>
         </>

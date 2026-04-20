@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Loader2, TrendingUp } from "lucide-react";
+import { getVideos } from "@/lib/api";
 
 interface SearchBarProps {
   placeholder?: string;
@@ -41,8 +42,6 @@ const popularSearches = [
   "device bondage",
   "sensory deprivation",
 ];
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 export default function SearchBar({
   placeholder = "Search extreme BDSM, bondage, femdom...",
@@ -113,23 +112,20 @@ export default function SearchBar({
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&per_page=6&sort=rating`,
-        { signal: AbortSignal.timeout(5000) } // 5s timeout
-      );
-
-      if (!response.ok) throw new Error("Search failed");
-
-      const data = await response.json();
+      const data = await getVideos({
+        q: searchQuery,
+        per_page: 8,
+        sort: "rating",
+      });
       const results: SearchSuggestion[] = [];
 
       // Add matching popular searches first (always available)
       const popularMatches = getPopularSuggestions(searchQuery);
-      results.push(...popularMatches.slice(0, 3));
+      results.push(...popularMatches.slice(0, 2));
 
       // Add live video results if available
       if (data.videos && data.videos.length > 0) {
-        const videoResults = data.videos.slice(0, 5).map((v: { id: number; title: string; external_id?: string }) => ({
+        const videoResults = data.videos.slice(0, 6).map((v: { id: number; title: string; external_id?: string }) => ({
           id: `video-${v.external_id || v.id}`,
           title: v.title,
           type: "result" as const,

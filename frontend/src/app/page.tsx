@@ -5,7 +5,8 @@ import CategoryNav, { defaultCategories } from "@/components/CategoryNav";
 import Pagination from "@/components/Pagination";
 import { AdBanner, NativeAd } from "@/components/ads";
 import { SortSelect } from "@/components/SortSelect";
-import { getVideosServer, getCategoriesServer } from "@/lib/api";
+import { getVideosServer, getCategoriesServer, getStatsServer } from "@/lib/api";
+import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
 
 // ISR: Revalidate homepage every hour
 export const revalidate = 3600;
@@ -23,21 +24,32 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const page = parseInt(params.page || "1", 10);
   // Default to mixed/latest for homepage - backend handles smart ordering
   const sort = (params.sort as "latest" | "views" | "rating" | "extreme") || "latest";
-  const useInfiniteScroll = params.infinite === "1";
+  const useInfiniteScroll = params.infinite === "1" || (!params.page && params.infinite !== "0");
 
   // Fetch data server-side
   let videosData;
   let categories;
+  let stats;
 
   try {
-    [videosData, categories] = await Promise.all([
-      getVideosServer({ page, per_page: 24, sort }),
+    [videosData, categories, stats] = await Promise.all([
+      getVideosServer({ page, per_page: VIDEO_LIST_PAGE_SIZE, sort }),
       getCategoriesServer().catch(() => ({ categories: defaultCategories })),
+      getStatsServer().catch(() => ({ total_videos: 0 })),
     ]);
   } catch {
     // Fallback for when API is not available
-    videosData = { videos: [], total: 0, page: 1, per_page: 24, total_pages: 0 };
+    videosData = {
+      videos: [],
+      total: 0,
+      page: 1,
+      per_page: VIDEO_LIST_PAGE_SIZE,
+      total_pages: 0,
+      has_more: false,
+      total_exact: true,
+    };
     categories = { categories: defaultCategories };
+    stats = { total_videos: 0 };
   }
 
   return (
@@ -56,6 +68,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           Dive into intense femdom, predicament bondage, severe discipline, mummification,
           and hardcore fetish scenes. Curated for serious kink enthusiasts. Not your average tube site.
         </p>
+        {stats.total_videos > 0 && (
+          <p className="mt-4 text-sm font-medium uppercase tracking-[0.18em] text-accent/80">
+            {stats.total_videos.toLocaleString()} indexed videos and growing
+          </p>
+        )}
       </section>
 
       {/* Category Navigation - Collapsible on mobile for content-first */}
@@ -80,7 +97,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           initialVideos={videosData.videos}
           initialPage={videosData.page}
           totalPages={videosData.total_pages}
-          queryParams={{ per_page: 24, sort }}
+          queryParams={{ per_page: VIDEO_LIST_PAGE_SIZE, sort }}
         />
       ) : (
         <>
@@ -99,6 +116,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               currentPage={videosData.page}
               totalPages={videosData.total_pages}
               total={videosData.total}
+              hasMore={videosData.has_more}
+              totalExact={videosData.total_exact}
             />
           </Suspense>
         </>

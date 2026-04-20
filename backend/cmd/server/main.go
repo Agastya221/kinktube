@@ -44,6 +44,14 @@ func main() {
 	}
 	log.Println("Database schema initialized")
 
+	backfilled, err := db.BackfillEnglishFlags(ctx, 500)
+	if err != nil {
+		log.Fatalf("Failed to backfill video language flags: %v", err)
+	}
+	if backfilled > 0 {
+		log.Printf("Backfilled language visibility for %d existing videos", backfilled)
+	}
+
 	// Initialize Redis
 	log.Println("Connecting to Redis...")
 	cache, err := database.NewRedisCache(ctx, cfg.RedisURL, cfg.CacheTTL)
@@ -57,7 +65,15 @@ func main() {
 	epornerClient := services.NewEpornerClient(cfg.EpornerBaseURL)
 
 	// Initialize importer
-	importer := services.NewImporter(db, cache, epornerClient, cfg.EpornerPerPage)
+	importer := services.NewImporter(
+		db,
+		cache,
+		epornerClient,
+		cfg.EpornerPerPage,
+		cfg.ImportMaxPages,
+		cfg.LightImportMaxPages,
+		cfg.LightImportKeywords,
+	)
 
 	// Initialize affiliate service
 	affiliateService := services.NewAffiliateService()

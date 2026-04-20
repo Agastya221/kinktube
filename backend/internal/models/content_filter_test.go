@@ -1,6 +1,9 @@
 package models
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestIsLikelyEnglishText(t *testing.T) {
 	t.Run("accepts english fetish metadata", func(t *testing.T) {
@@ -32,4 +35,15 @@ func TestIsLikelyEnglishText(t *testing.T) {
 			t.Fatal("expected mixed metadata with dominant non-latin text to be rejected")
 		}
 	})
+}
+
+func TestImportQueriesIncludesCategoryCoverage(t *testing.T) {
+	queries := ImportQueries()
+	joined := strings.Join(queries, "\n")
+
+	for _, want := range []string{"extreme bondage", "foot fetish", "public humiliation"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("expected import queries to include %q", want)
+		}
+	}
 }
