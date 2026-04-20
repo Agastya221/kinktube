@@ -129,7 +129,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const search = await searchParams;
   const page = parseInt(search.page || "1", 10);
   const sort = (search.sort as "latest" | "views" | "rating" | "extreme" | undefined) || "latest";
-  const useInfiniteScroll = search.infinite === "1" || (!search.page && search.infinite !== "0");
+  const useInfiniteScroll = search.infinite === "1";
 
   // Format category name for display
   const categoryName = slug

@@ -24,7 +24,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const page = parseInt(params.page || "1", 10);
   // Default to mixed/latest for homepage - backend handles smart ordering
   const sort = (params.sort as "latest" | "views" | "rating" | "extreme") || "latest";
-  const useInfiniteScroll = params.infinite === "1" || (!params.page && params.infinite !== "0");
+  const useInfiniteScroll = params.infinite === "1";
 
   // Fetch data server-side
   let videosData;

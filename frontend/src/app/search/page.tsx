@@ -34,7 +34,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const query = params.q || "";
   const page = parseInt(params.page || "1", 10);
-  const useInfiniteScroll = params.infinite === "1" || (!params.page && params.infinite !== "0");
+  const useInfiniteScroll = params.infinite === "1";
   // Don't force a default sort - let Eporner decide based on relevance
   // Only pass sort if user explicitly selected one
   const sort = params.sort as "latest" | "views" | "rating" | "extreme" | undefined;
