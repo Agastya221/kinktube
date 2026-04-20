@@ -5,6 +5,7 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /portal/
 Disallow: /search?
 
 # Allow search engines to index main content
@@ -12,11 +13,13 @@ User-agent: Googlebot
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /portal/
 
 User-agent: Bingbot
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /portal/
 
 # Block AI training bots
 User-agent: GPTBot

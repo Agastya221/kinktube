@@ -7,8 +7,9 @@ import VideoPlayer from "@/components/VideoPlayer";
 import VideoGrid from "@/components/VideoGrid";
 import { AffiliateButtons } from "@/components/affiliate";
 import { AdBanner, SidebarAds } from "@/components/ads";
-import { getVideoWithAffiliatesServer, getRelatedVideosServer } from "@/lib/api";
+import { getVideoWithAffiliatesServer, getRelatedVideosServer, getPublicSiteSettingsServer } from "@/lib/api";
 import { formatViews, formatDuration, formatRelativeTime, getVideoPath } from "@/lib/types";
+import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
 interface VideoPageProps {
   params: Promise<{
@@ -119,11 +120,13 @@ export default async function VideoPage({ params }: VideoPageProps) {
 
   let videoData;
   let relatedVideos;
+  const siteSettings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
+  const relatedVideoLimit = siteSettings.content.related_videos || 24;
 
   try {
     [videoData, relatedVideos] = await Promise.all([
       getVideoWithAffiliatesServer(id),
-      getRelatedVideosServer(id, 24),
+      getRelatedVideosServer(id, relatedVideoLimit),
     ]);
   } catch {
     notFound();

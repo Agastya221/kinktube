@@ -9,24 +9,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Dark adult theme colors
         background: {
-          DEFAULT: "#0a0a0a",
-          secondary: "#111111",
-          tertiary: "#1a1a1a",
+          DEFAULT: "rgb(var(--color-background) / <alpha-value>)",
+          secondary: "rgb(var(--color-background-secondary) / <alpha-value>)",
+          tertiary: "rgb(var(--color-background-tertiary) / <alpha-value>)",
         },
         foreground: {
-          DEFAULT: "#fafafa",
-          muted: "#a1a1aa",
+          DEFAULT: "rgb(var(--color-foreground) / <alpha-value>)",
+          muted: "rgb(var(--color-foreground-muted) / <alpha-value>)",
         },
         accent: {
-          DEFAULT: "#dc2626", // Red-600
-          hover: "#b91c1c",   // Red-700
-          light: "#ef4444",   // Red-500
+          DEFAULT: "rgb(var(--color-accent) / <alpha-value>)",
+          hover: "rgb(var(--color-accent-hover) / <alpha-value>)",
+          light: "rgb(var(--color-accent-light) / <alpha-value>)",
         },
         border: {
-          DEFAULT: "#27272a",
-          hover: "#3f3f46",
+          DEFAULT: "rgb(var(--color-border) / <alpha-value>)",
+          hover: "rgb(var(--color-border-hover) / <alpha-value>)",
         },
       },
       fontFamily: {

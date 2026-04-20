@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import ChromeGate from "@/components/ChromeGate";
 import HeaderWrapper from "@/components/HeaderWrapper";
 import Footer from "@/components/Footer";
-import AgeVerification from "@/components/AgeVerification";
 import DisclaimerBanner from "@/components/DisclaimerBanner";
 import { PopunderAd } from "@/components/ads";
 import Analytics from "@/components/Analytics";
+import { getPublicSiteSettingsServer } from "@/lib/api";
+import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -14,73 +16,62 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "KinkTube - Extreme BDSM & Hardcore Fetish Videos",
-    template: "%s | KinkTube",
-  },
-  description:
-    "The underground destination for extreme BDSM, hardcore femdom, intense bondage, and severe fetish content. Explore mummification, predicament bondage, brutal discipline, and more. 100% free.",
-  keywords: [
-    "extreme BDSM",
-    "hardcore femdom",
-    "intense bondage",
-    "severe discipline",
-    "brutal domination",
-    "predicament bondage",
-    "sensory deprivation",
-    "mummification",
-    "tight bondage",
-    "harsh punishment",
-    "cruel mistress",
-    "extreme fetish",
-    "torture",
-    "BDSM videos",
-    "fetish",
-    "bondage",
-    "femdom",
-    "kink",
-    "dominatrix",
-    "submission",
-    "slave",
-  ],
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+export async function generateMetadata(): Promise<Metadata> {
+  let settings = fallbackPublicSiteSettings;
+
+  try {
+    settings = await getPublicSiteSettingsServer();
+  } catch {
+    settings = fallbackPublicSiteSettings;
+  }
+
+  return {
+    title: {
+      default: settings.seo.default_title,
+      template: settings.seo.title_template || `%s | ${settings.branding.site_name}`,
+    },
+    description: settings.seo.default_description,
+    keywords: settings.seo.default_keywords,
+    robots: {
       index: true,
       follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+      },
     },
-  },
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    siteName: "KinkTube",
-    title: "KinkTube - Extreme BDSM & Hardcore Fetish Videos",
-    description:
-      "The underground destination for extreme BDSM, hardcore femdom, intense bondage, and severe fetish content.",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "KinkTube - Extreme BDSM & Hardcore Fetish Videos",
-    description:
-      "The underground destination for extreme BDSM, hardcore femdom, intense bondage, and severe fetish content.",
-  },
-  verification: {
-    // Add your verification codes here
-    // google: 'your-google-verification-code',
-  },
-  other: {
-    "rating": "adult",
-    "RATING": "RTA-5042-1996-1400-1577-RTA",
-  },
-};
+    openGraph: {
+      type: "website",
+      locale: "en_US",
+      siteName: settings.branding.site_name,
+      title: settings.seo.open_graph_title,
+      description: settings.seo.open_graph_description,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: settings.seo.twitter_title,
+      description: settings.seo.twitter_description,
+    },
+    other: {
+      rating: "adult",
+      RATING: "RTA-5042-1996-1400-1577-RTA",
+    },
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let siteSettings = fallbackPublicSiteSettings;
+
+  try {
+    siteSettings = await getPublicSiteSettingsServer();
+  } catch {
+    siteSettings = fallbackPublicSiteSettings;
+  }
+
   return (
     <html lang="en" className={inter.variable}>
       <head>
@@ -88,15 +79,17 @@ export default function RootLayout({
         <meta name="rating" content="adult" />
         <meta name="RATING" content="RTA-5042-1996-1400-1577-RTA" />
       </head>
-      <body className="min-h-screen flex flex-col bg-background text-foreground antialiased">
-        <Analytics />
-        <AgeVerification>
-          <DisclaimerBanner />
-          <HeaderWrapper />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <PopunderAd />
-        </AgeVerification>
+      <body>
+        <ChromeGate
+          settings={siteSettings}
+          analytics={<Analytics />}
+          disclaimer={<DisclaimerBanner />}
+          header={<HeaderWrapper />}
+          footer={<Footer />}
+          popunder={<PopunderAd />}
+        >
+          {children}
+        </ChromeGate>
       </body>
     </html>
   );

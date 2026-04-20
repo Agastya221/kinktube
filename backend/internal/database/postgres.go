@@ -108,6 +108,12 @@ func (db *PostgresDB) InitSchema(ctx context.Context) error {
 			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);
 
+		CREATE TABLE IF NOT EXISTS site_settings (
+			id SMALLINT PRIMARY KEY CHECK (id = 1),
+			data JSONB NOT NULL DEFAULT '{}'::jsonb,
+			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);
+
 		ALTER TABLE category_menu_thumbnails
 		ADD COLUMN IF NOT EXISTS query_key TEXT NOT NULL DEFAULT '';
 

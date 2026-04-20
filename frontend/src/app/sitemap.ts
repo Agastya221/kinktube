@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next";
-
-const SITE_URL = process.env.SITE_URL || "https://yourdomain.com";
+import { getPublicSiteSettingsServer } from "@/lib/api";
+import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
 // Static categories for sitemap
 const categories = [
@@ -27,41 +27,43 @@ const categories = [
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+  const settings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
+  const siteURL = settings.seo.site_url || fallbackPublicSiteSettings.seo.site_url;
 
   // Base pages
   const staticPages: MetadataRoute.Sitemap = [
     {
-      url: SITE_URL,
+      url: siteURL,
       lastModified: now,
       changeFrequency: "hourly",
       priority: 1.0,
     },
     {
-      url: `${SITE_URL}/search`,
+      url: `${siteURL}/search`,
       lastModified: now,
       changeFrequency: "daily",
       priority: 0.8,
     },
     {
-      url: `${SITE_URL}/terms`,
+      url: `${siteURL}/terms`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.3,
     },
     {
-      url: `${SITE_URL}/privacy`,
+      url: `${siteURL}/privacy`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.3,
     },
     {
-      url: `${SITE_URL}/dmca`,
+      url: `${siteURL}/dmca`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.3,
     },
     {
-      url: `${SITE_URL}/2257`,
+      url: `${siteURL}/2257`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.3,
@@ -70,7 +72,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Category pages
   const categoryPages: MetadataRoute.Sitemap = categories.map((category) => ({
-    url: `${SITE_URL}/category/${category}`,
+    url: `${siteURL}/category/${category}`,
     lastModified: now,
     changeFrequency: "daily" as const,
     priority: 0.9,

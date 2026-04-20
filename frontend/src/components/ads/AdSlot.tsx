@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSiteSettings } from "@/components/SiteSettingsProvider";
 
 // Ad network configurations
 export type AdNetwork = "exoclick" | "trafficjunky" | "juicyads" | "custom";
@@ -21,22 +22,23 @@ interface AdSlotProps {
   fallback?: React.ReactNode;
 }
 
-// Ad configuration from environment variables
-const getAdConfig = (format: AdFormat): AdConfig | null => {
-  const network = (process.env.NEXT_PUBLIC_AD_NETWORK as AdNetwork) || "exoclick";
+const getAdConfig = (
+  format: AdFormat,
+  siteSettings: ReturnType<typeof useSiteSettings>
+): AdConfig | null => {
+  const network = siteSettings.ads.network;
 
-  // Get zone IDs from environment
-  const zoneIds: Record<AdFormat, string | undefined> = {
-    "banner": process.env.NEXT_PUBLIC_AD_ZONE_BANNER,
-    "sidebar": process.env.NEXT_PUBLIC_AD_ZONE_SIDEBAR,
-    "native": process.env.NEXT_PUBLIC_AD_ZONE_NATIVE,
-    "popunder": process.env.NEXT_PUBLIC_AD_ZONE_POPUNDER,
-    "video-banner": process.env.NEXT_PUBLIC_AD_ZONE_VIDEO_BANNER,
-    "mobile-banner": process.env.NEXT_PUBLIC_AD_ZONE_MOBILE_BANNER,
-  };
+  const slotConfig = {
+    "banner": siteSettings.ads.banner,
+    "sidebar": siteSettings.ads.sidebar,
+    "native": siteSettings.ads.native,
+    "popunder": siteSettings.ads.popunder,
+    "video-banner": siteSettings.ads.video_banner,
+    "mobile-banner": siteSettings.ads.mobile_banner,
+  }[format];
 
-  const zoneId = zoneIds[format];
-  if (!zoneId) return null;
+  const zoneId = slotConfig?.zone_id;
+  if (!slotConfig?.enabled || !zoneId) return null;
 
   // Default dimensions per format
   const dimensions: Record<AdFormat, { width: number; height: number }> = {
@@ -91,15 +93,16 @@ const generateAdCode = (config: AdConfig): string => {
 };
 
 export default function AdSlot({ format, className = "", fallback }: AdSlotProps) {
+  const siteSettings = useSiteSettings();
+  const config = getAdConfig(format, siteSettings);
   const adRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    const config = getAdConfig(format);
-
     if (!config || !adRef.current) {
       setHasError(true);
+      setIsLoaded(false);
       return;
     }
 
@@ -129,7 +132,7 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
     } catch {
       setHasError(true);
     }
-  }, [format]);
+  }, [config, format, siteSettings]);
 
   // Responsive sizing classes based on format
   const sizeClasses: Record<AdFormat, string> = {
@@ -141,8 +144,16 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
     "mobile-banner": "w-full max-w-[320px] h-[50px] mx-auto md:hidden",
   };
 
+  if (!config) {
+    return fallback ? <>{fallback}</> : null;
+  }
+
   if (hasError && fallback) {
     return <>{fallback}</>;
+  }
+
+  if (hasError) {
+    return null;
   }
 
   return (
@@ -159,10 +170,12 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
 
 // Popunder component - triggers on user interaction
 export function PopunderAd() {
+  const siteSettings = useSiteSettings();
   const hasTriggered = useRef(false);
 
   useEffect(() => {
-    const zoneId = process.env.NEXT_PUBLIC_AD_ZONE_POPUNDER;
+    const zoneId = siteSettings.ads.popunder.zone_id;
+    if (!siteSettings.ads.popunder.enabled) return;
     if (!zoneId || hasTriggered.current) return;
 
     const handleClick = () => {
@@ -182,7 +195,7 @@ export function PopunderAd() {
     return () => {
       document.removeEventListener("click", handleClick);
     };
-  }, []);
+  }, [siteSettings]);
 
   return null;
 }

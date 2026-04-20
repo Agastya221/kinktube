@@ -6,8 +6,9 @@ import CategoryNav, { defaultCategories } from "@/components/CategoryNav";
 import Pagination from "@/components/Pagination";
 import { AdBanner } from "@/components/ads";
 import { SortSelect } from "@/components/SortSelect";
-import { getVideosServer, getCategoriesServer } from "@/lib/api";
+import { getVideosServer, getCategoriesServer, getPublicSiteSettingsServer } from "@/lib/api";
 import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
+import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
 // ISR: Revalidate category pages every hour
 export const revalidate = 3600;
@@ -130,6 +131,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const page = parseInt(search.page || "1", 10);
   const sort = (search.sort as "latest" | "views" | "rating" | "extreme" | undefined) || "latest";
   const useInfiniteScroll = search.infinite === "1";
+  const siteSettings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
+  const videosPerPage = siteSettings.content.videos_per_page || VIDEO_LIST_PAGE_SIZE;
 
   // Format category name for display
   const categoryName = slug
@@ -145,7 +148,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     [videosData, categories] = await Promise.all([
       getVideosServer({
         page,
-        per_page: VIDEO_LIST_PAGE_SIZE,
+        per_page: videosPerPage,
         category: slug,
         sort,
       }),
@@ -156,7 +159,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       videos: [],
       total: 0,
       page: 1,
-      per_page: VIDEO_LIST_PAGE_SIZE,
+      per_page: videosPerPage,
       total_pages: 0,
       has_more: false,
       total_exact: true,
@@ -226,7 +229,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           initialVideos={videosData.videos}
           initialPage={videosData.page}
           totalPages={videosData.total_pages}
-          queryParams={{ per_page: VIDEO_LIST_PAGE_SIZE, category: slug, sort }}
+          queryParams={{ per_page: videosPerPage, category: slug, sort }}
         />
       ) : (
         <>

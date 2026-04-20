@@ -4,8 +4,16 @@
 
 /* Base styles */
 :root {
-  --background: #0a0a0a;
-  --foreground: #fafafa;
+  --color-background: 10 10 10;
+  --color-background-secondary: 17 17 17;
+  --color-background-tertiary: 26 26 26;
+  --color-foreground: 250 250 250;
+  --color-foreground-muted: 161 161 170;
+  --color-accent: 220 38 38;
+  --color-accent-hover: 185 28 28;
+  --color-accent-light: 239 68 68;
+  --color-border: 39 39 42;
+  --color-border-hover: 63 63 70;
 }
 
 html {
@@ -13,8 +21,8 @@ html {
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
+  background-color: rgb(var(--color-background));
+  color: rgb(var(--color-foreground));
   font-family: "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -27,16 +35,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #111111;
+  background: rgb(var(--color-background-secondary));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
+  background: rgb(var(--color-border-hover));
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
+  background: rgb(var(--color-foreground-muted));
 }
 
 /* Video card hover effects */

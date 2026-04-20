@@ -15,6 +15,7 @@ import (
 	"kinktube/internal/config"
 	"kinktube/internal/database"
 	"kinktube/internal/handlers"
+	"kinktube/internal/models"
 	"kinktube/internal/middleware"
 	"kinktube/internal/services"
 )
@@ -52,6 +53,14 @@ func main() {
 		log.Printf("Backfilled language visibility for %d existing videos", backfilled)
 	}
 
+	siteSettings, err := db.GetSiteSettings(ctx, models.DefaultSiteSettings(cfg))
+	if err != nil {
+		log.Fatalf("Failed to load site settings: %v", err)
+	}
+	if err := db.SaveSiteSettings(ctx, siteSettings); err != nil {
+		log.Fatalf("Failed to persist default site settings: %v", err)
+	}
+
 	// Initialize Redis
 	log.Println("Connecting to Redis...")
 	cache, err := database.NewRedisCache(ctx, cfg.RedisURL, cfg.CacheTTL)
@@ -70,13 +79,14 @@ func main() {
 		cache,
 		epornerClient,
 		cfg.EpornerPerPage,
-		cfg.ImportMaxPages,
-		cfg.LightImportMaxPages,
-		cfg.LightImportKeywords,
+		siteSettings.Import.ImportMaxPages,
+		siteSettings.Import.LightImportMaxPages,
+		siteSettings.Import.LightImportKeywords,
 	)
 
 	// Initialize affiliate service
 	affiliateService := services.NewAffiliateService()
+	affiliateService.ApplySettings(siteSettings.Affiliates)
 	log.Printf("Affiliate service initialized with %d programs", len(affiliateService.GetAllPrograms()))
 
 	// Initialize handlers
@@ -102,18 +112,32 @@ func main() {
 
 	// Setup cron job for auto-import
 	var cronScheduler *cron.Cron
-	if cfg.ImportEnabled {
-		cronScheduler = cron.New()
-		_, err = cronScheduler.AddFunc(cfg.ImportSchedule, func() {
-			log.Println("Running scheduled import...")
-			importer.Run(context.Background())
-		})
-		if err != nil {
-			log.Printf("Warning: Failed to setup import cron: %v", err)
-		} else {
-			cronScheduler.Start()
-			log.Printf("Import cron scheduled: %s", cfg.ImportSchedule)
+	cronScheduler = cron.New()
+	_, err = cronScheduler.AddFunc(cfg.ImportSchedule, func() {
+		currentSettings, settingsErr := db.GetSiteSettings(context.Background(), models.DefaultSiteSettings(cfg))
+		if settingsErr != nil {
+			log.Printf("Warning: failed to load site settings for scheduled import: %v", settingsErr)
+			return
 		}
+		if !currentSettings.Import.ImportEnabled {
+			log.Println("Scheduled import skipped because importing is disabled in admin settings")
+			return
+		}
+
+		importer.UpdateConfig(
+			currentSettings.Import.ImportMaxPages,
+			currentSettings.Import.LightImportMaxPages,
+			currentSettings.Import.LightImportKeywords,
+		)
+
+		log.Println("Running scheduled import...")
+		importer.Run(context.Background())
+	})
+	if err != nil {
+		log.Printf("Warning: Failed to setup import cron: %v", err)
+	} else {
+		cronScheduler.Start()
+		log.Printf("Import cron scheduled: %s", cfg.ImportSchedule)
 	}
 
 	// Run startup tasks (initial import or cache refresh)
@@ -126,10 +150,10 @@ func main() {
 			return
 		}
 
-		if count == 0 {
+		if count == 0 && siteSettings.Import.ImportEnabled {
 			log.Println("Database empty, running initial import...")
 			importer.Run(ctx)
-		} else if cfg.RefreshOnStartup {
+		} else if cfg.RefreshOnStartup && siteSettings.Import.ImportEnabled {
 			log.Println("Running startup cache refresh and light import...")
 			// Clear stale cache first
 			if err := cache.DeletePattern(ctx, "videos:*"); err != nil {
@@ -190,6 +214,10 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 
 	// API routes
 	api := app.Group("/api")
+	api.Get("/site-settings", h.GetPublicSiteSettings)
+	api.Get("/admin/session", h.GetAdminSession)
+	api.Post("/admin/session/login", h.LoginAdmin)
+	api.Post("/admin/session/logout", h.LogoutAdmin)
 
 	// Public routes
 	api.Get("/videos", h.ListVideos)
@@ -205,6 +233,9 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	// Admin routes (in production, add authentication middleware)
 	admin := api.Group("/admin")
 	admin.Use(h.RequireAdminAuth)
+	admin.Get("/settings", h.GetAdminSettings)
+	admin.Put("/settings", h.UpdateAdminSettings)
 	admin.Post("/import", h.TriggerImport)
+	admin.Post("/import/light", h.TriggerLightImport)
 	admin.Get("/import/status", h.GetImportStatus)
 }

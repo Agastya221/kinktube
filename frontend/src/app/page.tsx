@@ -5,8 +5,9 @@ import CategoryNav, { defaultCategories } from "@/components/CategoryNav";
 import Pagination from "@/components/Pagination";
 import { AdBanner, NativeAd } from "@/components/ads";
 import { SortSelect } from "@/components/SortSelect";
-import { getVideosServer, getCategoriesServer, getStatsServer } from "@/lib/api";
+import { getVideosServer, getCategoriesServer, getStatsServer, getPublicSiteSettingsServer } from "@/lib/api";
 import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
+import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
 // ISR: Revalidate homepage every hour
 export const revalidate = 3600;
@@ -30,10 +31,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   let videosData;
   let categories;
   let stats;
+  let siteSettings = fallbackPublicSiteSettings;
+  let videosPerPage = VIDEO_LIST_PAGE_SIZE;
 
   try {
+    siteSettings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
+    videosPerPage = siteSettings.content.videos_per_page || VIDEO_LIST_PAGE_SIZE;
+
     [videosData, categories, stats] = await Promise.all([
-      getVideosServer({ page, per_page: VIDEO_LIST_PAGE_SIZE, sort }),
+      getVideosServer({ page, per_page: videosPerPage, sort }),
       getCategoriesServer().catch(() => ({ categories: defaultCategories })),
       getStatsServer().catch(() => ({ total_videos: 0 })),
     ]);
@@ -43,7 +49,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       videos: [],
       total: 0,
       page: 1,
-      per_page: VIDEO_LIST_PAGE_SIZE,
+      per_page: videosPerPage,
       total_pages: 0,
       has_more: false,
       total_exact: true,
@@ -62,11 +68,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       {/* Hero Section - Hidden on mobile for content-first experience */}
       <section className="hidden md:block mb-8">
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">
-          <span className="text-accent">Extreme</span> BDSM & Hardcore Fetish
+          <span className="text-accent">{siteSettings.branding.hero_accent}</span>{" "}
+          {siteSettings.branding.hero_title}
         </h1>
         <p className="text-foreground-muted text-lg max-w-2xl">
-          Dive into intense femdom, predicament bondage, severe discipline, mummification,
-          and hardcore fetish scenes. Curated for serious kink enthusiasts. Not your average tube site.
+          {siteSettings.branding.hero_description}
         </p>
         {stats.total_videos > 0 && (
           <p className="mt-4 text-sm font-medium uppercase tracking-[0.18em] text-accent/80">
@@ -97,7 +103,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           initialVideos={videosData.videos}
           initialPage={videosData.page}
           totalPages={videosData.total_pages}
-          queryParams={{ per_page: VIDEO_LIST_PAGE_SIZE, sort }}
+          queryParams={{ per_page: videosPerPage, sort }}
         />
       ) : (
         <>

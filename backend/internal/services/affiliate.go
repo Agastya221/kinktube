@@ -3,6 +3,8 @@ package services
 import (
 	"os"
 	"strings"
+
+	"kinktube/internal/models"
 )
 
 // AffiliateProgram represents an affiliate program configuration
@@ -52,6 +54,50 @@ func NewAffiliateService() *AffiliateService {
 	s.setupRules()
 
 	return s
+}
+
+// ApplySettings replaces the program tracking IDs at runtime from admin-managed settings.
+func (s *AffiliateService) ApplySettings(settings models.AffiliateSettings) {
+	s.programs = make(map[string]*AffiliateProgram)
+
+	addProgram := func(key, displayName, baseURL, trackingID, description string, priority int) {
+		trackingID = strings.TrimSpace(trackingID)
+		if trackingID == "" {
+			return
+		}
+
+		s.programs[key] = &AffiliateProgram{
+			Name:        key,
+			DisplayName: displayName,
+			BaseURL:     baseURL,
+			TrackingID:  trackingID,
+			Description: description,
+			Priority:    priority,
+		}
+	}
+
+	addProgram("kinkydollars", "Kink.com", "https://www.kink.com", settings.KinkyDollarsID, "Premium BDSM & Fetish Videos", 100)
+	addProgram("clubdomcash", "ClubDom", "https://www.clubdom.com", settings.ClubDomCashID, "Elite Femdom & Female Domination", 90)
+	addProgram("devicebondage", "Device Bondage", "https://www.devicebondage.com", settings.DeviceBondageID, "Extreme Device Bondage & Restraints", 85)
+	addProgram("hogtied", "Hogtied", "https://www.hogtied.com", settings.HogtiedID, "Rope Bondage & Suspension", 80)
+	addProgram("whippedass", "Whipped Ass", "https://www.whippedass.com", settings.WhippedAssID, "Lesbian BDSM & Domination", 75)
+	addProgram("sadisticrope", "Sadistic Rope", "https://www.sadisticrope.com", settings.SadisticRopeID, "Extreme Rope Bondage", 70)
+	addProgram("femdomempire", "FemDom Empire", "https://www.femdomempire.com", settings.FemdomEmpireID, "Premium Femdom Content", 85)
+
+	defaultID := strings.TrimSpace(settings.DefaultID)
+	if _, exists := s.programs["kinkydollars"]; !exists {
+		if defaultID == "" {
+			defaultID = "default"
+		}
+		s.programs["kinkydollars"] = &AffiliateProgram{
+			Name:        "kinkydollars",
+			DisplayName: "Kink.com",
+			BaseURL:     "https://www.kink.com",
+			TrackingID:  defaultID,
+			Description: "Premium BDSM & Fetish Videos",
+			Priority:    100,
+		}
+	}
 }
 
 func (s *AffiliateService) loadPrograms() {

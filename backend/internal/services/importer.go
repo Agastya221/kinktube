@@ -269,6 +269,22 @@ func (i *Importer) IsRunning() bool {
 	return i.running.Load()
 }
 
+// UpdateConfig lets admin settings adjust importer depth without a restart.
+func (i *Importer) UpdateConfig(maxPages, lightMaxPages, lightKeywordLimit int) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	if maxPages > 0 {
+		i.maxPages = maxPages
+	}
+	if lightMaxPages > 0 {
+		i.lightMaxPages = lightMaxPages
+	}
+	if lightKeywordLimit > 0 {
+		i.lightKeywordLimit = lightKeywordLimit
+	}
+}
+
 // RunSingle imports videos for a single keyword (useful for testing)
 func (i *Importer) RunSingle(ctx context.Context, keyword string) *ImportStats {
 	if !i.running.CompareAndSwap(false, true) {

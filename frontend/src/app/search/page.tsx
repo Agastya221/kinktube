@@ -6,8 +6,9 @@ import InfiniteVideoGrid from "@/components/InfiniteVideoGrid";
 import Pagination from "@/components/Pagination";
 import SearchBar from "@/components/SearchBar";
 import { SortSelect } from "@/components/SortSelect";
-import { getVideosServer } from "@/lib/api";
+import { getVideosServer, getPublicSiteSettingsServer } from "@/lib/api";
 import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
+import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
 interface SearchPageProps {
   searchParams: Promise<{
@@ -38,6 +39,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   // Don't force a default sort - let Eporner decide based on relevance
   // Only pass sort if user explicitly selected one
   const sort = params.sort as "latest" | "views" | "rating" | "extreme" | undefined;
+  const siteSettings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
+  const videosPerPage = siteSettings.content.videos_per_page || VIDEO_LIST_PAGE_SIZE;
 
   // Fetch search results
   let videosData;
@@ -45,18 +48,18 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   try {
     if (query) {
       // Only include sort param if user explicitly selected one
-      videosData = await getVideosServer({
-        page,
-        per_page: VIDEO_LIST_PAGE_SIZE,
-        q: query,
-        ...(sort && { sort }),
-      });
+        videosData = await getVideosServer({
+          page,
+          per_page: videosPerPage,
+          q: query,
+          ...(sort && { sort }),
+        });
     } else {
       videosData = {
         videos: [],
         total: 0,
         page: 1,
-        per_page: VIDEO_LIST_PAGE_SIZE,
+        per_page: videosPerPage,
         total_pages: 0,
         has_more: false,
         total_exact: true,
@@ -67,7 +70,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       videos: [],
       total: 0,
       page: 1,
-      per_page: VIDEO_LIST_PAGE_SIZE,
+      per_page: videosPerPage,
       total_pages: 0,
       has_more: false,
       total_exact: true,
@@ -125,7 +128,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
               initialPage={videosData.page}
               totalPages={videosData.total_pages}
               queryParams={{
-                per_page: VIDEO_LIST_PAGE_SIZE,
+                per_page: videosPerPage,
                 q: query,
                 ...(sort && { sort }),
               }}

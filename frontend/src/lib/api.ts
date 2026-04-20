@@ -7,6 +7,10 @@ import type {
   AffiliateLinksResponse,
   VideoWithAffiliates,
   VideoQueryParams,
+  PublicSiteSettings,
+  SiteSettings,
+  AdminSessionResponse,
+  AdminImportStatusResponse,
 } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -17,6 +21,26 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
 
   const response = await fetch(url, {
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || `API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function fetchAdminAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  const response = await fetch(url, {
+    ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,
@@ -61,6 +85,10 @@ export async function getCategories(): Promise<CategoriesResponse> {
 // Stats API functions
 export async function getStats(): Promise<StatsResponse> {
   return fetchAPI<StatsResponse>("/api/stats");
+}
+
+export async function getPublicSiteSettings(): Promise<PublicSiteSettings> {
+  return fetchAPI<PublicSiteSettings>("/api/site-settings");
 }
 
 // Server-side fetch functions with caching
@@ -143,6 +171,20 @@ export async function getStatsServer(): Promise<StatsResponse> {
   return response.json();
 }
 
+export async function getPublicSiteSettingsServer(): Promise<PublicSiteSettings> {
+  const url = `${API_BASE_URL}/api/site-settings`;
+
+  const response = await fetch(url, {
+    next: { revalidate: 60 },
+  });
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 // Affiliate API functions
 export async function getAffiliateLinks(videoId: string | number, max = 2): Promise<AffiliateLinksResponse> {
   return fetchAPI<AffiliateLinksResponse>(`/api/videos/${encodeURIComponent(String(videoId))}/affiliates?max=${max}`);
@@ -203,4 +245,42 @@ export async function getMenuCategories(): Promise<Record<string, string>> {
   } catch {
     return {};
   }
+}
+
+export async function getAdminSession(): Promise<AdminSessionResponse> {
+  return fetchAdminAPI<AdminSessionResponse>("/api/admin/session");
+}
+
+export async function loginAdmin(username: string, password: string): Promise<AdminSessionResponse> {
+  return fetchAdminAPI<AdminSessionResponse>("/api/admin/session/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export async function logoutAdmin(): Promise<{ ok: boolean }> {
+  return fetchAdminAPI<{ ok: boolean }>("/api/admin/session/logout", {
+    method: "POST",
+  });
+}
+
+export async function getAdminSettings(): Promise<SiteSettings> {
+  return fetchAdminAPI<SiteSettings>("/api/admin/settings");
+}
+
+export async function updateAdminSettings(settings: SiteSettings): Promise<{ ok: boolean; settings: SiteSettings }> {
+  return fetchAdminAPI<{ ok: boolean; settings: SiteSettings }>("/api/admin/settings", {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });
+}
+
+export async function getAdminImportStatus(): Promise<AdminImportStatusResponse> {
+  return fetchAdminAPI<AdminImportStatusResponse>("/api/admin/import/status");
+}
+
+export async function triggerAdminImport(light = false): Promise<{ message: string; status: string }> {
+  return fetchAdminAPI<{ message: string; status: string }>(light ? "/api/admin/import/light" : "/api/admin/import", {
+    method: "POST",
+  });
 }

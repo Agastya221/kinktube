@@ -37,7 +37,11 @@ type Config struct {
 	FrontendURL string
 
 	// Admin API key for protected endpoints
-	AdminAPIKey string
+	AdminAPIKey       string
+	AdminUsername     string
+	AdminPassword     string
+	AdminPasswordHash string
+	SiteURL           string
 }
 
 // Load reads configuration from environment variables
@@ -68,6 +72,10 @@ func Load() *Config {
 		CacheTTL:            cacheTTL,
 		FrontendURL:         getEnv("FRONTEND_URL", "http://localhost:3000"),
 		AdminAPIKey:         getEnv("ADMIN_API_KEY", ""),
+		AdminUsername:       getEnv("ADMIN_USERNAME", "admin"),
+		AdminPassword:       getEnv("ADMIN_PASSWORD", ""),
+		AdminPasswordHash:   getEnv("ADMIN_PASSWORD_HASH", ""),
+		SiteURL:             getEnv("SITE_URL", "https://yourdomain.com"),
 	}
 }
 

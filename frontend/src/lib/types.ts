@@ -49,6 +49,127 @@ export interface StatsResponse {
   total_videos: number;
 }
 
+export interface BrandingSettings {
+  site_name: string;
+  logo_primary: string;
+  logo_secondary: string;
+  site_tagline: string;
+  hero_accent: string;
+  hero_title: string;
+  hero_description: string;
+  footer_description: string;
+  copyright_label: string;
+}
+
+export interface ThemeSettings {
+  background: string;
+  background_secondary: string;
+  background_tertiary: string;
+  foreground: string;
+  foreground_muted: string;
+  accent: string;
+  accent_hover: string;
+  accent_light: string;
+  border: string;
+  border_hover: string;
+}
+
+export interface SEOSettings {
+  site_url: string;
+  default_title: string;
+  title_template: string;
+  default_description: string;
+  default_keywords: string[];
+  open_graph_title: string;
+  open_graph_description: string;
+  twitter_title: string;
+  twitter_description: string;
+}
+
+export interface ContentSettings {
+  videos_per_page: number;
+  related_videos: number;
+  show_disclaimer: boolean;
+  disclaimer_text: string;
+  enable_age_gate: boolean;
+  enable_popunder_ads: boolean;
+}
+
+export interface AdSlotSettings {
+  enabled: boolean;
+  zone_id: string;
+  label: string;
+}
+
+export interface AdSettings {
+  network: "exoclick" | "trafficjunky" | "juicyads" | "custom";
+  banner: AdSlotSettings;
+  sidebar: AdSlotSettings;
+  native: AdSlotSettings;
+  popunder: AdSlotSettings;
+  video_banner: AdSlotSettings;
+  mobile_banner: AdSlotSettings;
+}
+
+export interface AffiliateSettings {
+  kinkydollars_id: string;
+  clubdomcash_id: string;
+  femdomempire_id: string;
+  devicebondage_id: string;
+  hogtied_id: string;
+  whippedass_id: string;
+  sadisticrope_id: string;
+  default_id: string;
+}
+
+export interface LegalDocumentSettings {
+  title: string;
+  content: string;
+}
+
+export interface LegalSettings {
+  terms: LegalDocumentSettings;
+  privacy: LegalDocumentSettings;
+  dmca: LegalDocumentSettings;
+  compliance_2257: LegalDocumentSettings;
+}
+
+export interface ImportSettings {
+  import_enabled: boolean;
+  import_max_pages: number;
+  light_import_max_pages: number;
+  light_import_keywords: number;
+}
+
+export interface SiteSettings {
+  branding: BrandingSettings;
+  theme: ThemeSettings;
+  seo: SEOSettings;
+  content: ContentSettings;
+  ads: AdSettings;
+  affiliates: AffiliateSettings;
+  legal: LegalSettings;
+  import: ImportSettings;
+}
+
+export interface PublicSiteSettings {
+  branding: BrandingSettings;
+  theme: ThemeSettings;
+  seo: SEOSettings;
+  content: ContentSettings;
+  ads: AdSettings;
+  legal: LegalSettings;
+}
+
+export interface AdminSessionResponse {
+  authenticated: boolean;
+  username: string;
+}
+
+export interface AdminImportStatusResponse {
+  running: boolean;
+}
+
 // RelatedVideosResponse is the API response for related videos
 export interface RelatedVideosResponse {
   videos: Video[];

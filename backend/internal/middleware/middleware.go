@@ -21,9 +21,9 @@ func Setup(app *fiber.App, frontendURL string) {
 	// CORS configuration
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     frontendURL,
-		AllowMethods:     "GET,POST,HEAD,OPTIONS",
-		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
-		AllowCredentials: false,
+		AllowMethods:     "GET,POST,PUT,HEAD,OPTIONS",
+		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,X-Admin-Key",
+		AllowCredentials: true,
 		MaxAge:           3600,
 	}))
 

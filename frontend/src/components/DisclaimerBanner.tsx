@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { X, Info } from "lucide-react";
+import { useSiteSettings } from "./SiteSettingsProvider";
 
 const DISCLAIMER_DISMISSED_KEY = "kinktube_disclaimer_dismissed";
 
 export default function DisclaimerBanner() {
+  const siteSettings = useSiteSettings();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -31,10 +33,9 @@ export default function DisclaimerBanner() {
             <Info className="w-4 h-4 flex-shrink-0" />
             <p>
               <span className="hidden sm:inline">
-                This site contains adult content. All performers are 18+. We do not host any
-                videos - all content is embedded from third-party sources.{" "}
+                {siteSettings.content.disclaimer_text}{" "}
               </span>
-              <span className="sm:hidden">Adult content. 18+ only. Third-party embeds.</span>
+              <span className="sm:hidden">{siteSettings.content.disclaimer_text}</span>
             </p>
           </div>
           <button

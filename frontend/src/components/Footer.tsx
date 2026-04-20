@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
 
+import { useSiteSettings } from "./SiteSettingsProvider";
+
 export default function Footer() {
+  const siteSettings = useSiteSettings();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -10,12 +15,11 @@ export default function Footer() {
           {/* Brand */}
           <div className="md:col-span-2">
             <Link href="/" className="text-xl font-bold">
-              <span className="text-accent">Kink</span>
-              <span className="text-foreground">Tube</span>
+              <span className="text-accent">{siteSettings.branding.logo_primary}</span>
+              <span className="text-foreground">{siteSettings.branding.logo_secondary}</span>
             </Link>
             <p className="mt-2 text-foreground-muted text-sm max-w-md">
-              The premier destination for BDSM, kink, and fetish video content.
-              All videos are embedded from external sources.
+              {siteSettings.branding.footer_description}
             </p>
           </div>
 
@@ -110,7 +114,7 @@ export default function Footer() {
         <div className="mt-8 pt-6 border-t border-border">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-foreground-muted text-sm">
-              &copy; {currentYear} KinkTube. All rights reserved.
+              &copy; {currentYear} {siteSettings.branding.copyright_label}. All rights reserved.
             </p>
             <p className="text-foreground-muted text-xs">
               This site contains adult content. You must be 18+ to enter.

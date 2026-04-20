@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Menu, X, ChevronRight, Flame, Search } from "lucide-react";
 import SearchBar from "./SearchBar";
+import { useSiteSettings } from "./SiteSettingsProvider";
 
 // Featured categories for hamburger menu
 const menuCategories = [
@@ -33,6 +34,7 @@ interface HeaderProps {
 }
 
 export default function Header({ categoryThumbnails = {} }: HeaderProps) {
+  const siteSettings = useSiteSettings();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
@@ -74,24 +76,24 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
       )}
 
       {/* Mobile Menu Panel */}
-      <div
-        className={`fixed inset-y-0 left-0 z-[70] flex h-dvh min-h-screen w-[85%] max-w-sm flex-col bg-[#0a0a0a] transform transition-transform duration-300 ease-in-out lg:hidden ${
+        <div
+          className={`fixed inset-y-0 left-0 z-[70] flex h-dvh min-h-screen w-[85%] max-w-sm flex-col bg-background transform transition-transform duration-300 ease-in-out lg:hidden ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Menu Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
+        <div className="flex items-center justify-between p-4 border-b border-border">
             <Link
               href="/"
               onClick={(event) => handleMenuNavigation(event, "/")}
               className="flex items-center gap-1 text-xl font-bold"
             >
-            <span className="text-[#dc2626]">Kink</span>
-            <span className="text-[#fafafa]">Tube</span>
+            <span className="text-accent">{siteSettings.branding.logo_primary}</span>
+            <span className="text-foreground">{siteSettings.branding.logo_secondary}</span>
           </Link>
           <button
             onClick={() => setMobileMenuOpen(false)}
-            className="p-2 text-[#a1a1aa] hover:text-[#fafafa]"
+            className="p-2 text-foreground-muted hover:text-foreground"
             aria-label="Close menu"
           >
             <X className="w-6 h-6" />
@@ -101,47 +103,47 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
         {/* Menu Content */}
         <div className="min-h-0 flex-1 overflow-y-auto">
           {/* Quick Links */}
-          <div className="p-4 border-b border-[#27272a]">
+          <div className="p-4 border-b border-border">
             <Link
               href="/"
               onClick={(event) => handleMenuNavigation(event, "/")}
-              className="flex items-center justify-between py-3 text-[#fafafa] hover:text-[#dc2626] transition-colors"
+              className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
             >
               <span className="font-medium">Home</span>
-              <ChevronRight className="w-5 h-5 text-[#a1a1aa]" />
+              <ChevronRight className="w-5 h-5 text-foreground-muted" />
             </Link>
             <Link
               href="/?sort=rating"
               onClick={(event) => handleMenuNavigation(event, "/?sort=rating")}
-              className="flex items-center justify-between py-3 text-[#fafafa] hover:text-[#dc2626] transition-colors"
+              className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
             >
               <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-[#dc2626]" />
+                <Flame className="w-4 h-4 text-accent" />
                 <span className="font-medium">Popular</span>
               </div>
-              <ChevronRight className="w-5 h-5 text-[#a1a1aa]" />
+              <ChevronRight className="w-5 h-5 text-foreground-muted" />
             </Link>
             <Link
               href="/?sort=latest"
               onClick={(event) => handleMenuNavigation(event, "/?sort=latest")}
-              className="flex items-center justify-between py-3 text-[#fafafa] hover:text-[#dc2626] transition-colors"
+              className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
             >
               <span className="font-medium">Newest</span>
-              <ChevronRight className="w-5 h-5 text-[#a1a1aa]" />
+              <ChevronRight className="w-5 h-5 text-foreground-muted" />
             </Link>
             <Link
               href="/?sort=views"
               onClick={(event) => handleMenuNavigation(event, "/?sort=views")}
-              className="flex items-center justify-between py-3 text-[#fafafa] hover:text-[#dc2626] transition-colors"
+              className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
             >
               <span className="font-medium">Most Viewed</span>
-              <ChevronRight className="w-5 h-5 text-[#a1a1aa]" />
+              <ChevronRight className="w-5 h-5 text-foreground-muted" />
             </Link>
           </div>
 
           {/* Categories Grid */}
           <div className="p-4">
-            <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-3">
+            <h3 className="text-xs font-semibold text-foreground-muted uppercase tracking-wider mb-3">
               Categories
             </h3>
             <div className="grid grid-cols-2 gap-2">
@@ -150,7 +152,7 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
                   key={category.slug}
                   href={`/category/${category.slug}`}
                   onClick={(event) => handleMenuNavigation(event, `/category/${category.slug}`)}
-                  className="relative group overflow-hidden rounded-lg aspect-[4/3] bg-[#1a1a1a]"
+                  className="relative group overflow-hidden rounded-lg aspect-[4/3] bg-background-tertiary"
                 >
                   {/* Category Thumbnail */}
                   {categoryThumbnails[category.slug] ? (
@@ -163,7 +165,7 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
                       unoptimized
                     />
                   ) : (
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#dc2626]/30 to-[#1a1a1a]" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accent/30 to-background-tertiary" />
                   )}
 
                   {/* Overlay Gradient */}
@@ -203,8 +205,8 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
               href="/"
               className="flex items-center gap-1 text-xl font-bold hover:opacity-80 transition-opacity flex-shrink-0"
             >
-              <span className="text-accent">Kink</span>
-              <span className="text-foreground">Tube</span>
+              <span className="text-accent">{siteSettings.branding.logo_primary}</span>
+              <span className="text-foreground">{siteSettings.branding.logo_secondary}</span>
             </Link>
 
             {/* Desktop Navigation */}

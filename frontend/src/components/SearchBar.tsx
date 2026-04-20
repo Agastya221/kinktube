@@ -261,10 +261,10 @@ export default function SearchBar({
 
       {/* Suggestions Dropdown */}
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 z-[100] mt-2 bg-[#111111] border border-[#27272a] rounded-lg shadow-2xl overflow-hidden">
+        <div className="absolute left-0 right-0 z-[100] mt-2 bg-background-secondary border border-border rounded-lg shadow-2xl overflow-hidden">
           {/* Header for trending */}
           {!query && (
-            <div className="px-4 py-2 text-xs font-medium text-foreground-muted border-b border-[#27272a] flex items-center gap-2 bg-[#1a1a1a]">
+            <div className="px-4 py-2 text-xs font-medium text-foreground-muted border-b border-border flex items-center gap-2 bg-background-tertiary">
               <TrendingUp className="w-3 h-3" />
               Trending Searches
             </div>
@@ -278,7 +278,7 @@ export default function SearchBar({
               className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-colors ${
                 index === selectedIndex
                   ? "bg-accent/20 text-white"
-                  : "hover:bg-[#1a1a1a] text-[#fafafa]"
+                  : "hover:bg-background-tertiary text-foreground"
               }`}
             >
               {suggestion.type === "result" ? (
@@ -288,7 +288,7 @@ export default function SearchBar({
               ) : suggestion.type === "trending" ? (
                 <TrendingUp className="w-4 h-4 text-accent flex-shrink-0" />
               ) : (
-                <Search className="w-4 h-4 text-[#a1a1aa] flex-shrink-0" />
+                <Search className="w-4 h-4 text-foreground-muted flex-shrink-0" />
               )}
 
               <span className="truncate flex-1 text-sm">
@@ -296,7 +296,7 @@ export default function SearchBar({
               </span>
 
               {suggestion.type !== "result" && (
-                <span className="text-xs text-[#a1a1aa] flex-shrink-0">
+                <span className="text-xs text-foreground-muted flex-shrink-0">
                   {suggestion.type === "trending" ? "Trending" : "Search"}
                 </span>
               )}
@@ -304,7 +304,7 @@ export default function SearchBar({
           ))}
 
           {/* Footer hint */}
-          <div className="px-4 py-2 text-xs text-[#a1a1aa] border-t border-[#27272a] bg-[#0a0a0a]/50 flex items-center justify-between">
+          <div className="px-4 py-2 text-xs text-foreground-muted border-t border-border bg-background/50 flex items-center justify-between">
             <span>Press Enter to search</span>
             <span className="hidden sm:inline">Use arrow keys to navigate</span>
           </div>
