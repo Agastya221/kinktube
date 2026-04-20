@@ -1,15 +1,26 @@
+import { Suspense } from "react";
+import VideoGrid from "@/components/VideoGrid";
 import CategoryNav from "@/components/CategoryNav";
-import PaginatedVideoBrowser from "@/components/PaginatedVideoBrowser";
+import Pagination from "@/components/Pagination";
 import { AdBanner } from "@/components/ads";
+import { SortSelect } from "@/components/SortSelect";
 import { getVideosServer, getCategoriesServer, getStatsServer, getPublicSiteSettingsServer } from "@/lib/api";
 import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
 import { defaultCategories } from "@/lib/default-categories";
 import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
-// ISR: Revalidate homepage every hour
-export const revalidate = 3600;
+interface HomePageProps {
+  searchParams: Promise<{
+    page?: string;
+    sort?: string;
+  }>;
+}
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const params = await searchParams;
+  const page = parseInt(params.page || "1", 10);
+  const sort = (params.sort as "latest" | "views" | "rating" | "extreme") || "latest";
+
   // Fetch data server-side
   let videosData;
   let categories;
@@ -22,7 +33,7 @@ export default async function HomePage() {
     videosPerPage = siteSettings.content.videos_per_page || VIDEO_LIST_PAGE_SIZE;
 
     [videosData, categories, stats] = await Promise.all([
-      getVideosServer({ page: 1, per_page: videosPerPage, sort: "latest" }),
+      getVideosServer({ page, per_page: videosPerPage, sort }),
       getCategoriesServer().catch(() => ({ categories: defaultCategories })),
       getStatsServer().catch(() => ({ total_videos: 0 })),
     ]);
@@ -69,13 +80,29 @@ export default async function HomePage() {
         <CategoryNav categories={categories.categories} />
       </section>
 
-      <PaginatedVideoBrowser
-        initialData={videosData}
-        pageSize={videosPerPage}
-        defaultSort="latest"
-        headingVariant="home"
-        showNativeAd
-      />
+      <section className="mb-4 md:mb-6 flex items-center justify-between gap-2">
+        <h2 className="text-base sm:text-xl md:text-2xl font-semibold truncate">
+          {sort === "latest" ? "Latest Videos" : sort === "views" ? "Most Viewed" : sort === "extreme" ? "Most Extreme" : "Top Rated"}
+        </h2>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-foreground-muted text-xs sm:text-sm hidden sm:inline">Sort:</span>
+          <SortSelect current={sort} />
+        </div>
+      </section>
+
+      <VideoGrid videos={videosData.videos} />
+
+      {!videosData.videos.length ? null : (
+        <Suspense fallback={null}>
+          <Pagination
+            currentPage={videosData.page}
+            totalPages={videosData.total_pages}
+            total={videosData.total}
+            hasMore={videosData.has_more}
+            totalExact={videosData.total_exact}
+          />
+        </Suspense>
+      )}
 
       {/* Mobile Ad - After content */}
       <div className="mt-6 md:hidden">
