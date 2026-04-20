@@ -1,32 +1,15 @@
-import { Suspense } from "react";
-import VideoGrid from "@/components/VideoGrid";
-import InfiniteVideoGrid from "@/components/InfiniteVideoGrid";
-import CategoryNav, { defaultCategories } from "@/components/CategoryNav";
-import Pagination from "@/components/Pagination";
-import { AdBanner, NativeAd } from "@/components/ads";
-import { SortSelect } from "@/components/SortSelect";
+import CategoryNav from "@/components/CategoryNav";
+import PaginatedVideoBrowser from "@/components/PaginatedVideoBrowser";
+import { AdBanner } from "@/components/ads";
 import { getVideosServer, getCategoriesServer, getStatsServer, getPublicSiteSettingsServer } from "@/lib/api";
 import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
+import { defaultCategories } from "@/lib/default-categories";
 import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
 // ISR: Revalidate homepage every hour
 export const revalidate = 3600;
 
-interface HomePageProps {
-  searchParams: Promise<{
-    page?: string;
-    sort?: string;
-    infinite?: string;
-  }>;
-}
-
-export default async function HomePage({ searchParams }: HomePageProps) {
-  const params = await searchParams;
-  const page = parseInt(params.page || "1", 10);
-  // Default to mixed/latest for homepage - backend handles smart ordering
-  const sort = (params.sort as "latest" | "views" | "rating" | "extreme") || "latest";
-  const useInfiniteScroll = params.infinite === "1";
-
+export default async function HomePage() {
   // Fetch data server-side
   let videosData;
   let categories;
@@ -39,7 +22,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     videosPerPage = siteSettings.content.videos_per_page || VIDEO_LIST_PAGE_SIZE;
 
     [videosData, categories, stats] = await Promise.all([
-      getVideosServer({ page, per_page: videosPerPage, sort }),
+      getVideosServer({ page: 1, per_page: videosPerPage, sort: "latest" }),
       getCategoriesServer().catch(() => ({ categories: defaultCategories })),
       getStatsServer().catch(() => ({ total_videos: 0 })),
     ]);
@@ -86,48 +69,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <CategoryNav categories={categories.categories} />
       </section>
 
-      {/* Sort Options - Compact on mobile */}
-      <section className="mb-4 md:mb-6 flex items-center justify-between gap-2">
-        <h2 className="text-base sm:text-xl md:text-2xl font-semibold truncate">
-          {sort === "latest" ? "Latest Videos" : sort === "views" ? "Most Viewed" : sort === "extreme" ? "Most Extreme" : "Top Rated"}
-        </h2>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-foreground-muted text-xs sm:text-sm hidden sm:inline">Sort:</span>
-          <SortSelect current={sort} />
-        </div>
-      </section>
-
-      {/* Video Grid */}
-      {useInfiniteScroll ? (
-        <InfiniteVideoGrid
-          initialVideos={videosData.videos}
-          initialPage={videosData.page}
-          totalPages={videosData.total_pages}
-          queryParams={{ per_page: videosPerPage, sort }}
-        />
-      ) : (
-        <>
-          <VideoGrid videos={videosData.videos} />
-
-          {/* Native Ad in Grid */}
-          {videosData.videos.length > 12 && (
-            <div className="my-8 flex justify-center">
-              <NativeAd className="max-w-sm" />
-            </div>
-          )}
-
-          {/* Pagination */}
-          <Suspense fallback={null}>
-            <Pagination
-              currentPage={videosData.page}
-              totalPages={videosData.total_pages}
-              total={videosData.total}
-              hasMore={videosData.has_more}
-              totalExact={videosData.total_exact}
-            />
-          </Suspense>
-        </>
-      )}
+      <PaginatedVideoBrowser
+        initialData={videosData}
+        pageSize={videosPerPage}
+        defaultSort="latest"
+        headingVariant="home"
+        showNativeAd
+      />
 
       {/* Mobile Ad - After content */}
       <div className="mt-6 md:hidden">

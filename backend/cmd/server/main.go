@@ -15,8 +15,8 @@ import (
 	"kinktube/internal/config"
 	"kinktube/internal/database"
 	"kinktube/internal/handlers"
-	"kinktube/internal/models"
 	"kinktube/internal/middleware"
+	"kinktube/internal/models"
 	"kinktube/internal/services"
 )
 
@@ -90,7 +90,7 @@ func main() {
 	log.Printf("Affiliate service initialized with %d programs", len(affiliateService.GetAllPrograms()))
 
 	// Initialize handlers
-	handler := handlers.NewHandler(cfg, db, cache, importer, affiliateService, epornerClient)
+	handler := handlers.NewHandler(cfg, db, cache, importer, affiliateService, epornerClient, siteSettings)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { defaultCategories } from "@/lib/default-categories";
 import type { Category } from "@/lib/types";
 
 interface CategoryNavProps {
@@ -91,32 +92,4 @@ export default function CategoryNav({ categories }: CategoryNavProps) {
   );
 }
 
-// Default categories for static rendering
-export const defaultCategories: Category[] = [
-  { slug: "femdom", name: "Femdom", video_count: 0 },
-  { slug: "bondage", name: "Bondage", video_count: 0 },
-  { slug: "shibari", name: "Shibari", video_count: 0 },
-  { slug: "slave", name: "Slave", video_count: 0 },
-  { slug: "submission", name: "Submission", video_count: 0 },
-  { slug: "chastity", name: "Chastity", video_count: 0 },
-  { slug: "device-bondage", name: "Device Bondage", video_count: 0 },
-  { slug: "medical-bondage", name: "Medical Bondage", video_count: 0 },
-  { slug: "vacbed", name: "Vacbed", video_count: 0 },
-  { slug: "spanking", name: "Spanking", video_count: 0 },
-  { slug: "caning", name: "Caning", video_count: 0 },
-  { slug: "latex", name: "Latex", video_count: 0 },
-  { slug: "dominatrix", name: "Dominatrix", video_count: 0 },
-  { slug: "public-humiliation", name: "Public Humiliation", video_count: 0 },
-  { slug: "whipping", name: "Whipping", video_count: 0 },
-  { slug: "cbt", name: "CBT", video_count: 0 },
-  { slug: "foot-fetish", name: "Foot Fetish", video_count: 0 },
-  { slug: "facesitting", name: "Facesitting", video_count: 0 },
-  { slug: "strapon", name: "Strapon", video_count: 0 },
-  // Extreme categories
-  { slug: "extreme-bondage", name: "Extreme Bondage", video_count: 0 },
-  { slug: "predicament", name: "Predicament", video_count: 0 },
-  { slug: "mummification", name: "Mummification", video_count: 0 },
-  { slug: "sensory-deprivation", name: "Sensory Deprivation", video_count: 0 },
-  { slug: "severe-discipline", name: "Severe Discipline", video_count: 0 },
-  { slug: "pet-play", name: "Pet Play", video_count: 0 },
-];
+export { defaultCategories };

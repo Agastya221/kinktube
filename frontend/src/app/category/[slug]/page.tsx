@@ -1,13 +1,10 @@
 import { Metadata } from "next";
-import { Suspense } from "react";
-import VideoGrid from "@/components/VideoGrid";
-import InfiniteVideoGrid from "@/components/InfiniteVideoGrid";
-import CategoryNav, { defaultCategories } from "@/components/CategoryNav";
-import Pagination from "@/components/Pagination";
+import CategoryNav from "@/components/CategoryNav";
+import PaginatedVideoBrowser from "@/components/PaginatedVideoBrowser";
 import { AdBanner } from "@/components/ads";
-import { SortSelect } from "@/components/SortSelect";
 import { getVideosServer, getCategoriesServer, getPublicSiteSettingsServer } from "@/lib/api";
 import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
+import { defaultCategories } from "@/lib/default-categories";
 import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
 // ISR: Revalidate category pages every hour
@@ -16,11 +13,6 @@ export const revalidate = 3600;
 interface CategoryPageProps {
   params: Promise<{
     slug: string;
-  }>;
-  searchParams: Promise<{
-    page?: string;
-    sort?: string;
-    infinite?: string;
   }>;
 }
 
@@ -125,12 +117,14 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   };
 }
 
-export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
+export function generateStaticParams() {
+  return defaultCategories.map((category) => ({
+    slug: category.slug,
+  }));
+}
+
+export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params;
-  const search = await searchParams;
-  const page = parseInt(search.page || "1", 10);
-  const sort = (search.sort as "latest" | "views" | "rating" | "extreme" | undefined) || "latest";
-  const useInfiniteScroll = search.infinite === "1";
   const siteSettings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
   const videosPerPage = siteSettings.content.videos_per_page || VIDEO_LIST_PAGE_SIZE;
 
@@ -147,10 +141,10 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   try {
     [videosData, categories] = await Promise.all([
       getVideosServer({
-        page,
+        page: 1,
         per_page: videosPerPage,
         category: slug,
-        sort,
+        sort: "latest",
       }),
       getCategoriesServer().catch(() => ({ categories: defaultCategories })),
     ]);
@@ -206,47 +200,13 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         <CategoryNav categories={categories.categories} />
       </section>
 
-      {/* Sort Options - Compact on mobile */}
-      <section className="mb-4 md:mb-6 flex items-center justify-between gap-2">
-        <h2 className="text-base sm:text-xl font-semibold truncate">
-          {sort === "latest"
-            ? "Latest"
-            : sort === "views"
-              ? "Most Viewed"
-              : sort === "extreme"
-                ? "Most Extreme"
-                : "Top Rated"}
-        </h2>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-foreground-muted text-xs sm:text-sm hidden sm:inline">Sort:</span>
-          <SortSelect current={sort} />
-        </div>
-      </section>
-
-      {/* Video Grid */}
-      {useInfiniteScroll ? (
-        <InfiniteVideoGrid
-          initialVideos={videosData.videos}
-          initialPage={videosData.page}
-          totalPages={videosData.total_pages}
-          queryParams={{ per_page: videosPerPage, category: slug, sort }}
-        />
-      ) : (
-        <>
-          <VideoGrid videos={videosData.videos} />
-
-          {/* Pagination */}
-          <Suspense fallback={null}>
-            <Pagination
-              currentPage={videosData.page}
-              totalPages={videosData.total_pages}
-              total={videosData.total}
-              hasMore={videosData.has_more}
-              totalExact={videosData.total_exact}
-            />
-          </Suspense>
-        </>
-      )}
+      <PaginatedVideoBrowser
+        initialData={videosData}
+        pageSize={videosPerPage}
+        defaultSort="latest"
+        headingVariant="category"
+        queryParams={{ category: slug }}
+      />
 
       {/* Mobile Ad - After content */}
       <div className="mt-6 md:hidden">

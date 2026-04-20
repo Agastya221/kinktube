@@ -3,8 +3,8 @@ package handlers
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/subtle"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -33,6 +33,10 @@ func (h *Handler) applySiteSettings(settings *models.SiteSettings) {
 		return
 	}
 
+	h.siteSettingsMu.Lock()
+	h.siteSettings = settings
+	h.siteSettingsMu.Unlock()
+
 	h.importer.UpdateConfig(
 		settings.Import.ImportMaxPages,
 		settings.Import.LightImportMaxPages,
@@ -42,7 +46,23 @@ func (h *Handler) applySiteSettings(settings *models.SiteSettings) {
 }
 
 func (h *Handler) getSiteSettings(ctx context.Context) (*models.SiteSettings, error) {
-	return h.db.GetSiteSettings(ctx, h.defaultSiteSettings())
+	h.siteSettingsMu.RLock()
+	cached := h.siteSettings
+	h.siteSettingsMu.RUnlock()
+	if cached != nil {
+		return cached, nil
+	}
+
+	settings, err := h.db.GetSiteSettings(ctx, h.defaultSiteSettings())
+	if err != nil {
+		return nil, err
+	}
+
+	h.siteSettingsMu.Lock()
+	h.siteSettings = settings
+	h.siteSettingsMu.Unlock()
+
+	return settings, nil
 }
 
 func (h *Handler) adminCredentialsConfigured() bool {
