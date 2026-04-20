@@ -14,7 +14,7 @@ import (
 	"kinktube/internal/services"
 )
 
-const defaultListPerPage = 100
+const defaultListPerPage = 24
 
 const (
 	categoryBootstrapTargetPages = 3

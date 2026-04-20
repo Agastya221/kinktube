@@ -12,7 +12,7 @@ import (
 	"kinktube/internal/models"
 )
 
-const defaultListPerPage = 100
+const defaultListPerPage = 24
 
 func scanVideoRow(rows pgx.Rows, v *models.Video) error {
 	return rows.Scan(
