@@ -34,8 +34,8 @@ export default function VideoGrid({ videos, loading }: VideoGridProps) {
 
   return (
     <div className="video-grid">
-      {validVideos.map((video) => (
-        <VideoCard key={getVideoIdentifier(video)} video={video} />
+      {validVideos.map((video, index) => (
+        <VideoCard key={getVideoIdentifier(video)} video={video} priority={index < 2} />
       ))}
     </div>
   );

@@ -14,10 +14,10 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 # Copy package files
-COPY package.json ./
+COPY package*.json ./
 
-# Install dependencies (use npm install since we may not have lock file)
-RUN npm install --legacy-peer-deps
+# Install locked dependencies when a lockfile is present.
+RUN if [ -f package-lock.json ]; then npm ci --legacy-peer-deps; else npm install --legacy-peer-deps; fi
 
 # -----------------------------------------------------------------------------
 # Stage 2: Builder

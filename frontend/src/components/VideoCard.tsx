@@ -18,7 +18,7 @@ export default function VideoCard({ video, priority = false }: VideoCardProps) {
   // Fallback thumbnail URL
   const thumbnailUrl = imageError
     ? "/placeholder-video.svg"
-    : video.thumbnail_lg || video.thumbnail;
+    : video.thumbnail || video.thumbnail_lg;
 
   // Check if video has extreme content based on title
   const isExtreme = /extreme|severe|brutal|intense|harsh|torture|punishment|tight bondage|predicament|mummification/i.test(video.title);
@@ -39,8 +39,8 @@ export default function VideoCard({ video, priority = false }: VideoCardProps) {
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           loading={priority ? "eager" : "lazy"}
           priority={priority}
+          unoptimized
           onError={() => setImageError(true)}
-          quality={75}
         />
 
         {/* Hover Overlay */}
@@ -143,7 +143,7 @@ export function VideoCardCompact({ video }: VideoCardProps) {
             sizes="128px"
             className="object-cover rounded-lg"
             loading="lazy"
-            quality={60}
+            unoptimized
           />
           <span className="duration-badge text-[10px] px-1 py-0.5">
             {video.duration_str || formatDuration(video.duration)}
