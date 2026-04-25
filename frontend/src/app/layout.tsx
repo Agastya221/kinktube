@@ -78,6 +78,8 @@ export default async function RootLayout({
         {/* RTA Label for adult content filtering */}
         <meta name="rating" content="adult" />
         <meta name="RATING" content="RTA-5042-1996-1400-1577-RTA" />
+        {/* JuicyAds site verification */}
+        <meta name="juicyads-site-verification" content="4efbddf29a1d7da79474550ecb10fc4c" />
       </head>
       <body>
         <ChromeGate
