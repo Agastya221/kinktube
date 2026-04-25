@@ -285,9 +285,6 @@ func (h *Handler) topUpCategoryInventory(
 		return current
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
 	query := models.CategorySearchQuery(category)
 	missingInventory := int(desiredCategoryInventory(page, perPage) - current.Total)
 	pagesToFetch := 1
@@ -298,64 +295,68 @@ func (h *Handler) topUpCategoryInventory(
 		pagesToFetch = categoryBootstrapMaxPages
 	}
 
-	opts := &services.SearchOptions{Order: "latest"}
-	persistedAny := false
+	_ = h.cache.SetWithTTL(c.Context(), cooldownKey, true, categoryBootstrapTTL)
 
-	for sourcePage := 1; sourcePage <= pagesToFetch; sourcePage++ {
-		response, err := h.eporner.SearchVideosWithOptions(ctx, query, sourcePage, 100, opts)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+
+		opts := &services.SearchOptions{Order: "latest"}
+		persistedAny := false
+
+		for sourcePage := 1; sourcePage <= pagesToFetch; sourcePage++ {
+			response, err := h.eporner.SearchVideosWithOptions(ctx, query, sourcePage, 100, opts)
+			if err != nil {
+				break
+			}
+
+			if len(response.Videos) == 0 {
+				break
+			}
+
+			for _, ev := range response.Videos {
+				if !services.MatchesTopicAndBDSM(&ev, query) {
+					continue
+				}
+
+				video := services.ConvertToVideo(&ev, query)
+				if video.Thumbnail == "" && video.ThumbnailLg == "" {
+					continue
+				}
+
+				if _, err := h.db.UpsertVideo(ctx, video); err != nil {
+					continue
+				}
+
+				persistedAny = true
+				h.cacheVideoRecord(ctx, video)
+			}
+
+			responsePerPage := response.PerPage
+			if responsePerPage <= 0 {
+				responsePerPage = 100
+			}
+
+			if len(response.Videos) < responsePerPage || (response.Page*responsePerPage) >= response.Count {
+				break
+			}
+		}
+
+		if !persistedAny {
+			return
+		}
+
+		refreshed, err := h.db.ListVideos(ctx, page, perPage, sortBy, category, "")
 		if err != nil {
-			break
+			return
 		}
 
-		if len(response.Videos) == 0 {
-			break
+		if refreshed.Total > current.Total || len(refreshed.Videos) > len(current.Videos) {
+			h.invalidateBrowseCaches(ctx)
+			_ = h.cache.Delete(ctx, cooldownKey)
 		}
+	}()
 
-		for _, ev := range response.Videos {
-			if !services.MatchesTopicAndBDSM(&ev, query) {
-				continue
-			}
-
-			video := services.ConvertToVideo(&ev, query)
-			if video.Thumbnail == "" && video.ThumbnailLg == "" {
-				continue
-			}
-
-			if _, err := h.db.UpsertVideo(ctx, video); err != nil {
-				continue
-			}
-
-			persistedAny = true
-			h.cacheVideoRecord(ctx, video)
-		}
-
-		responsePerPage := response.PerPage
-		if responsePerPage <= 0 {
-			responsePerPage = 100
-		}
-
-		if len(response.Videos) < responsePerPage || (response.Page*responsePerPage) >= response.Count {
-			break
-		}
-	}
-
-	if !persistedAny {
-		_ = h.cache.SetWithTTL(ctx, cooldownKey, true, categoryBootstrapTTL)
-		return current
-	}
-
-	refreshed, err := h.db.ListVideos(ctx, page, perPage, sortBy, category, "")
-	if err != nil {
-		return current
-	}
-
-	if refreshed.Total > current.Total || len(refreshed.Videos) > len(current.Videos) {
-		h.invalidateBrowseCaches(ctx)
-		_ = h.cache.Delete(ctx, cooldownKey)
-		return refreshed
-	}
-
-	_ = h.cache.SetWithTTL(ctx, cooldownKey, true, categoryBootstrapTTL)
 	return current
 }
 

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"log"
+	"os"
 	"strconv"
 	"time"
 
@@ -27,8 +28,11 @@ func Setup(app *fiber.App, frontendURL string) {
 		MaxAge:           3600,
 	}))
 
-	// Request logging
-	app.Use(requestLogger())
+	// Request logging is disabled by default because stdout backpressure can
+	// delay responses on hosted platforms.
+	if os.Getenv("REQUEST_LOGGING_ENABLED") == "true" {
+		app.Use(requestLogger())
+	}
 
 	// Rate limiting - 100 requests per minute per IP
 	app.Use(limiter.New(limiter.Config{

@@ -49,7 +49,7 @@ func Load() *Config {
 	perPage, _ := strconv.Atoi(getEnv("EPORNER_PER_PAGE", "100"))
 	cacheTTL, _ := strconv.Atoi(getEnv("CACHE_TTL", "300"))
 	importEnabled, _ := strconv.ParseBool(getEnv("IMPORT_ENABLED", "true"))
-	refreshOnStartup, _ := strconv.ParseBool(getEnv("REFRESH_ON_STARTUP", "true"))
+	refreshOnStartup, _ := strconv.ParseBool(getEnv("REFRESH_ON_STARTUP", "false"))
 	startupDelay, _ := strconv.Atoi(getEnv("STARTUP_REFRESH_DELAY", "10"))
 	importMaxPages, _ := strconv.Atoi(getEnv("IMPORT_MAX_PAGES", "8"))
 	lightImportMaxPages, _ := strconv.Atoi(getEnv("LIGHT_IMPORT_MAX_PAGES", "2"))
