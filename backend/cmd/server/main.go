@@ -93,6 +93,7 @@ func main() {
 	handler := handlers.NewHandler(cfg, db, cache, importer, affiliateService, epornerClient, siteSettings)
 
 	// Create Fiber app
+	startedAt := time.Now()
 	app := fiber.New(fiber.Config{
 		AppName:       "KinkTube API",
 		ServerHeader:  "KinkTube",
@@ -102,6 +103,17 @@ func main() {
 		BodyLimit:     4 * 1024 * 1024, // 4MB
 		Prefork:       false,           // Set to true in production for better performance
 		StrictRouting: true,
+	})
+
+	// Pre-middleware probe for Railway/platform latency. If this endpoint is
+	// slow in production, the delay is before normal app middleware and routes.
+	app.Get("/healthz", func(c *fiber.Ctx) error {
+		c.Set("X-KinkTube-Probe", "pre-middleware-v1")
+		return c.JSON(fiber.Map{
+			"status":     "ok",
+			"probe":      "pre-middleware-v1",
+			"uptime_sec": int(time.Since(startedAt).Seconds()),
+		})
 	})
 
 	// Setup middleware
