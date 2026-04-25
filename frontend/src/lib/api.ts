@@ -14,6 +14,11 @@ import type {
 } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const SERVER_API_BASE_URL =
+  process.env.API_URL ||
+  process.env.INTERNAL_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8080";
 
 // Generic fetch wrapper with error handling
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -102,7 +107,7 @@ export async function getVideosServer(params: VideoQueryParams = {}): Promise<Vi
   if (params.q) searchParams.set("q", params.q);
 
   const query = searchParams.toString();
-  const url = `${API_BASE_URL}/api/videos${query ? `?${query}` : ""}`;
+  const url = `${SERVER_API_BASE_URL}/api/videos${query ? `?${query}` : ""}`;
 
   const response = await fetch(url, {
     next: { revalidate: 60 }, // Cache for 60 seconds
@@ -116,7 +121,7 @@ export async function getVideosServer(params: VideoQueryParams = {}): Promise<Vi
 }
 
 export async function getVideoServer(id: string | number): Promise<Video> {
-  const url = `${API_BASE_URL}/api/videos/${encodeURIComponent(String(id))}`;
+  const url = `${SERVER_API_BASE_URL}/api/videos/${encodeURIComponent(String(id))}`;
 
   const response = await fetch(url, {
     next: { revalidate: 300 }, // Cache for 5 minutes
@@ -130,7 +135,7 @@ export async function getVideoServer(id: string | number): Promise<Video> {
 }
 
 export async function getRelatedVideosServer(id: string | number, limit = 12): Promise<RelatedVideosResponse> {
-  const url = `${API_BASE_URL}/api/videos/${encodeURIComponent(String(id))}/related?limit=${limit}`;
+  const url = `${SERVER_API_BASE_URL}/api/videos/${encodeURIComponent(String(id))}/related?limit=${limit}`;
 
   const response = await fetch(url, {
     next: { revalidate: 300 }, // Cache for 5 minutes
@@ -144,7 +149,7 @@ export async function getRelatedVideosServer(id: string | number, limit = 12): P
 }
 
 export async function getCategoriesServer(): Promise<CategoriesResponse> {
-  const url = `${API_BASE_URL}/api/categories`;
+  const url = `${SERVER_API_BASE_URL}/api/categories`;
 
   const response = await fetch(url, {
     next: { revalidate: 600 }, // Cache for 10 minutes
@@ -158,7 +163,7 @@ export async function getCategoriesServer(): Promise<CategoriesResponse> {
 }
 
 export async function getStatsServer(): Promise<StatsResponse> {
-  const url = `${API_BASE_URL}/api/stats`;
+  const url = `${SERVER_API_BASE_URL}/api/stats`;
 
   const response = await fetch(url, {
     next: { revalidate: 600 }, // Cache for 10 minutes
@@ -172,7 +177,7 @@ export async function getStatsServer(): Promise<StatsResponse> {
 }
 
 export async function getPublicSiteSettingsServer(): Promise<PublicSiteSettings> {
-  const url = `${API_BASE_URL}/api/site-settings`;
+  const url = `${SERVER_API_BASE_URL}/api/site-settings`;
 
   const response = await fetch(url, {
     next: { revalidate: 60 },
@@ -196,7 +201,7 @@ export async function getVideoWithAffiliates(id: string | number): Promise<Video
 
 // Server-side affiliate fetch
 export async function getVideoWithAffiliatesServer(id: string | number): Promise<VideoWithAffiliates> {
-  const url = `${API_BASE_URL}/api/videos/${encodeURIComponent(String(id))}/full`;
+  const url = `${SERVER_API_BASE_URL}/api/videos/${encodeURIComponent(String(id))}/full`;
 
   const response = await fetch(url, {
     next: { revalidate: 300 }, // Cache for 5 minutes
@@ -223,7 +228,7 @@ interface MenuCategoriesResponse {
 // Get menu categories with thumbnails in a single request
 export async function getMenuCategories(): Promise<Record<string, string>> {
   try {
-    const url = `${API_BASE_URL}/api/menu-categories`;
+    const url = `${SERVER_API_BASE_URL}/api/menu-categories`;
     const response = await fetch(url, {
       next: { revalidate: 600 }, // Cache for 10 minutes
     });

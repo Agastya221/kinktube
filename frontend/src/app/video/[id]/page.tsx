@@ -2,14 +2,15 @@ import { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { Eye, Clock, Star, Tag, Calendar } from "lucide-react";
 import VideoPlayer from "@/components/VideoPlayer";
 import VideoGrid from "@/components/VideoGrid";
 import { AffiliateButtons } from "@/components/affiliate";
 import { AdBanner, SidebarAds } from "@/components/ads";
-import { getVideoWithAffiliatesServer, getRelatedVideosServer, getPublicSiteSettingsServer } from "@/lib/api";
+import { getVideoWithAffiliatesServer, getRelatedVideosServer } from "@/lib/api";
+import { getBestDisplayThumbnailUrl } from "@/lib/media";
 import { formatViews, formatDuration, formatRelativeTime, getVideoPath } from "@/lib/types";
-import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
 interface VideoPageProps {
   params: Promise<{
@@ -17,12 +18,17 @@ interface VideoPageProps {
   }>;
 }
 
+const VIDEO_PAGE_RELATED_LIMIT = 12;
+
+const getCachedVideoWithAffiliates = cache((id: string) => getVideoWithAffiliatesServer(id));
+const getCachedRelatedVideos = cache((id: string, limit: number) => getRelatedVideosServer(id, limit));
+
 // Generate dynamic SEO metadata
 export async function generateMetadata({ params }: VideoPageProps): Promise<Metadata> {
   const { id } = await params;
 
   try {
-    const { video } = await getVideoWithAffiliatesServer(id);
+    const { video } = await getCachedVideoWithAffiliates(id);
 
     // Build SEO-optimized title and description with BDSM keywords
     const seoTitle = `${video.title} - Free BDSM Video`;
@@ -39,6 +45,7 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
       "bondage",
       "free video",
     ].join(", ");
+    const displayThumbnailUrl = getBestDisplayThumbnailUrl(video);
 
     return {
       title: seoTitle,
@@ -50,7 +57,7 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
         type: "video.other",
         images: [
           {
-            url: video.thumbnail_lg || video.thumbnail,
+            url: displayThumbnailUrl,
             width: 640,
             height: 360,
             alt: video.title,
@@ -69,7 +76,7 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
         card: "summary_large_image",
         title: seoTitle,
         description: seoDescription,
-        images: [video.thumbnail_lg || video.thumbnail],
+        images: [displayThumbnailUrl],
       },
       robots: {
         index: true,
@@ -101,7 +108,7 @@ function generateVideoSchema(video: {
     "@type": "VideoObject",
     name: video.title,
     description: video.description || video.title,
-    thumbnailUrl: video.thumbnail_lg || video.thumbnail,
+    thumbnailUrl: getBestDisplayThumbnailUrl(video),
     duration: `PT${Math.floor(video.duration / 60)}M${video.duration % 60}S`,
     embedUrl: video.embed_url,
     uploadDate: video.added_at,
@@ -120,13 +127,11 @@ export default async function VideoPage({ params }: VideoPageProps) {
 
   let videoData;
   let relatedVideos;
-  const siteSettings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
-  const relatedVideoLimit = siteSettings.content.related_videos || 24;
 
   try {
     [videoData, relatedVideos] = await Promise.all([
-      getVideoWithAffiliatesServer(id),
-      getRelatedVideosServer(id, relatedVideoLimit),
+      getCachedVideoWithAffiliates(id),
+      getCachedRelatedVideos(id, VIDEO_PAGE_RELATED_LIMIT).catch(() => ({ videos: [] })),
     ]);
   } catch {
     notFound();
@@ -159,7 +164,7 @@ export default async function VideoPage({ params }: VideoPageProps) {
               <VideoPlayer
                 embedUrl={video.embed_url}
                 title={video.title}
-                thumbnailUrl={video.thumbnail_lg || video.thumbnail}
+                thumbnailUrl={getBestDisplayThumbnailUrl(video)}
               />
             </div>
 
@@ -291,12 +296,13 @@ export default async function VideoPage({ params }: VideoPageProps) {
                       <div className="relative w-28 sm:w-36 flex-shrink-0">
                         <div className="thumbnail-container">
                           <Image
-                            src={relatedVideo.thumbnail}
+                            src={getBestDisplayThumbnailUrl(relatedVideo)}
                             alt={relatedVideo.title}
                             fill
                             sizes="144px"
                             className="object-cover rounded-lg"
                             loading="lazy"
+                            unoptimized
                           />
                           <span className="duration-badge">
                             {relatedVideo.duration_str || formatDuration(relatedVideo.duration)}

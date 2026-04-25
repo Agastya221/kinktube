@@ -6,6 +6,7 @@ import { Eye, Clock, Star } from "lucide-react";
 import { useState } from "react";
 import type { Video } from "@/lib/types";
 import { formatViews, formatDuration, formatRelativeTime, getVideoPath } from "@/lib/types";
+import { getBestDisplayThumbnailUrl, getDisplayThumbnailUrl } from "@/lib/media";
 
 interface VideoCardProps {
   video: Video;
@@ -18,7 +19,7 @@ export default function VideoCard({ video, priority = false }: VideoCardProps) {
   // Fallback thumbnail URL
   const thumbnailUrl = imageError
     ? "/placeholder-video.svg"
-    : video.thumbnail || video.thumbnail_lg;
+    : getBestDisplayThumbnailUrl(video);
 
   // Check if video has extreme content based on title
   const isExtreme = /extreme|severe|brutal|intense|harsh|torture|punishment|tight bondage|predicament|mummification/i.test(video.title);
@@ -137,7 +138,7 @@ export function VideoCardCompact({ video }: VideoCardProps) {
       <div className="relative w-28 sm:w-32 flex-shrink-0">
         <div className="thumbnail-container">
           <Image
-            src={video.thumbnail}
+            src={getDisplayThumbnailUrl(video.thumbnail || video.thumbnail_lg)}
             alt={video.title}
             fill
             sizes="128px"

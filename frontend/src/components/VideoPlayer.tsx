@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Play, Maximize2, Minimize2, AlertTriangle } from "lucide-react";
+import { getDisplayThumbnailUrl } from "@/lib/media";
 
 interface VideoPlayerProps {
   embedUrl: string;
@@ -20,7 +21,9 @@ export default function VideoPlayer({
   const [isLoaded, setIsLoaded] = useState(autoplay);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showBlockedNotice, setShowBlockedNotice] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const displayThumbnailUrl = getDisplayThumbnailUrl(thumbnailUrl);
 
   // Modify embed URL to include autoplay if needed
   const getEmbedUrl = () => {
@@ -32,8 +35,22 @@ export default function VideoPlayer({
   };
 
   const handlePlay = () => {
+    setIframeLoaded(false);
+    setShowBlockedNotice(false);
     setIsLoaded(true);
   };
+
+  useEffect(() => {
+    if (!isLoaded || iframeLoaded) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setShowBlockedNotice(true);
+    }, 7000);
+
+    return () => window.clearTimeout(timeout);
+  }, [iframeLoaded, isLoaded]);
 
   useEffect(() => {
     const syncFullscreenState = () => {
@@ -82,12 +99,13 @@ export default function VideoPlayer({
           // Thumbnail with play button overlay
           <div className="relative w-full h-full">
             <Image
-              src={thumbnailUrl}
+              src={displayThumbnailUrl}
               alt={title}
               fill
               sizes="100vw"
               className="absolute inset-0 object-cover"
               priority
+              unoptimized
             />
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <button
@@ -115,6 +133,10 @@ export default function VideoPlayer({
             className="absolute inset-0 w-full h-full"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
+            onLoad={() => {
+              setIframeLoaded(true);
+              setShowBlockedNotice(false);
+            }}
           />
         )}
 
@@ -160,7 +182,8 @@ export default function VideoPlayer({
                     Video blocked in your region?
                   </p>
                   <p className="text-sm text-foreground-muted">
-                    Some videos may be restricted in certain countries. To watch:
+                    Some embedded videos may be restricted in certain countries. The page and thumbnails
+                    can load through our server, but playback is still controlled by the source host.
                   </p>
                   <ul className="text-sm text-foreground-muted list-disc list-inside space-y-1">
                     <li>Use a VPN to access the content</li>

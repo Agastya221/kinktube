@@ -1,5 +1,22 @@
 import type { NextConfig } from "next";
 
+const publicApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+function getPublicApiImagePattern() {
+  try {
+    const url = new URL(publicApiUrl);
+    return {
+      protocol: url.protocol.replace(":", "") as "http" | "https",
+      hostname: url.hostname,
+      port: url.port,
+    };
+  } catch {
+    return null;
+  }
+}
+
+const publicApiImagePattern = getPublicApiImagePattern();
+
 const nextConfig: NextConfig = {
   // Enable React strict mode for better development experience
   reactStrictMode: true,
@@ -19,6 +36,7 @@ const nextConfig: NextConfig = {
         protocol: "http",
         hostname: "localhost",
       },
+      ...(publicApiImagePattern ? [publicApiImagePattern] : []),
     ],
     // Optimize images
     formats: ["image/avif", "image/webp"],
@@ -26,7 +44,7 @@ const nextConfig: NextConfig = {
 
   // Environment variables exposed to the browser
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080",
+    NEXT_PUBLIC_API_URL: publicApiUrl,
   },
 
   // Production optimizations
