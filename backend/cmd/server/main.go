@@ -227,6 +227,7 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	// API routes
 	api := app.Group("/api")
 	api.Get("/site-settings", h.GetPublicSiteSettings)
+	api.Post("/contact", h.CreateContactSubmission)
 	api.Get("/admin/session", h.GetAdminSession)
 	api.Post("/admin/session/login", h.LoginAdmin)
 	api.Post("/admin/session/logout", h.LogoutAdmin)
@@ -248,6 +249,8 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	admin.Use(h.RequireAdminAuth)
 	admin.Get("/settings", h.GetAdminSettings)
 	admin.Put("/settings", h.UpdateAdminSettings)
+	admin.Get("/messages", h.ListAdminContactSubmissions)
+	admin.Patch("/messages/:id", h.UpdateAdminContactSubmissionStatus)
 	admin.Post("/import", h.TriggerImport)
 	admin.Post("/import/light", h.TriggerLightImport)
 	admin.Get("/import/status", h.GetImportStatus)

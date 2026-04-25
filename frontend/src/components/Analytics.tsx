@@ -2,48 +2,44 @@
 
 import Script from "next/script";
 
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+declare global {
+  interface Window {
+    umami?: {
+      track: (event: string | { name: string; url?: string }, data?: Record<string, string | number | undefined>) => void;
+    };
+  }
+}
+
+const UMAMI_URL = process.env.NEXT_PUBLIC_UMAMI_URL;
+const UMAMI_ID = process.env.NEXT_PUBLIC_UMAMI_ID;
 
 export default function Analytics() {
-  if (!GA_ID) return null;
+  if (!UMAMI_URL || !UMAMI_ID) return null;
 
   return (
-    <>
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-        strategy="afterInteractive"
-      />
-      <Script id="google-analytics" strategy="afterInteractive">
-        {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${GA_ID}', {
-            page_path: window.location.pathname,
-            anonymize_ip: true,
-          });
-        `}
-      </Script>
-    </>
+    <Script
+      defer
+      src={`${UMAMI_URL}/script.js`}
+      data-website-id={UMAMI_ID}
+      strategy="afterInteractive"
+    />
   );
 }
 
-// Track custom events
+// Track custom events with Umami
 export function trackEvent(action: string, category: string, label?: string, value?: number) {
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("event", action, {
-      event_category: category,
-      event_label: label,
+  if (typeof window !== "undefined" && window.umami) {
+    window.umami.track(action, {
+      category: category,
+      label: label,
       value: value,
     });
   }
 }
 
-// Track page views (for client-side navigation)
+// Track page views (Umami handles this automatically)
 export function trackPageView(url: string) {
-  if (typeof window !== "undefined" && window.gtag && GA_ID) {
-    window.gtag("config", GA_ID, {
-      page_path: url,
-    });
+  if (typeof window !== "undefined" && window.umami) {
+    window.umami.track({ name: "page_view", url: url });
   }
 }

@@ -92,10 +92,34 @@ export default function Footer() {
               </li>
               <li>
                 <Link
+                  href="/contact"
+                  className="text-foreground-muted hover:text-accent transition-colors"
+                >
+                  Contact
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/2257"
                   className="text-foreground-muted hover:text-accent transition-colors"
                 >
                   18 U.S.C. 2257
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/acceptable-content"
+                  className="text-foreground-muted hover:text-accent transition-colors"
+                >
+                  Acceptable Content
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/content-removal"
+                  className="text-foreground-muted hover:text-accent transition-colors"
+                >
+                  Content Removal
                 </Link>
               </li>
               <li>

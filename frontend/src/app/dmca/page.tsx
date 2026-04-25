@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 
+import LegalContactCta from "@/components/LegalContactCta";
 import { getPublicSiteSettingsServer } from "@/lib/api";
 import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
@@ -24,6 +25,7 @@ export default async function DMCAPage() {
           {doc.content}
         </div>
       </div>
+      <LegalContactCta />
     </div>
   );
 }

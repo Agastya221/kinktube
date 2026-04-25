@@ -1,21 +1,21 @@
 import { Metadata } from "next";
 
-import LegalContactCta from "@/components/LegalContactCta";
+import ContactForm from "@/components/ContactForm";
 import { getPublicSiteSettingsServer } from "@/lib/api";
 import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
   return {
-    title: settings.legal.terms.title,
-    description: `${settings.branding.site_name} ${settings.legal.terms.title}`,
+    title: settings.legal.content_removal.title,
+    description: `${settings.branding.site_name} ${settings.legal.content_removal.title}`,
     robots: { index: true, follow: true },
   };
 }
 
-export default async function TermsPage() {
+export default async function ContentRemovalPage() {
   const settings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
-  const doc = settings.legal.terms;
+  const doc = settings.legal.content_removal;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -25,7 +25,7 @@ export default async function TermsPage() {
           {doc.content}
         </div>
       </div>
-      <LegalContactCta />
+      <ContactForm defaultType="content_removal" />
     </div>
   );
 }

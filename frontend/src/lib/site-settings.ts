@@ -2,6 +2,66 @@ import type { CSSProperties } from "react";
 
 import type { PublicSiteSettings } from "./types";
 
+const fallbackTermsContent = `Last updated: April 26, 2026
+
+KinkTube is an adult video discovery and embed site. You must be at least 18 years old and the age of majority in your jurisdiction to access this site.
+
+We use the Eporner API and related third-party metadata to list, organize, search, and embed videos from third-party platforms. We do not upload, produce, sell, or host the underlying video files.
+
+Third-party sites are responsible for their own content, privacy practices, terms, performer records, and removal processes. We may remove links or embeds from KinkTube, but removal from this site does not remove source content from Eporner or the original host.
+
+You agree not to scrape, clone, overload, interfere with, bypass security controls, submit abusive reports, infringe rights, or use the site for unlawful or non-consensual activity.
+
+We have zero tolerance for child sexual abuse material, child exploitation, non-consensual intimate content, trafficking, coercion, malware, scams, stolen content, or content that appears to violate applicable law.
+
+KinkTube is provided as-is and as-available. We may update these terms at any time.`;
+
+const fallbackPrivacyContent = `Last updated: April 26, 2026
+
+KinkTube is an adult video discovery and embed site using third-party video data and embeds, including from the Eporner API.
+
+We may process limited technical, usage, cookie, age-gate, analytics, advertising, security, and report information needed to operate the site, protect it from abuse, improve performance, and respond to legal or content-removal requests.
+
+Third parties such as Eporner, analytics providers, advertising networks, embedded players, CDN providers, and security providers may receive technical information when their resources load in your browser. Their privacy policies govern their own processing.
+
+This site is for adults only. We do not knowingly collect personal information from minors.
+
+You can block or delete cookies in your browser, though some features may work less smoothly. Privacy questions can be submitted through the Contact page.`;
+
+const fallbackDMCAContent = `Last updated: April 26, 2026
+
+KinkTube respects copyright owners and responds to valid DMCA notices.
+
+KinkTube does not host the underlying video files. We use third-party embeds and metadata, including content made available through the Eporner API. A valid notice can result in removal or disabling of the relevant listing, thumbnail, embed, or link from KinkTube, but it will not remove the original video from Eporner or another host.
+
+Please include your signature, the copyrighted work, the exact KinkTube URL, the source URL if available, your contact details, a good-faith statement, an accuracy statement under penalty of perjury, and confirmation that you are the owner or authorized agent.
+
+Counter-notices may be submitted when material was removed because of mistake or misidentification. Misrepresenting infringement may create legal liability.`;
+
+const fallback2257Content = `Last updated: April 26, 2026
+
+KinkTube is an adult video discovery and embed site. We do not produce, upload, host, or sell the visual depictions displayed through embedded third-party players.
+
+The videos indexed or embedded on KinkTube are supplied by third-party platforms and metadata sources, including the Eporner API. KinkTube is not the primary or secondary producer of those visual depictions as those terms are used in 18 U.S.C. 2257, 18 U.S.C. 2257A, or 28 C.F.R. Part 75.
+
+Any required records should be maintained by the original producer, publisher, or hosting platform responsible for the content.`;
+
+const fallbackAcceptableContent = `Last updated: April 26, 2026
+
+KinkTube indexes and embeds lawful adult content from third-party sources. We will not knowingly list, promote, embed, or link to content involving minors, child sexual abuse material, child exploitation, non-consensual intimate content, revenge porn, coerced content, trafficking, deepfakes without consent, real violence, bestiality, malware, scams, stolen copyrighted material, harassment, threats, or other illegal activity.
+
+Consensual BDSM fantasy, roleplay, restraint, dominance, submission, and fetish themes may appear on the site. That does not permit content involving minors, real coercion, lack of consent, real injury, trafficking, or illegal activity.
+
+When we identify a violation, we can remove or disable the listing, embed, thumbnail, title, tag, or link from KinkTube. Source-file removal must be handled by Eporner or the original host.`;
+
+const fallbackContentRemoval = `Last updated: April 26, 2026
+
+KinkTube does not host video files. We can remove or disable KinkTube pages, indexed metadata, embedded players, thumbnails, titles, tags, categories, and outbound links. We cannot remove the original video from Eporner or any other third-party host.
+
+You may request review for content involving minors, non-consensual publication, coercion, trafficking, exploitation, unauthorized use of your image or likeness, copyright infringement, malware, scams, or violations of our Acceptable Content Policy.
+
+Reports should include the exact KinkTube URL, the Eporner or third-party source URL if available, the reason for removal, your relationship to the content, and a reliable way to contact you if follow-up is needed.`;
+
 export const fallbackPublicSiteSettings: PublicSiteSettings = {
   branding: {
     site_name: "KinkTube",
@@ -55,10 +115,12 @@ export const fallbackPublicSiteSettings: PublicSiteSettings = {
     mobile_banner: { enabled: false, zone_id: "", label: "Mobile Banner" },
   },
   legal: {
-    terms: { title: "Terms of Service", content: "" },
-    privacy: { title: "Privacy Policy", content: "" },
-    dmca: { title: "DMCA Notice & Takedown Policy", content: "" },
-    compliance_2257: { title: "18 U.S.C. 2257 Compliance Statement", content: "" },
+    terms: { title: "Terms of Service", content: fallbackTermsContent },
+    privacy: { title: "Privacy Policy", content: fallbackPrivacyContent },
+    dmca: { title: "DMCA Notice & Takedown Policy", content: fallbackDMCAContent },
+    compliance_2257: { title: "18 U.S.C. 2257 Compliance Statement", content: fallback2257Content },
+    acceptable_content: { title: "Acceptable Content Policy", content: fallbackAcceptableContent },
+    content_removal: { title: "Content Removal Policy", content: fallbackContentRemoval },
   },
 };
 

@@ -132,6 +132,8 @@ export interface LegalSettings {
   privacy: LegalDocumentSettings;
   dmca: LegalDocumentSettings;
   compliance_2257: LegalDocumentSettings;
+  acceptable_content: LegalDocumentSettings;
+  content_removal: LegalDocumentSettings;
 }
 
 export interface ImportSettings {
@@ -168,6 +170,37 @@ export interface AdminSessionResponse {
 
 export interface AdminImportStatusResponse {
   running: boolean;
+}
+
+export interface ContactSubmissionRequest {
+  type: "content_removal" | "dmca" | "privacy" | "general";
+  name?: string;
+  reply_to?: string;
+  page_url?: string;
+  source_url?: string;
+  subject: string;
+  message: string;
+  website?: string;
+}
+
+export interface ContactSubmission {
+  id: number;
+  type: string;
+  name?: string;
+  reply_to?: string;
+  page_url?: string;
+  source_url?: string;
+  subject: string;
+  message: string;
+  status: "new" | "reviewing" | "closed";
+  ip_address?: string;
+  user_agent?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContactSubmissionsResponse {
+  messages: ContactSubmission[];
 }
 
 // RelatedVideosResponse is the API response for related videos

@@ -114,6 +114,25 @@ func (db *PostgresDB) InitSchema(ctx context.Context) error {
 			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);
 
+		CREATE TABLE IF NOT EXISTS contact_submissions (
+			id BIGSERIAL PRIMARY KEY,
+			type VARCHAR(32) NOT NULL DEFAULT 'content_removal',
+			name VARCHAR(120) NOT NULL DEFAULT '',
+			reply_to VARCHAR(200) NOT NULL DEFAULT '',
+			page_url TEXT NOT NULL DEFAULT '',
+			source_url TEXT NOT NULL DEFAULT '',
+			subject VARCHAR(160) NOT NULL DEFAULT '',
+			message TEXT NOT NULL,
+			status VARCHAR(32) NOT NULL DEFAULT 'new',
+			ip_address TEXT NOT NULL DEFAULT '',
+			user_agent TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_contact_submissions_created_at ON contact_submissions(created_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_contact_submissions_status ON contact_submissions(status);
+
 		ALTER TABLE category_menu_thumbnails
 		ADD COLUMN IF NOT EXISTS query_key TEXT NOT NULL DEFAULT '';
 

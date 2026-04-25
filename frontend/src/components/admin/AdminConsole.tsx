@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   getAdminImportStatus,
+  getAdminContactMessages,
   getAdminSession,
   getAdminSettings,
   getCategories,
@@ -10,9 +11,10 @@ import {
   loginAdmin,
   logoutAdmin,
   triggerAdminImport,
+  updateAdminContactMessageStatus,
   updateAdminSettings,
 } from "@/lib/api";
-import type { AdminImportStatusResponse, AdminSessionResponse, CategoriesResponse, SiteSettings, StatsResponse } from "@/lib/types";
+import type { AdminImportStatusResponse, AdminSessionResponse, CategoriesResponse, ContactSubmission, SiteSettings, StatsResponse } from "@/lib/types";
 
 const tabs = [
   "overview",
@@ -23,6 +25,7 @@ const tabs = [
   "seo",
   "affiliates",
   "legal",
+  "messages",
   "import",
 ] as const;
 
@@ -142,6 +145,7 @@ export default function AdminConsole() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [categories, setCategories] = useState<CategoriesResponse | null>(null);
   const [importStatus, setImportStatus] = useState<AdminImportStatusResponse | null>(null);
+  const [messages, setMessages] = useState<ContactSubmission[]>([]);
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(true);
@@ -151,12 +155,13 @@ export default function AdminConsole() {
   const isAuthenticated = !!session?.authenticated;
 
   async function loadAdminData() {
-    const [sessionData, settingsData, statsData, categoriesData, importData] = await Promise.all([
+    const [sessionData, settingsData, statsData, categoriesData, importData, messagesData] = await Promise.all([
       getAdminSession(),
       getAdminSettings(),
       getStats(),
       getCategories(),
       getAdminImportStatus(),
+      getAdminContactMessages(),
     ]);
 
     setSession(sessionData);
@@ -164,6 +169,7 @@ export default function AdminConsole() {
     setStats(statsData);
     setCategories(categoriesData);
     setImportStatus(importData);
+    setMessages(messagesData.messages);
   }
 
   useEffect(() => {
@@ -255,7 +261,18 @@ export default function AdminConsole() {
     setStats(null);
     setCategories(null);
     setImportStatus(null);
+    setMessages([]);
     setNotice("Logged out.");
+  };
+
+  const updateMessageStatus = async (id: number, status: ContactSubmission["status"]) => {
+    try {
+      const response = await updateAdminContactMessageStatus(id, status);
+      setMessages((current) => current.map((message) => message.id === id ? response.message : message));
+      setNotice("Message updated.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Failed to update message.");
+    }
   };
 
   const handleSave = async () => {
@@ -410,6 +427,9 @@ export default function AdminConsole() {
                 <SectionCard title="Page Size">
                   <p className="text-3xl font-bold">{settings.content.videos_per_page}</p>
                 </SectionCard>
+                <SectionCard title="New Messages">
+                  <p className="text-3xl font-bold">{messages.filter((message) => message.status === "new").length}</p>
+                </SectionCard>
               </div>
 
               <SectionCard title="Current Snapshot">
@@ -554,6 +574,8 @@ export default function AdminConsole() {
                 ["privacy", "Privacy"],
                 ["dmca", "DMCA"],
                 ["compliance_2257", "2257 Compliance"],
+                ["acceptable_content", "Acceptable Content"],
+                ["content_removal", "Content Removal"],
               ] as const).map(([key, label]) => (
                 <SectionCard key={key} title={label}>
                   <TextField label="Page Title" value={settings.legal[key].title} onChange={(value) => setLegalValue(key, "title", value)} />
@@ -561,6 +583,70 @@ export default function AdminConsole() {
                 </SectionCard>
               ))}
             </div>
+          )}
+
+          {activeTab === "messages" && (
+            <SectionCard title="Messages" description="Content removal, DMCA, privacy, and general messages submitted through the site form.">
+              {messages.length === 0 ? (
+                <p className="text-sm text-foreground-muted">No messages yet.</p>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map((message) => (
+                    <article key={message.id} className="rounded-2xl border border-border bg-background p-4 space-y-3">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-background-secondary px-2.5 py-1 text-xs font-medium uppercase text-foreground-muted">
+                              {message.type.replace("_", " ")}
+                            </span>
+                            <span className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-foreground-muted">
+                              {message.status}
+                            </span>
+                          </div>
+                          <h3 className="mt-3 text-lg font-semibold">{message.subject}</h3>
+                          <p className="mt-1 text-xs text-foreground-muted">
+                            {new Date(message.created_at).toLocaleString()}
+                            {message.name ? ` • ${message.name}` : ""}
+                            {message.reply_to ? ` • ${message.reply_to}` : ""}
+                          </p>
+                        </div>
+                        <select
+                          value={message.status}
+                          onChange={(event) => updateMessageStatus(message.id, event.target.value as ContactSubmission["status"])}
+                          className="rounded-xl border border-border bg-background-secondary px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
+                        >
+                          <option value="new">New</option>
+                          <option value="reviewing">Reviewing</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                      </div>
+
+                      <p className="whitespace-pre-line text-sm leading-relaxed text-foreground-muted">{message.message}</p>
+
+                      <div className="space-y-1 text-xs text-foreground-muted">
+                        {message.page_url ? (
+                          <p>
+                            KinkTube URL:{" "}
+                            <a className="text-accent hover:underline" href={message.page_url} target="_blank" rel="noreferrer">
+                              {message.page_url}
+                            </a>
+                          </p>
+                        ) : null}
+                        {message.source_url ? (
+                          <p>
+                            Source URL:{" "}
+                            <a className="text-accent hover:underline" href={message.source_url} target="_blank" rel="noreferrer">
+                              {message.source_url}
+                            </a>
+                          </p>
+                        ) : null}
+                        <p>IP: {message.ip_address || "n/a"}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </SectionCard>
           )}
 
           {activeTab === "import" && (

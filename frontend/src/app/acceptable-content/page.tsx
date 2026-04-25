@@ -7,15 +7,15 @@ import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
   return {
-    title: settings.legal.terms.title,
-    description: `${settings.branding.site_name} ${settings.legal.terms.title}`,
+    title: settings.legal.acceptable_content.title,
+    description: `${settings.branding.site_name} ${settings.legal.acceptable_content.title}`,
     robots: { index: true, follow: true },
   };
 }
 
-export default async function TermsPage() {
+export default async function AcceptableContentPage() {
   const settings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
-  const doc = settings.legal.terms;
+  const doc = settings.legal.acceptable_content;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

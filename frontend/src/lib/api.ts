@@ -11,6 +11,9 @@ import type {
   SiteSettings,
   AdminSessionResponse,
   AdminImportStatusResponse,
+  ContactSubmission,
+  ContactSubmissionRequest,
+  ContactSubmissionsResponse,
 } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -282,6 +285,24 @@ export async function updateAdminSettings(settings: SiteSettings): Promise<{ ok:
 
 export async function getAdminImportStatus(): Promise<AdminImportStatusResponse> {
   return fetchAdminAPI<AdminImportStatusResponse>("/api/admin/import/status");
+}
+
+export async function submitContactMessage(payload: ContactSubmissionRequest): Promise<{ ok: boolean; message: string }> {
+  return fetchAPI<{ ok: boolean; message: string }>("/api/contact", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getAdminContactMessages(limit = 100): Promise<ContactSubmissionsResponse> {
+  return fetchAdminAPI<ContactSubmissionsResponse>(`/api/admin/messages?limit=${limit}`);
+}
+
+export async function updateAdminContactMessageStatus(id: number, status: ContactSubmission["status"]): Promise<{ ok: boolean; message: ContactSubmission }> {
+  return fetchAdminAPI<{ ok: boolean; message: ContactSubmission }>(`/api/admin/messages/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
 }
 
 export async function triggerAdminImport(light = false): Promise<{ message: string; status: string }> {
