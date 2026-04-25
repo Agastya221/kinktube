@@ -150,7 +150,7 @@ func (h *Handler) setAdminSessionCookie(c *fiber.Ctx, username string) {
 		Path:     "/api/admin",
 		HTTPOnly: true,
 		Secure:   strings.HasPrefix(strings.ToLower(strings.TrimSpace(h.config.SiteURL)), "https://"),
-		SameSite: "Lax",
+		SameSite: "None",
 		Expires:  expiry,
 	})
 }
