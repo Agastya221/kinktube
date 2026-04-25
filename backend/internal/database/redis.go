@@ -16,15 +16,24 @@ type RedisCache struct {
 }
 
 // NewRedisCache creates a new Redis cache client
-func NewRedisCache(ctx context.Context, redisURL string, ttlSeconds int) (*RedisCache, error) {
+func NewRedisCache(ctx context.Context, redisURL string, ttlSeconds, poolSize, minIdleConns int) (*RedisCache, error) {
 	opts, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
 	}
 
-	// Connection pool settings
-	opts.PoolSize = 100
-	opts.MinIdleConns = 10
+	if poolSize < 1 {
+		poolSize = 10
+	}
+	if minIdleConns < 0 {
+		minIdleConns = 0
+	}
+	if minIdleConns > poolSize {
+		minIdleConns = poolSize
+	}
+
+	opts.PoolSize = poolSize
+	opts.MinIdleConns = minIdleConns
 
 	client := redis.NewClient(opts)
 

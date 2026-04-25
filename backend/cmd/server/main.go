@@ -63,7 +63,7 @@ func main() {
 
 	// Initialize Redis
 	log.Println("Connecting to Redis...")
-	cache, err := database.NewRedisCache(ctx, cfg.RedisURL, cfg.CacheTTL)
+	cache, err := database.NewRedisCache(ctx, cfg.RedisURL, cfg.CacheTTL, cfg.RedisPoolSize, cfg.RedisMinIdleConns)
 	if err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}

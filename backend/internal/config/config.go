@@ -15,7 +15,9 @@ type Config struct {
 	DatabaseURL string
 
 	// Redis
-	RedisURL string
+	RedisURL          string
+	RedisPoolSize     int
+	RedisMinIdleConns int
 
 	// Eporner API
 	EpornerBaseURL string
@@ -48,6 +50,8 @@ type Config struct {
 func Load() *Config {
 	perPage, _ := strconv.Atoi(getEnv("EPORNER_PER_PAGE", "100"))
 	cacheTTL, _ := strconv.Atoi(getEnv("CACHE_TTL", "300"))
+	redisPoolSize, _ := strconv.Atoi(getEnv("REDIS_POOL_SIZE", "10"))
+	redisMinIdleConns, _ := strconv.Atoi(getEnv("REDIS_MIN_IDLE_CONNS", "1"))
 	importEnabled, _ := strconv.ParseBool(getEnv("IMPORT_ENABLED", "true"))
 	refreshOnStartup, _ := strconv.ParseBool(getEnv("REFRESH_ON_STARTUP", "false"))
 	startupDelay, _ := strconv.Atoi(getEnv("STARTUP_REFRESH_DELAY", "10"))
@@ -60,6 +64,8 @@ func Load() *Config {
 		ServerHost:          getEnv("SERVER_HOST", "0.0.0.0"),
 		DatabaseURL:         getEnv("DATABASE_URL", "postgres://kinktube:kinktube@localhost:5432/kinktube?sslmode=disable"),
 		RedisURL:            getEnv("REDIS_URL", "redis://localhost:6379"),
+		RedisPoolSize:       redisPoolSize,
+		RedisMinIdleConns:   redisMinIdleConns,
 		EpornerBaseURL:      getEnv("EPORNER_BASE_URL", "https://www.eporner.com/api/v2"),
 		EpornerPerPage:      perPage,
 		ImportEnabled:       importEnabled,
