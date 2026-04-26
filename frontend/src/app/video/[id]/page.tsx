@@ -1,6 +1,5 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { Eye, Clock, Star, Tag, Calendar } from "lucide-react";

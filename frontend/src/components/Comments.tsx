@@ -71,7 +71,7 @@ export default function Comments({ videoId }: { videoId: number }) {
       
       setComments((prev) => [newComment, ...prev]);
       setContent("");
-    } catch (err: any) {
+    } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
