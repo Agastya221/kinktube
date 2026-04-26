@@ -382,3 +382,73 @@ func (i *Importer) RunLight(ctx context.Context) *ImportStats {
 
 	return stats
 }
+
+// CleanDeadVideos validates every video in the DB against the Eporner API
+// and marks unavailable ones so they disappear from all listings.
+// Runs in batches with delays to avoid rate-limiting. Safe to run daily.
+func (i *Importer) CleanDeadVideos(ctx context.Context) {
+	log.Println("Starting dead video cleanup scan...")
+
+	const batchSize = 50
+	const delayBetweenChecks = 300 * time.Millisecond
+	const delayBetweenBatches = 3 * time.Second
+
+	// Fetch all external IDs in chunks via DB pagination
+	page := 1
+	totalMarked := 0
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Printf("Dead video cleanup cancelled after marking %d videos", totalMarked)
+			return
+		default:
+		}
+
+		rows, err := i.db.ListVideosForValidation(ctx, page, batchSize)
+		if err != nil {
+			log.Printf("CleanDeadVideos: failed to list videos page %d: %v", page, err)
+			break
+		}
+		if len(rows) == 0 {
+			break
+		}
+
+		for _, row := range rows {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			checkCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			exists := i.eporner.VideoExists(checkCtx, row.ExternalID)
+			cancel()
+
+			if !exists {
+				log.Printf("CleanDeadVideos: marking video id=%d external=%q as unavailable", row.ID, row.ExternalID)
+				if err := i.db.MarkVideoUnavailable(ctx, row.ID); err != nil {
+					log.Printf("CleanDeadVideos: failed to mark video %d: %v", row.ID, err)
+				} else {
+					totalMarked++
+				}
+			}
+
+			time.Sleep(delayBetweenChecks)
+		}
+
+		if len(rows) < batchSize {
+			break
+		}
+		page++
+		time.Sleep(delayBetweenBatches)
+	}
+
+	log.Printf("Dead video cleanup complete: %d videos marked unavailable", totalMarked)
+
+	if totalMarked > 0 {
+		if err := i.invalidateCache(ctx); err != nil {
+			log.Printf("CleanDeadVideos: cache invalidation failed: %v", err)
+		}
+	}
+}

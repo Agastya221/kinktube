@@ -161,6 +161,17 @@ func main() {
 		log.Printf("Import cron scheduled: %s", cfg.ImportSchedule)
 	}
 
+	// Daily dead-video cleanup: runs at 3 AM UTC, validates each DB video against Eporner API
+	_, err = cronScheduler.AddFunc("0 3 * * *", func() {
+		log.Println("Starting daily dead-video cleanup...")
+		go importer.CleanDeadVideos(context.Background())
+	})
+	if err != nil {
+		log.Printf("Warning: Failed to setup dead-video cleanup cron: %v", err)
+	} else {
+		log.Println("Dead-video cleanup cron scheduled: daily at 03:00 UTC")
+	}
+
 	// Run startup tasks (initial import or cache refresh)
 	go func() {
 		time.Sleep(time.Duration(cfg.StartupRefreshDelay) * time.Second)
@@ -249,6 +260,8 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	api.Get("/videos/:id/related", h.GetRelatedVideos)
 	api.Get("/videos/:id/affiliates", h.GetAffiliateLinks)
 	api.Post("/videos/:id/unavailable", h.ReportVideoUnavailable) // frontend reports dead embeds
+	api.Get("/videos/:id/comments", h.GetVideoComments)
+	api.Post("/videos/:id/comments", h.AddVideoComment)
 	api.Get("/categories", h.GetCategories)
 	api.Get("/menu-categories", h.GetMenuCategories)
 	api.Get("/media/thumbnail", h.ProxyThumbnail)

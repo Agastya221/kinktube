@@ -5,7 +5,8 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { Eye, Clock, Star, Tag, Calendar } from "lucide-react";
 import VideoPlayer from "@/components/VideoPlayer";
-import VideoGrid from "@/components/VideoGrid";
+import Comments from "@/components/Comments";
+import PaginatedRelatedVideos from "@/components/PaginatedRelatedVideos";
 import { AffiliateButtons } from "@/components/affiliate";
 import { AdBanner, SidebarAds } from "@/components/ads";
 import { getVideoWithAffiliatesServer, getRelatedVideosServer } from "@/lib/api";
@@ -18,7 +19,7 @@ interface VideoPageProps {
   }>;
 }
 
-const VIDEO_PAGE_RELATED_LIMIT = 12;
+const VIDEO_PAGE_RELATED_LIMIT = 24;
 
 const getCachedVideoWithAffiliates = cache((id: string) => getVideoWithAffiliatesServer(id));
 const getCachedRelatedVideos = cache((id: string, limit: number) => getRelatedVideosServer(id, limit));
@@ -283,6 +284,9 @@ export default async function VideoPage({ params }: VideoPageProps) {
 
             </div>
 
+            {/* Comments Section */}
+            <Comments videoId={video.id} />
+
             {/* Ad Banner Below Video Info */}
             <div className="hidden md:block">
               <AdBanner position="video" />
@@ -301,52 +305,7 @@ export default async function VideoPage({ params }: VideoPageProps) {
               <SidebarAds count={1} />
             </div>
 
-            {/* Related Videos - Sidebar Version */}
-            <div className="bg-background-secondary rounded-xl p-4 border border-border">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <span className="w-1 h-6 bg-accent rounded-full" />
-                Related Videos
-              </h2>
-
-              {relatedVideos.videos && relatedVideos.videos.length > 0 ? (
-                <div className="space-y-4">
-                  {relatedVideos.videos.slice(0, 6).map((relatedVideo) => (
-                    <Link
-                      key={relatedVideo.external_id || relatedVideo.id}
-                      href={getVideoPath(relatedVideo)}
-                      className="flex gap-3 group"
-                    >
-                      <div className="relative w-28 sm:w-36 flex-shrink-0">
-                        <div className="thumbnail-container">
-                          <Image
-                            src={getBestDisplayThumbnailUrl(relatedVideo)}
-                            alt={relatedVideo.title}
-                            fill
-                            sizes="144px"
-                            className="object-cover rounded-lg"
-                            loading="lazy"
-                            unoptimized
-                          />
-                          <span className="duration-badge">
-                            {relatedVideo.duration_str || formatDuration(relatedVideo.duration)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0 py-1">
-                        <h3 className="text-sm font-medium text-foreground line-clamp-2 group-hover:text-accent transition-colors">
-                          {relatedVideo.title}
-                        </h3>
-                        <p className="text-xs text-foreground-muted mt-1.5">
-                          {formatViews(relatedVideo.views)} views
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-foreground-muted text-sm">No related videos found</p>
-              )}
-            </div>
+            {/* Deleted Related Videos - Sidebar Version */}
 
             {/* Second Sidebar Ad */}
             <div className="hidden lg:block">
@@ -356,14 +315,8 @@ export default async function VideoPage({ params }: VideoPageProps) {
         </div>
 
         {/* More Related Videos - Full Width Grid */}
-        {relatedVideos.videos && relatedVideos.videos.length > 6 && (
-          <section className="mt-12">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <span className="w-1.5 h-8 bg-accent rounded-full" />
-              More Videos Like This
-            </h2>
-            <VideoGrid videos={relatedVideos.videos.slice(6)} />
-          </section>
+        {relatedVideos.videos && relatedVideos.videos.length > 0 && (
+          <PaginatedRelatedVideos videoId={video.id} initialVideos={relatedVideos.videos} />
         )}
 
         {/* Bottom Ad Banner */}

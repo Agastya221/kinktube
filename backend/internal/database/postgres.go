@@ -148,6 +148,15 @@ func (db *PostgresDB) InitSchema(ctx context.Context) error {
 		ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT TRUE;
 
 		CREATE INDEX IF NOT EXISTS idx_videos_is_available ON videos(is_available);
+
+		CREATE TABLE IF NOT EXISTS video_comments (
+			id BIGSERIAL PRIMARY KEY,
+			video_id BIGINT NOT NULL,
+			name VARCHAR(120) NOT NULL DEFAULT 'Anonymous',
+			content TEXT NOT NULL,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_video_comments_video_id ON video_comments(video_id);
 	`
 
 	_, err := db.pool.Exec(ctx, schema)
@@ -644,7 +653,11 @@ func (db *PostgresDB) GetTotalVideoCount(ctx context.Context) (int64, error) {
 
 // GetRelatedVideos fetches videos related by category or tags
 // Prioritizes videos that share the FIRST (primary) category and specific keywords
-func (db *PostgresDB) GetRelatedVideos(ctx context.Context, videoID int64, limit int) ([]models.Video, error) {
+func (db *PostgresDB) GetRelatedVideos(ctx context.Context, videoID int64, page, limit int) ([]models.Video, error) {
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
 	rawLimit := limit * 3
 	if rawLimit < 12 {
 		rawLimit = 12
@@ -683,10 +696,10 @@ func (db *PostgresDB) GetRelatedVideos(ctx context.Context, videoID int64, limit
 		DESC,
 		v.rating DESC,
 		v.views DESC
-		LIMIT $2
+		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := db.pool.Query(ctx, query, videoID, rawLimit)
+	rows, err := db.pool.Query(ctx, query, videoID, rawLimit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -728,4 +741,89 @@ func (db *PostgresDB) DeleteUnavailableVideos(ctx context.Context) (int64, error
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+// VideoIDPair is a minimal row used by the dead-video cleanup scanner.
+type VideoIDPair struct {
+	ID         int64
+	ExternalID string
+}
+
+// ListVideosForValidation returns a paginated list of (id, external_id) for all
+// currently-available videos so the cleanup scanner can verify them against Eporner.
+func (db *PostgresDB) ListVideosForValidation(ctx context.Context, page, pageSize int) ([]VideoIDPair, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 200 {
+		pageSize = 50
+	}
+	offset := (page - 1) * pageSize
+
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, external_id FROM videos WHERE is_available = TRUE ORDER BY id LIMIT $1 OFFSET $2`,
+		pageSize, offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var pairs []VideoIDPair
+	for rows.Next() {
+		var p VideoIDPair
+		if err := rows.Scan(&p.ID, &p.ExternalID); err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, p)
+	}
+	return pairs, rows.Err()
+}
+
+// VideoComment represents a user comment on a video
+type VideoComment struct {
+	ID        int64     `json:"id"`
+	VideoID   int64     `json:"video_id"`
+	Name      string    `json:"name"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// GetVideoComments fetches comments for a video, ordered by newest first
+func (db *PostgresDB) GetVideoComments(ctx context.Context, videoID int64, limit int) ([]VideoComment, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, video_id, name, content, created_at 
+		 FROM video_comments 
+		 WHERE video_id = $1 
+		 ORDER BY created_at DESC 
+		 LIMIT $2`,
+		videoID, limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []VideoComment
+	for rows.Next() {
+		var c VideoComment
+		if err := rows.Scan(&c.ID, &c.VideoID, &c.Name, &c.Content, &c.CreatedAt); err != nil {
+			return nil, err
+		}
+		comments = append(comments, c)
+	}
+	return comments, rows.Err()
+}
+
+// AddVideoComment inserts a new comment
+func (db *PostgresDB) AddVideoComment(ctx context.Context, c *VideoComment) error {
+	return db.pool.QueryRow(ctx,
+		`INSERT INTO video_comments (video_id, name, content) 
+		 VALUES ($1, $2, $3) 
+		 RETURNING id, created_at`,
+		c.VideoID, c.Name, c.Content,
+	).Scan(&c.ID, &c.CreatedAt)
 }

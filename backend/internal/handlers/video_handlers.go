@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -630,12 +631,17 @@ func (h *Handler) GetRelatedVideos(c *fiber.Ctx) error {
 	if limit < 1 {
 		limit = 12
 	}
-	if limit > 24 {
-		limit = 24
+	if limit > 48 {
+		limit = 48
+	}
+
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	if page < 1 {
+		page = 1
 	}
 
 	// Try cache first
-	cacheKey := database.RelatedVideosCacheKey(video.ID, limit)
+	cacheKey := fmt.Sprintf("%s:page:%d", database.RelatedVideosCacheKey(video.ID, limit), page)
 	var cached []models.Video
 	err = h.cache.Get(c.Context(), cacheKey, &cached)
 	if err == nil {
@@ -645,7 +651,7 @@ func (h *Handler) GetRelatedVideos(c *fiber.Ctx) error {
 	}
 
 	// Fetch from database
-	videos, err := h.db.GetRelatedVideos(c.Context(), video.ID, limit)
+	videos, err := h.db.GetRelatedVideos(c.Context(), video.ID, page, limit)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch related videos",
@@ -935,7 +941,78 @@ func (h *Handler) ReportVideoUnavailable(c *fiber.Ctx) error {
 	h.invalidateBrowseCaches(c.Context())
 
 	return c.JSON(fiber.Map{
-		"status":  "hidden",
+		"status":   "hidden",
 		"video_id": video.ID,
 	})
+}
+
+// GetVideoComments handles GET /api/videos/:id/comments
+func (h *Handler) GetVideoComments(c *fiber.Ctx) error {
+	video, err := h.resolveVideoIdentifier(c.Context(), c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch video"})
+	}
+	if video == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Video not found"})
+	}
+
+	limit, _ := strconv.Atoi(c.Query("limit", "50"))
+	comments, err := h.db.GetVideoComments(c.Context(), video.ID, limit)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch comments"})
+	}
+	if comments == nil {
+		comments = []database.VideoComment{}
+	}
+
+	return c.JSON(fiber.Map{
+		"comments": comments,
+	})
+}
+
+// AddVideoComment handles POST /api/videos/:id/comments
+func (h *Handler) AddVideoComment(c *fiber.Ctx) error {
+	video, err := h.resolveVideoIdentifier(c.Context(), c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch video"})
+	}
+	if video == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Video not found"})
+	}
+
+	var req struct {
+		Name    string `json:"name"`
+		Content string `json:"content"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		name = "Anonymous"
+	}
+	if len(name) > 50 {
+		name = name[:50]
+	}
+
+	content := strings.TrimSpace(req.Content)
+	if content == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Comment cannot be empty"})
+	}
+	if len(content) > 1000 {
+		content = content[:1000]
+	}
+
+	comment := &database.VideoComment{
+		VideoID: video.ID,
+		Name:    name,
+		Content: content,
+	}
+
+	if err := h.db.AddVideoComment(c.Context(), comment); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to add comment"})
+	}
+
+	return c.JSON(comment)
 }

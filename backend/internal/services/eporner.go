@@ -367,6 +367,65 @@ func (c *EpornerClient) SearchVideosWithOptions(ctx context.Context, query strin
 	return &result, nil
 }
 
+// VideoExists checks whether a video ID is still available on Eporner.
+// Uses the /api/v2/video/get/ endpoint which is fast (single record).
+// Returns false if the video is deleted, private, or the API returns an error.
+func (c *EpornerClient) VideoExists(ctx context.Context, externalID string) bool {
+	if externalID == "" {
+		return false
+	}
+
+	params := url.Values{}
+	params.Set("id", externalID)
+	params.Set("format", "json")
+
+	requestURL := fmt.Sprintf("%s/video/get/?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("User-Agent", "KinkTube/1.0")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if err != nil {
+		return false
+	}
+
+	// Eporner returns {"id":"...","title":"...",...} for valid videos
+	// and {"error":"..."} for invalid ones
+	var payload map[string]interface{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return false
+	}
+
+	// If there's an "error" key the video doesn't exist
+	if _, hasErr := payload["error"]; hasErr {
+		return false
+	}
+
+	// Must have an id field matching what we asked for
+	if idVal, ok := payload["id"]; ok {
+		if idStr, ok := idVal.(string); ok && idStr != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+
 // IsRelevantBDSMVideo filters out generic porn results that slip into broad searches.
 func IsRelevantBDSMVideo(ev *EpornerVideo) bool {
 	if !models.IsLikelyEnglishText(ev.Title, ev.Keywords) {
