@@ -10,6 +10,7 @@ interface VideoPlayerProps {
   title: string;
   thumbnailUrl?: string;
   autoplay?: boolean;
+  videoId?: number; // internal DB id — used to report unavailable embeds
 }
 
 export default function VideoPlayer({
@@ -17,12 +18,15 @@ export default function VideoPlayer({
   title,
   thumbnailUrl,
   autoplay = false,
+  videoId,
 }: VideoPlayerProps) {
   const [isLoaded, setIsLoaded] = useState(autoplay);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showBlockedNotice, setShowBlockedNotice] = useState(false);
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [isUnavailable, setIsUnavailable] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const reportedRef = useRef(false);
   const displayThumbnailUrl = getDisplayThumbnailUrl(thumbnailUrl);
 
   // Modify embed URL to include autoplay if needed
@@ -45,12 +49,32 @@ export default function VideoPlayer({
       return;
     }
 
-    const timeout = window.setTimeout(() => {
+    // If the iframe hasn't fired onLoad after 12 seconds, treat as unavailable
+    const unavailableTimeout = window.setTimeout(async () => {
+      setIsUnavailable(true);
+      setShowBlockedNotice(false);
+
+      // Report to backend once so it gets hidden from listings
+      if (videoId && !reportedRef.current) {
+        reportedRef.current = true;
+        try {
+          await fetch(`/api/videos/${videoId}/unavailable`, { method: "POST" });
+        } catch {
+          // best-effort: not critical
+        }
+      }
+    }, 12000);
+
+    // Show "not loading?" hint after 7s (before declaring fully unavailable)
+    const hintTimeout = window.setTimeout(() => {
       setShowBlockedNotice(true);
     }, 7000);
 
-    return () => window.clearTimeout(timeout);
-  }, [iframeLoaded, isLoaded]);
+    return () => {
+      window.clearTimeout(unavailableTimeout);
+      window.clearTimeout(hintTimeout);
+    };
+  }, [iframeLoaded, isLoaded, videoId]);
 
   useEffect(() => {
     const syncFullscreenState = () => {
@@ -122,6 +146,15 @@ export default function VideoPlayer({
                 <Play className="w-10 h-10 sm:w-12 sm:h-12 text-white fill-white ml-1" />
               </button>
             </div>
+          </div>
+        ) : isUnavailable ? (
+          // Video unavailable notice
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-background-secondary text-foreground-muted gap-3">
+            <AlertTriangle className="w-12 h-12 text-red-500/70" />
+            <p className="text-base font-semibold text-foreground">Video Unavailable</p>
+            <p className="text-sm text-center max-w-xs px-4">
+              This video has been removed from the source. Our team has been notified and it will be removed from the site shortly.
+            </p>
           </div>
         ) : (
           // Iframe embed

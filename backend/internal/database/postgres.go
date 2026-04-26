@@ -143,6 +143,11 @@ func (db *PostgresDB) InitSchema(ctx context.Context) error {
 		ADD COLUMN IF NOT EXISTS language_checked BOOLEAN NOT NULL DEFAULT FALSE;
 
 		CREATE INDEX IF NOT EXISTS idx_videos_is_english ON videos(is_english);
+
+		ALTER TABLE videos
+		ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT TRUE;
+
+		CREATE INDEX IF NOT EXISTS idx_videos_is_available ON videos(is_available);
 	`
 
 	_, err := db.pool.Exec(ctx, schema)
@@ -428,6 +433,7 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 	argIndex := 1
 
 	conditions = append(conditions, "is_english = TRUE")
+	conditions = append(conditions, "is_available = TRUE")
 
 	if category != "" {
 		// Category must be present in the categories array
@@ -458,11 +464,30 @@ func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy,
 
 	// Determine sort order
 	orderClause := "ORDER BY added_at DESC"
+
+	// BDSM relevance score: rewards videos with multiple strong BDSM category signals
+	bdsmRelevanceSQL := `(
+			CASE WHEN 'femdom' = ANY(categories) OR 'dominatrix' = ANY(categories) THEN 3 ELSE 0 END +
+			CASE WHEN 'bondage' = ANY(categories) OR 'shibari' = ANY(categories) OR 'extreme-bondage' = ANY(categories) THEN 3 ELSE 0 END +
+			CASE WHEN 'bdsm' = ANY(categories) THEN 1 ELSE 0 END +
+			CASE WHEN 'slave' = ANY(categories) OR 'submission' = ANY(categories) THEN 2 ELSE 0 END +
+			CASE WHEN 'latex' = ANY(categories) OR 'leather' = ANY(categories) THEN 2 ELSE 0 END +
+			CASE WHEN 'spanking' = ANY(categories) OR 'caning' = ANY(categories) OR 'whipping' = ANY(categories) THEN 2 ELSE 0 END +
+			CASE WHEN cardinality(categories) >= 2 THEN 1 ELSE 0 END
+		)`
+
 	switch sortBy {
 	case "views":
-		orderClause = "ORDER BY views DESC, rating DESC"
+		// Blend relevance with view count so non-BDSM viral videos don't dominate
+		orderClause = fmt.Sprintf(`ORDER BY
+			%s DESC,
+			views DESC,
+			rating DESC`, bdsmRelevanceSQL)
 	case "rating":
-		orderClause = "ORDER BY rating DESC, views DESC"
+		orderClause = fmt.Sprintf(`ORDER BY
+			%s DESC,
+			rating DESC,
+			views DESC`, bdsmRelevanceSQL)
 	case "duration":
 		orderClause = "ORDER BY duration DESC"
 	case "oldest":
@@ -681,4 +706,26 @@ func (db *PostgresDB) GetRelatedVideos(ctx context.Context, videoID int64, limit
 	}
 
 	return videos, nil
+}
+
+// MarkVideoUnavailable flags a video as unavailable so it is hidden from listings.
+// Called when the frontend detects the embed returns "Video Unavailable".
+func (db *PostgresDB) MarkVideoUnavailable(ctx context.Context, videoID int64) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE videos SET is_available = FALSE, last_updated_at = NOW() WHERE id = $1`,
+		videoID,
+	)
+	return err
+}
+
+// DeleteUnavailableVideos permanently removes all videos flagged as unavailable.
+// Can be run periodically as a maintenance task.
+func (db *PostgresDB) DeleteUnavailableVideos(ctx context.Context) (int64, error) {
+	result, err := db.pool.Exec(ctx,
+		`DELETE FROM videos WHERE is_available = FALSE`,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

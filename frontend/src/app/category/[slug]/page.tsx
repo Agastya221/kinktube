@@ -20,77 +20,151 @@ interface CategoryPageProps {
   }>;
 }
 
-// Category metadata for SEO
+// Category metadata for SEO — covers every category slug in the backend
 const categoryMeta: Record<string, { title: string; description: string }> = {
+  // ── Core dynamics ────────────────────────────────────────────────────────────
+  bdsm: {
+    title: "BDSM Videos - Bondage, Domination & Fetish Porn",
+    description:
+      "Watch thousands of free BDSM videos featuring bondage, domination, submission, sadism and masochism. Premium BDSM content curated for true fetish enthusiasts, updated daily.",
+  },
   femdom: {
-    title: "Femdom Videos - Female Domination",
-    description: "Watch free femdom videos featuring dominant women, mistresses, and female domination scenes. High-quality femdom content updated daily.",
+    title: "Femdom Videos - Female Domination & Dominatrix Porn",
+    description:
+      "Free femdom porn featuring powerful mistresses, strict dominatrices, and extreme female domination scenes. Watch dominant women take full control in the best femdom videos online.",
   },
   bondage: {
-    title: "Bondage Videos - Rope & Restraints",
-    description: "Free bondage videos featuring rope bondage, restraints, and tie-up scenes. Watch the best bondage content online.",
-  },
-  shibari: {
-    title: "Shibari Videos - Rope Art & Suspension",
-    description: "Watch free shibari videos featuring Japanese rope bondage, intricate ties, and suspension-focused scenes.",
-  },
-  bdsm: {
-    title: "BDSM Videos - Bondage Domination",
-    description: "Explore free BDSM videos including bondage, domination, sadism, and masochism. Premium BDSM content curated for enthusiasts.",
-  },
-  slave: {
-    title: "Slave Training Videos",
-    description: "Watch free slave training videos featuring submissive training, obedience, and master/slave dynamics.",
-  },
-  submission: {
-    title: "Submission Videos - Submissive Play",
-    description: "Free submission videos featuring submissive partners, obedience training, and dom/sub relationships.",
-  },
-  chastity: {
-    title: "Chastity Videos - Tease & Denial",
-    description: "Watch free chastity videos featuring tease and denial, orgasm control, and keyholder dynamics.",
-  },
-  "device-bondage": {
-    title: "Device Bondage Videos",
-    description: "Free device bondage videos featuring mechanical restraints, machines, and advanced bondage setups.",
-  },
-  "medical-bondage": {
-    title: "Medical Bondage Videos",
-    description: "Watch free medical bondage videos featuring clinical restraints, fetish exams, and medical play.",
-  },
-  vacbed: {
-    title: "Vacbed Videos - Vacuum Bed Bondage",
-    description: "Watch free vacbed videos featuring vacuum bed bondage, enclosure play, and airtight fetish scenes.",
-  },
-  latex: {
-    title: "Latex Fetish Videos",
-    description: "Watch free latex fetish videos featuring rubber catsuits, shiny outfits, and latex fashion.",
-  },
-  leather: {
-    title: "Leather Fetish Videos",
-    description: "Free leather fetish videos featuring leather gear, outfits, and accessories.",
-  },
-  spanking: {
-    title: "Spanking Videos - Impact Play",
-    description: "Watch free spanking videos featuring OTK spanking, paddling, and impact play scenes.",
-  },
-  caning: {
-    title: "Caning Videos - Intense Impact Play",
-    description: "Free caning videos featuring canes, crops, and harder impact play for BDSM fans who like heavier punishment scenes.",
-  },
-  strapon: {
-    title: "Strapon & Pegging Videos",
-    description: "Free strapon videos featuring pegging, strap-on domination, and female-led penetration.",
+    title: "Bondage Videos - Rope Bondage, Restraints & Tie-Up Porn",
+    description:
+      "Free bondage videos featuring rope bondage, handcuffs, spreader bars, and all forms of restraint play. Browse hundreds of tie-up and inescapable bondage scenes updated daily.",
   },
   dominatrix: {
-    title: "Dominatrix Videos - Pro Domme",
-    description: "Watch free dominatrix videos featuring professional dommes, dungeon scenes, and femdom sessions.",
+    title: "Dominatrix Videos - Professional Domme & Dungeon Scenes",
+    description:
+      "Watch free dominatrix videos featuring professional dommes, leather-clad mistresses, and dungeon sessions. The best pro domme content for BDSM fans who want real power exchange.",
+  },
+  submission: {
+    title: "Submission Videos - Submissive Training & Dom/Sub Play",
+    description:
+      "Free submission porn featuring obedient subs, kneeling slaves, and intense dom/sub dynamics. Watch the best submissive training and power exchange videos updated daily.",
+  },
+  slave: {
+    title: "Slave Training Videos - Master/Slave BDSM Porn",
+    description:
+      "Free slave training videos featuring collared slaves, strict masters and mistresses, and intense obedience training. Real master/slave dynamics in HD, updated every day.",
+  },
+  // ── Impact play ──────────────────────────────────────────────────────────────
+  spanking: {
+    title: "Spanking Videos - OTK Spanking & Impact Play Porn",
+    description:
+      "Watch free spanking videos featuring over-the-knee paddling, hand spanking, and all forms of impact play. Red bottoms and strict disciplinarians in the best spanking porn online.",
+  },
+  caning: {
+    title: "Caning Videos - Strict Cane & Corporal Punishment Porn",
+    description:
+      "Free caning videos featuring strict cane strokes, judicial punishment, and severe corporal discipline. Watch the hardest caning scenes online in full HD.",
+  },
+  whipping: {
+    title: "Whipping Videos - Whips, Floggers & Flagellation Porn",
+    description:
+      "Watch free whipping porn featuring singletails, floggers, riding crops, and intense flagellation scenes. Browse the largest collection of whipping and flogging videos online.",
+  },
+  // ── Bondage sub-genres ───────────────────────────────────────────────────────
+  shibari: {
+    title: "Shibari Videos - Japanese Rope Bondage & Kinbaku Art",
+    description:
+      "Watch free shibari and kinbaku videos featuring intricate Japanese rope bondage, artistic suspension ties, and beautiful rope art. The finest shibari content curated for rope bondage enthusiasts.",
+  },
+  "device-bondage": {
+    title: "Device Bondage Videos - Machines & Mechanical Restraints",
+    description:
+      "Free device bondage videos featuring metal restraints, bondage machines, stocks, and advanced mechanical bondage setups. Watch intense device bondage scenes in HD.",
+  },
+  "medical-bondage": {
+    title: "Medical Bondage Videos - Clinical Restraint & Medical Fetish",
+    description:
+      "Watch free medical bondage videos featuring clinical restraints, gynaecology chairs, fetish exams, and medical play scenarios. The best medical BDSM content online.",
+  },
+  vacbed: {
+    title: "Vacbed Videos - Vacuum Bed Bondage & Enclosure Fetish",
+    description:
+      "Free vacbed videos featuring vacuum bed bondage, airtight enclosure play, and latex vacuum fetish. Watch the most intense vacbed and encasement scenes online.",
+  },
+  "extreme-bondage": {
+    title: "Extreme Bondage Videos - Inescapable & Strict Restraint",
+    description:
+      "Watch free extreme bondage videos featuring tight inescapable restraints, straitjackets, armbinders, and severe bondage positions. For fans of the most intense bondage available.",
+  },
+  predicament: {
+    title: "Predicament Bondage Videos - Forced Position & Stress Play",
+    description:
+      "Free predicament bondage videos where bound submissives face impossible choices and stress positions. Watch the most creative and intense predicament BDSM scenes online.",
+  },
+  mummification: {
+    title: "Mummification Videos - Full Body Wrapping & Encasement",
+    description:
+      "Watch free mummification videos featuring full body wrapping in bandages, cling film, and tape for total encasement and sensory overload. Browse the best mummification fetish porn.",
+  },
+  // ── Fetish attire ─────────────────────────────────────────────────────────────
+  latex: {
+    title: "Latex Fetish Videos - Rubber Catsuits & Latex BDSM Porn",
+    description:
+      "Free latex fetish videos featuring rubber catsuits, shiny latex outfits, and latex BDSM scenes. Watch the best latex and heavy rubber fetish content with dominant mistresses in full latex.",
+  },
+  leather: {
+    title: "Leather Fetish Videos - Leather BDSM Gear & Outfits",
+    description:
+      "Watch free leather fetish videos featuring leather harnesses, corsets, gloves, and full leather BDSM outfit scenes. The finest leather kink content updated daily.",
+  },
+  // ── Specialty acts ────────────────────────────────────────────────────────────
+  strapon: {
+    title: "Strapon & Pegging Videos - Strap-On Domination Porn",
+    description:
+      "Free strapon and pegging videos featuring dominant women and their strap-ons in intense female-led penetration scenes. Watch the best pegging and strapon domination porn online.",
+  },
+  facesitting: {
+    title: "Facesitting Videos - Smothering & Queening Fetish Porn",
+    description:
+      "Watch free facesitting videos featuring dominant women smothering subs with their bottoms and pussies. Browse the best queening, smothering, and facesitting fetish content online.",
+  },
+  "foot-fetish": {
+    title: "Foot Fetish Videos - Foot Worship & Sole Fetish Porn",
+    description:
+      "Free foot fetish videos featuring foot worship, toe sucking, sole licking, and strict boot worship scenes. Watch submissive foot worship in the best foot fetish content online.",
+  },
+  cbt: {
+    title: "CBT Videos - Cock and Ball Torture Fetish Porn",
+    description:
+      "Watch free CBT videos featuring cock and ball torture, ball busting, genital spanking, and intense male BDSM play. The most intense CBT fetish content curated for extreme fans.",
+  },
+  chastity: {
+    title: "Chastity Videos - Orgasm Control & Tease and Denial Porn",
+    description:
+      "Free chastity videos featuring chastity belt play, orgasm control, tease and denial, and strict keyholder dynamics. Watch the best male chastity and orgasm denial scenes online.",
   },
   "public-humiliation": {
-    title: "Public Humiliation Videos",
-    description: "Watch free public humiliation videos featuring exposure, embarrassment, degradation, and humiliation-focused BDSM scenes.",
+    title: "Public Humiliation Videos - Degradation & Exposure Fetish",
+    description:
+      "Watch free public humiliation videos featuring degradation, exposure, embarrassment, and intense humiliation play. Browse the best public disgrace and humiliation BDSM content.",
+  },
+  // ── Psychological/roleplay ────────────────────────────────────────────────────
+  "sensory-deprivation": {
+    title: "Sensory Deprivation Videos - Blindfold, Hood & Isolation Play",
+    description:
+      "Free sensory deprivation videos featuring hoods, blindfolds, ear plugs, and complete isolation bondage. Watch the best sensory deprivation and blackout bondage scenes online.",
+  },
+  "severe-discipline": {
+    title: "Severe Discipline Videos - Harsh Punishment & Strict Correction",
+    description:
+      "Watch free severe discipline videos featuring harsh punishment, strict correction, corporal discipline, and brutal BDSM scenes. For fans of the most extreme discipline content.",
+  },
+  "pet-play": {
+    title: "Pet Play Videos - Pony Play, Puppy Play & Human Pet Porn",
+    description:
+      "Free pet play videos featuring pony play, puppy play, kitten play, and human pet training. Watch the most creative and adorable BDSM pet play scenes with strict handlers.",
   },
 };
+
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {

@@ -30,21 +30,35 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
   try {
     const { video } = await getCachedVideoWithAffiliates(id);
 
-    // Build SEO-optimized title and description with BDSM keywords
-    const seoTitle = `${video.title} - Free BDSM Video`;
-    const seoDescription = video.description
-      ? `${video.description.slice(0, 150)}... Watch this ${video.duration_str} BDSM video free.`
-      : `Watch ${video.title} - ${video.duration_str} free BDSM and fetish video. ${video.categories.join(", ")} content.`;
+    // Primary category for contextual keywords
+    const primaryCategory = video.categories?.[0] ?? "bdsm";
+    const categoryLabel = primaryCategory
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
 
-    // Keywords from tags and categories
+    // Build SEO-optimised title: Video Title - Category Porn | KinkTube
+    const seoTitle = `${video.title} - Free ${categoryLabel} Porn`;
+
+    // Build rich meta description using category + top tags
+    const topTags = video.tags.slice(0, 4).join(", ");
+    const seoDescription = video.description
+      ? `${video.description.slice(0, 140)}... Watch free ${categoryLabel} videos on KinkTube.`
+      : `Watch ${video.title} - a ${video.duration_str} free ${categoryLabel} video on KinkTube. Features: ${topTags}. New kink and BDSM content added daily.`;
+
+    // Keywords from categories + tags (max 15 to avoid stuffing)
     const keywords = [
       ...video.categories,
       ...video.tags.slice(0, 10),
       "BDSM",
-      "fetish",
-      "bondage",
-      "free video",
-    ].join(", ");
+      "fetish video",
+      "free bondage",
+      "kink porn",
+    ]
+      .filter((v, i, a) => a.indexOf(v) === i) // deduplicate
+      .slice(0, 15)
+      .join(", ");
+
     const displayThumbnailUrl = getBestDisplayThumbnailUrl(video);
 
     return {
@@ -91,7 +105,7 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
   }
 }
 
-// Generate JSON-LD structured data for SEO
+// Generate JSON-LD VideoObject structured data (Google Rich Results)
 function generateVideoSchema(video: {
   id: number;
   title: string;
@@ -102,16 +116,24 @@ function generateVideoSchema(video: {
   embed_url: string;
   added_at: string;
   views: number;
+  categories?: string[];
 }) {
+  const primaryCategory = (video.categories?.[0] ?? "bdsm")
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+
   return {
     "@context": "https://schema.org",
     "@type": "VideoObject",
     name: video.title,
-    description: video.description || video.title,
+    description: video.description || `Free ${primaryCategory} video on KinkTube. ${video.title}.`,
     thumbnailUrl: getBestDisplayThumbnailUrl(video),
+    // ISO 8601 duration required for Google Rich Results
     duration: `PT${Math.floor(video.duration / 60)}M${video.duration % 60}S`,
     embedUrl: video.embed_url,
-    uploadDate: video.added_at,
+    // Ensure ISO 8601 date format
+    uploadDate: new Date(video.added_at).toISOString(),
     interactionStatistic: {
       "@type": "InteractionCounter",
       interactionType: "https://schema.org/WatchAction",
@@ -165,6 +187,7 @@ export default async function VideoPage({ params }: VideoPageProps) {
                 embedUrl={video.embed_url}
                 title={video.title}
                 thumbnailUrl={getBestDisplayThumbnailUrl(video)}
+                videoId={video.id}
               />
             </div>
 

@@ -38,6 +38,10 @@ type Config struct {
 	// Frontend URL for CORS
 	FrontendURL string
 
+	// AI Description Generation (OpenRouter)
+	OpenRouterAPIKey string
+	AIModel          string
+
 	// Admin API key for protected endpoints
 	AdminAPIKey       string
 	AdminUsername     string
@@ -77,6 +81,8 @@ func Load() *Config {
 		LightImportKeywords: lightImportKeywords,
 		CacheTTL:            cacheTTL,
 		FrontendURL:         getEnv("FRONTEND_URL", "http://localhost:3000"),
+		OpenRouterAPIKey:    getEnv("OPENROUTER_API_KEY", ""),
+		AIModel:             getEnv("AI_MODEL", "meta-llama/llama-3.1-8b-instruct:free"),
 		AdminAPIKey:         getEnv("ADMIN_API_KEY", ""),
 		AdminUsername:       getEnv("ADMIN_USERNAME", "admin"),
 		AdminPassword:       getEnv("ADMIN_PASSWORD", ""),

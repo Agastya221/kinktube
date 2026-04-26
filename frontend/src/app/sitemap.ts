@@ -2,27 +2,41 @@ import { MetadataRoute } from "next";
 import { getPublicSiteSettingsServer } from "@/lib/api";
 import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
-// Static categories for sitemap
+// Static categories for sitemap — mirrors backend GetDefaultCategories()
 const categories = [
+  // Core dynamics
+  "bdsm",
   "femdom",
   "bondage",
-  "shibari",
-  "slave",
+  "dominatrix",
   "submission",
-  "chastity",
-  "vacbed",
-  "latex",
-  "public-humiliation",
+  "slave",
+  // Impact play
   "spanking",
   "caning",
-  "strapon",
-  "dominatrix",
+  "whipping",
+  // Bondage sub-genres
+  "shibari",
   "device-bondage",
   "medical-bondage",
-  "whipping",
-  "foot-fetish",
+  "vacbed",
+  "extreme-bondage",
+  "predicament",
+  "mummification",
+  // Fetish attire
+  "latex",
+  "leather",
+  // Specialty acts
+  "strapon",
   "facesitting",
+  "foot-fetish",
   "cbt",
+  "chastity",
+  "public-humiliation",
+  // Psychological
+  "sensory-deprivation",
+  "severe-discipline",
+  "pet-play",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

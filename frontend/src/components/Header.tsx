@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { Menu, X, ChevronRight, Flame, Search } from "lucide-react";
 import SearchBar from "./SearchBar";
 import { useSiteSettings } from "./SiteSettingsProvider";
+import { getDisplayThumbnailUrl } from "@/lib/media";
 
 // Featured categories for hamburger menu
 const menuCategories = [
@@ -157,7 +158,7 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
                   {/* Category Thumbnail */}
                   {categoryThumbnails[category.slug] ? (
                     <Image
-                      src={categoryThumbnails[category.slug]}
+                      src={getDisplayThumbnailUrl(categoryThumbnails[category.slug])}
                       alt={category.name}
                       fill
                       className="pointer-events-none object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-300"

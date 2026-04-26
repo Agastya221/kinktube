@@ -17,12 +17,35 @@ var disallowedLanguageScripts = []*unicode.RangeTable{
 	unicode.Devanagari,
 }
 
-// IsLikelyEnglishText rejects titles/keywords that are dominated by non-Latin scripts.
-// We keep accented Latin characters valid so normal English/European metadata still passes.
+// nonEnglishLatinWords are common words from non-English languages that use the Latin script.
+// These indicate Indonesian, Malay, Tagalog, or other non-English content.
+var nonEnglishLatinWords = []string{
+	// Indonesian/Malay
+	"cantik", "rela", "entot", "ngentot", "memek", "kontol", "jilbab", "hijab",
+	"guru", "siswa", "sma", "smk", "abg", "bokep", "tante", "pembantu",
+	"budak", "melayu", "cewek", "cowok", "bugil", "telanjang", "sekolah",
+	"ngintip", "pelajar", "mahasiswi", "janda", "binal", "semok", "toket",
+	"dientot", "diperkosa", "colmek", "sange", "hamil", "ibu", "anak",
+	// Tagalog
+	"pinay", "pilipina", "kantot", "kinantot", "tite", "puki", "pepe",
+	// Common link spam patterns
+	"linktr", "bit.ly", "rebrand.ly", "tinyurl",
+}
+
+// IsLikelyEnglishText rejects titles/keywords that are dominated by non-Latin scripts
+// or contain known non-English Latin-script words (Indonesian, Tagalog, etc).
 func IsLikelyEnglishText(values ...string) bool {
 	text := strings.TrimSpace(strings.Join(values, " "))
 	if text == "" {
 		return true
+	}
+
+	// Fast-path: reject known non-English Latin words
+	textLower := strings.ToLower(text)
+	for _, word := range nonEnglishLatinWords {
+		if strings.Contains(textLower, word) {
+			return false
+		}
 	}
 
 	var totalLetters int

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import VideoGrid from "@/components/VideoGrid";
 import CategoryNav from "@/components/CategoryNav";
 import Pagination from "@/components/Pagination";
@@ -116,17 +117,31 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       {/* SEO Content - Hidden on mobile */}
       <section className="hidden md:block mt-12 border-t border-border pt-8">
-        <h2 className="text-lg font-semibold mb-4">About KinkTube</h2>
+        <h2 className="text-lg font-semibold mb-4">Free BDSM &amp; Fetish Videos — KinkTube</h2>
         <div className="text-foreground-muted text-sm space-y-3 max-w-3xl">
           <p>
-            KinkTube is the underground destination for serious BDSM enthusiasts. We specialize in extreme
-            bondage, hardcore femdom, intense discipline, mummification, predicament scenes, and
-            other niche fetish content that mainstream tube sites bury.
+            KinkTube is the underground destination for serious BDSM and kink enthusiasts. We
+            specialize in extreme bondage, hardcore femdom, intense discipline, mummification,
+            predicament scenes, shibari rope art, and other niche fetish content that mainstream
+            tube sites bury deep in their libraries.
           </p>
           <p>
-            Whether you&apos;re seeking cruel mistresses, tight rope bondage, severe punishment, sensory
-            deprivation, or brutal discipline scenes, you&apos;ll find the most intense content here.
-            Curated specifically for the hardcore kink community.
+            Whether you&apos;re seeking strict dominatrices, tight rope bondage, severe corporal
+            punishment, sensory deprivation, brutal whipping, or slave training scenes — you&apos;ll
+            find the most intense free BDSM videos here. Our library is curated specifically for the
+            hardcore kink community and updated daily with new bondage, femdom, latex, and fetish
+            content across 30+ specialist categories.
+          </p>
+          <p>
+            Browse by category:{" "}
+            <Link href="/category/femdom" className="text-accent hover:underline">Femdom</Link>,{" "}
+            <Link href="/category/bondage" className="text-accent hover:underline">Bondage</Link>,{" "}
+            <Link href="/category/shibari" className="text-accent hover:underline">Shibari</Link>,{" "}
+            <Link href="/category/whipping" className="text-accent hover:underline">Whipping</Link>,{" "}
+            <Link href="/category/latex" className="text-accent hover:underline">Latex</Link>,{" "}
+            <Link href="/category/cbt" className="text-accent hover:underline">CBT</Link>,{" "}
+            <Link href="/category/chastity" className="text-accent hover:underline">Chastity</Link>,{" "}
+            <Link href="/category/pet-play" className="text-accent hover:underline">Pet Play</Link> and many more.
           </p>
         </div>
       </section>

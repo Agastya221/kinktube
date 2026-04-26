@@ -906,3 +906,36 @@ func (h *Handler) GetVideoWithAffiliates(c *fiber.Ctx) error {
 		"affiliate_links": links,
 	})
 }
+
+// ReportVideoUnavailable handles POST /api/videos/:id/unavailable
+// Called by the frontend player when the embed returns "Video Unavailable".
+// Marks the video hidden in the DB so it no longer appears in any listing.
+func (h *Handler) ReportVideoUnavailable(c *fiber.Ctx) error {
+	video, err := h.resolveVideoIdentifier(c.Context(), c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch video",
+		})
+	}
+	if video == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Video not found",
+		})
+	}
+
+	if err := h.db.MarkVideoUnavailable(c.Context(), video.ID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to mark video unavailable",
+		})
+	}
+
+	// Evict from cache so it disappears from listings immediately
+	_ = h.cache.Delete(c.Context(), database.VideoCacheKey(video.ID))
+	_ = h.cache.Delete(c.Context(), database.VideoExternalCacheKey(video.ExternalID))
+	h.invalidateBrowseCaches(c.Context())
+
+	return c.JSON(fiber.Map{
+		"status":  "hidden",
+		"video_id": video.ID,
+	})
+}

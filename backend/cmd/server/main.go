@@ -73,11 +73,20 @@ func main() {
 	// Initialize Eporner client
 	epornerClient := services.NewEpornerClient(cfg.EpornerBaseURL)
 
+	// Initialize AI description service
+	aiService := services.NewAIDescriptionService(cfg.OpenRouterAPIKey, cfg.AIModel)
+	if aiService.IsEnabled() {
+		log.Printf("AI description service enabled (model: %s)", cfg.AIModel)
+	} else {
+		log.Println("AI description service disabled (set OPENROUTER_API_KEY to enable)")
+	}
+
 	// Initialize importer
 	importer := services.NewImporter(
 		db,
 		cache,
 		epornerClient,
+		aiService,
 		cfg.EpornerPerPage,
 		siteSettings.Import.ImportMaxPages,
 		siteSettings.Import.LightImportMaxPages,
@@ -239,6 +248,7 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	api.Get("/videos/:id/full", h.GetVideoWithAffiliates)
 	api.Get("/videos/:id/related", h.GetRelatedVideos)
 	api.Get("/videos/:id/affiliates", h.GetAffiliateLinks)
+	api.Post("/videos/:id/unavailable", h.ReportVideoUnavailable) // frontend reports dead embeds
 	api.Get("/categories", h.GetCategories)
 	api.Get("/menu-categories", h.GetMenuCategories)
 	api.Get("/media/thumbnail", h.ProxyThumbnail)

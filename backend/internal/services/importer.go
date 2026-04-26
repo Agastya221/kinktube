@@ -17,6 +17,7 @@ type Importer struct {
 	db                *database.PostgresDB
 	cache             *database.RedisCache
 	eporner           *EpornerClient
+	ai                *AIDescriptionService
 	perPage           int
 	maxPages          int
 	lightMaxPages     int
@@ -41,6 +42,7 @@ func NewImporter(
 	db *database.PostgresDB,
 	cache *database.RedisCache,
 	eporner *EpornerClient,
+	ai *AIDescriptionService,
 	perPage int,
 	maxPages int,
 	lightMaxPages int,
@@ -63,6 +65,7 @@ func NewImporter(
 		db:                db,
 		cache:             cache,
 		eporner:           eporner,
+		ai:                ai,
 		perPage:           perPage,
 		maxPages:          maxPages,
 		lightMaxPages:     lightMaxPages,
@@ -201,6 +204,16 @@ func (i *Importer) importKeywordPages(ctx context.Context, keyword string, maxPa
 			}
 
 			video := ConvertToVideo(&ev, keyword)
+
+			// Generate AI description for new/missing descriptions
+			if i.ai != nil && i.ai.IsEnabled() && video.Description == "" {
+				desc, aiErr := i.ai.GenerateDescription(ctx, video.Title, video.Categories, video.Tags)
+				if aiErr != nil {
+					log.Printf("AI description failed for %q: %v", video.Title, aiErr)
+				} else if desc != "" {
+					video.Description = desc
+				}
+			}
 
 			inserted, err := i.db.UpsertVideo(ctx, video)
 			if err != nil {
