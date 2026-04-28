@@ -22,6 +22,7 @@ func (db *PostgresDB) GetSiteSettings(ctx context.Context, defaults *models.Site
 		WHERE id = 1
 	`).Scan(&raw)
 	if err == pgx.ErrNoRows {
+		models.ApplyAdEnvDefaults(settings)
 		models.NormalizeSiteSettings(settings)
 		return settings, nil
 	}
@@ -35,6 +36,7 @@ func (db *PostgresDB) GetSiteSettings(ctx context.Context, defaults *models.Site
 		}
 	}
 
+	models.ApplyAdEnvDefaults(settings)
 	models.NormalizeSiteSettings(settings)
 	return settings, nil
 }

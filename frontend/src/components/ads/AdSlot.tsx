@@ -42,7 +42,7 @@ const getAdConfig = (
 
   // Default dimensions per format
   const dimensions: Record<AdFormat, { width: number; height: number }> = {
-    "banner": { width: 728, height: 90 },
+    "banner": { width: 728, height: network === "juicyads" ? 102 : 90 },
     "sidebar": { width: 300, height: 250 },
     "native": { width: 300, height: 250 },
     "popunder": { width: 0, height: 0 },
@@ -106,7 +106,7 @@ function renderJuicyAds(parent: HTMLElement, config: AdConfig): boolean {
   }
 
   appendScript(parent, {
-    src: "https://adserver.juicyads.com/js/jads.js",
+    src: "https://poweredby.jads.co/js/jads.js",
     attrs: {
       async: "async",
       "data-cfasync": "false",
@@ -214,7 +214,9 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
 
   // Responsive sizing classes based on format
   const sizeClasses: Record<AdFormat, string> = {
-    "banner": "w-full max-w-[728px] h-[90px] mx-auto",
+    "banner": siteSettings.ads.network === "juicyads"
+      ? "w-full max-w-[728px] h-[102px] mx-auto"
+      : "w-full max-w-[728px] h-[90px] mx-auto",
     "sidebar": "w-[300px] h-[250px]",
     "native": "w-full max-w-[300px] min-h-[250px]",
     "popunder": "hidden",

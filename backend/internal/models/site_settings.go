@@ -292,6 +292,34 @@ func NormalizeSiteSettings(settings *SiteSettings) {
 	normalizeLegalSettings(settings)
 }
 
+func ApplyAdEnvDefaults(settings *SiteSettings) {
+	if settings == nil {
+		return
+	}
+
+	network := strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_NETWORK"))
+	if network != "" {
+		settings.Ads.Network = network
+	}
+
+	applyAdSlotEnvDefault(&settings.Ads.Banner, "NEXT_PUBLIC_AD_ZONE_BANNER")
+	applyAdSlotEnvDefault(&settings.Ads.Sidebar, "NEXT_PUBLIC_AD_ZONE_SIDEBAR")
+	applyAdSlotEnvDefault(&settings.Ads.Native, "NEXT_PUBLIC_AD_ZONE_NATIVE")
+	applyAdSlotEnvDefault(&settings.Ads.Popunder, "NEXT_PUBLIC_AD_ZONE_POPUNDER")
+	applyAdSlotEnvDefault(&settings.Ads.VideoBanner, "NEXT_PUBLIC_AD_ZONE_VIDEO_BANNER")
+	applyAdSlotEnvDefault(&settings.Ads.MobileBanner, "NEXT_PUBLIC_AD_ZONE_MOBILE_BANNER")
+}
+
+func applyAdSlotEnvDefault(slot *AdSlotSettings, envKey string) {
+	value := strings.TrimSpace(os.Getenv(envKey))
+	if value == "" {
+		return
+	}
+
+	slot.ZoneID = value
+	slot.Enabled = true
+}
+
 func defaultLegalSettings() LegalSettings {
 	return LegalSettings{
 		Terms: LegalDocumentSettings{
