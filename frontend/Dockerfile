@@ -73,7 +73,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Copy public assets. Keep public writable so an external cron can refresh
-# public/sitemaps with scripts/generate-sitemaps.mjs if this image is used
+# sitemap XML files with scripts/generate-sitemaps.mjs if this image is used
 # as the sitemap generation runtime.
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -10,10 +10,10 @@ const gzip = promisify(gzipCallback);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(__dirname, "..");
-const outputDir = path.join(frontendRoot, "public", "sitemaps");
-const tempDir = path.join(frontendRoot, "public", `.sitemaps-${process.pid}-${Date.now()}`);
+const publicDir = path.join(frontendRoot, "public");
+const outputDir = publicDir;
+const tempDir = path.join(frontendRoot, `sitemap-build-${process.pid}-${Date.now()}`);
 let workingDir = tempDir;
-let atomicWrite = true;
 
 const MAX_URLS_PER_SITEMAP = Math.min(
   Math.max(Number(process.env.SITEMAP_MAX_URLS || "10000"), 1),
@@ -195,7 +195,7 @@ async function writeXmlFile(filename, xml) {
   await writeFile(`${xmlPath}.gz`, await gzip(xml, { level: 9 }));
 }
 
-async function cleanGeneratedFiles(directory) {
+async function cleanGeneratedFiles(directory, keepFiles = new Set()) {
   const entries = await readdir(directory).catch((error) => {
     if (error?.code === "ENOENT") {
       return [];
@@ -207,8 +207,9 @@ async function cleanGeneratedFiles(directory) {
     entries
       .filter(
         (entry) =>
-          /^sitemap(?:-|\.xml)/.test(entry) ||
-          entry === "sitemap-manifest.json"
+          !keepFiles.has(entry) &&
+          (/^sitemap(?:-|\.xml)/.test(entry) ||
+            entry === "sitemap-manifest.json")
       )
       .map((entry) => rm(path.join(directory, entry), { force: true }))
   );
@@ -300,21 +301,7 @@ async function generateVideoSitemaps() {
 async function main() {
   const generatedAt = new Date();
   await rm(tempDir, { recursive: true, force: true });
-  try {
-    await mkdir(tempDir, { recursive: true });
-  } catch (error) {
-    if (error?.code !== "EPERM") {
-      throw error;
-    }
-    atomicWrite = false;
-    workingDir = outputDir;
-    await mkdir(outputDir, { recursive: true }).catch((mkdirError) => {
-      if (mkdirError?.code !== "EEXIST") {
-        throw mkdirError;
-      }
-    });
-    await cleanGeneratedFiles(outputDir);
-  }
+  await mkdir(tempDir, { recursive: true });
 
   let videoSitemapCount = 0;
   let totalVideoUrls = 0;
@@ -347,10 +334,15 @@ async function main() {
     "utf8"
   );
 
-  if (atomicWrite) {
-    await rm(outputDir, { recursive: true, force: true });
-    await rename(tempDir, outputDir);
-  }
+  const generatedFiles = await readdir(tempDir);
+  await Promise.all(
+    generatedFiles.map(async (entry) => {
+      const bytes = await readFile(path.join(tempDir, entry));
+      await writeFile(path.join(outputDir, entry), bytes);
+    })
+  );
+  await cleanGeneratedFiles(outputDir, new Set(generatedFiles));
+  await rm(tempDir, { recursive: true, force: true });
 
   console.log(
     `Generated sitemap index, static sitemap, ${videoSitemapCount} video sitemap(s), and gzip copies in ${path.relative(
@@ -362,9 +354,7 @@ async function main() {
 }
 
 main().catch(async (error) => {
-  if (atomicWrite) {
-    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
-  }
+  await rm(tempDir, { recursive: true, force: true }).catch(() => {});
   console.error(error);
   process.exitCode = 1;
 });

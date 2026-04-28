@@ -51,15 +51,6 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
 
-  async rewrites() {
-    return [
-      {
-        source: "/sitemap-videos-:chunk(\\d+).xml",
-        destination: "/sitemap-videos/:chunk",
-      },
-    ];
-  },
-
   // Output standalone for Docker deployment
   output: "standalone",
 

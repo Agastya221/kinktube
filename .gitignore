@@ -5,12 +5,12 @@ vendor/
 # Build outputs
 backend/kinktube
 frontend/.next/
+frontend/sitemap-build-*/
 frontend/out/
 backend/.gocache
-frontend/public/sitemaps/sitemap-videos-*.xml
-frontend/public/sitemaps/sitemap-videos-*.xml.gz
-frontend/public/sitemaps/*.xml.gz
-frontend/public/sitemaps/sitemap-manifest.json
+frontend/public/sitemap-videos-*.xml.gz
+frontend/public/*.xml.gz
+frontend/public/sitemap-manifest.json
 
 # Environment files
 .env
