@@ -297,8 +297,9 @@ func ApplyAdEnvDefaults(settings *SiteSettings) {
 		return
 	}
 
+	hasConfiguredAds := hasConfiguredAdSlot(settings)
 	network := strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_NETWORK"))
-	if network != "" {
+	if network != "" && (strings.TrimSpace(settings.Ads.Network) == "" || !hasConfiguredAds) {
 		settings.Ads.Network = network
 	}
 
@@ -310,9 +311,18 @@ func ApplyAdEnvDefaults(settings *SiteSettings) {
 	applyAdSlotEnvDefault(&settings.Ads.MobileBanner, "NEXT_PUBLIC_AD_ZONE_MOBILE_BANNER")
 }
 
+func hasConfiguredAdSlot(settings *SiteSettings) bool {
+	return strings.TrimSpace(settings.Ads.Banner.ZoneID) != "" ||
+		strings.TrimSpace(settings.Ads.Sidebar.ZoneID) != "" ||
+		strings.TrimSpace(settings.Ads.Native.ZoneID) != "" ||
+		strings.TrimSpace(settings.Ads.Popunder.ZoneID) != "" ||
+		strings.TrimSpace(settings.Ads.VideoBanner.ZoneID) != "" ||
+		strings.TrimSpace(settings.Ads.MobileBanner.ZoneID) != ""
+}
+
 func applyAdSlotEnvDefault(slot *AdSlotSettings, envKey string) {
 	value := strings.TrimSpace(os.Getenv(envKey))
-	if value == "" {
+	if value == "" || strings.TrimSpace(slot.ZoneID) != "" {
 		return
 	}
 

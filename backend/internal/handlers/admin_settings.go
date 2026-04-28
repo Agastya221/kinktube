@@ -17,7 +17,7 @@ func (h *Handler) GetPublicSiteSettings(c *fiber.Ctx) error {
 		})
 	}
 
-	c.Set(fiber.HeaderCacheControl, "public, max-age=60, stale-while-revalidate=300")
+	c.Set(fiber.HeaderCacheControl, "no-store")
 	return c.JSON(settings.Public())
 }
 

@@ -187,7 +187,7 @@ export async function getPublicSiteSettingsServer(): Promise<PublicSiteSettings>
   const url = `${SERVER_API_BASE_URL}/api/site-settings`;
 
   const response = await fetch(url, {
-    next: { revalidate: 60 },
+    cache: "no-store",
   });
 
   if (!response.ok) {

@@ -36,6 +36,7 @@ const tabs = [
 ] as const;
 
 type Tab = typeof tabs[number];
+type AdSlotKey = "banner" | "sidebar" | "native" | "popunder" | "video_banner" | "mobile_banner";
 
 function SectionCard({
   title,
@@ -257,6 +258,29 @@ export default function AdminConsole() {
           [key]: value,
         },
       } as SiteSettings;
+    });
+  };
+
+  const setAdSlotValue = (slotKey: AdSlotKey, key: "enabled" | "label" | "zone_id", value: boolean | string) => {
+    setSettings((prev) => {
+      if (!prev) return prev;
+
+      const nextSlot = {
+        ...prev.ads[slotKey],
+        [key]: value,
+      };
+
+      if (key === "zone_id" && typeof value === "string" && value.trim() !== "") {
+        nextSlot.enabled = true;
+      }
+
+      return {
+        ...prev,
+        ads: {
+          ...prev.ads,
+          [slotKey]: nextSlot,
+        },
+      };
     });
   };
 
@@ -713,6 +737,9 @@ export default function AdminConsole() {
 
           {activeTab === "ads" && (
             <SectionCard title="Ads" description="Manage ad network and zone IDs without a rebuild.">
+              <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground-muted">
+                Admin values are the source of truth. Environment variables only fill blank ad settings as fallback.
+              </div>
               <label className="block space-y-2">
                 <span className="text-sm font-medium text-foreground">Ad Network</span>
                 <select
@@ -738,13 +765,21 @@ export default function AdminConsole() {
                   const slot = settings.ads[key];
                   return (
                     <div key={key} className="rounded-2xl border border-border bg-background p-4 space-y-3">
-                      <ToggleField label={`${label} Enabled`} checked={slot.enabled} onChange={(value) => setSettings((prev) => prev ? ({ ...prev, ads: { ...prev.ads, [key]: { ...prev.ads[key], enabled: value } } }) : prev)} />
-                      <TextField label={`${label} Label`} value={slot.label} onChange={(value) => setSettings((prev) => prev ? ({ ...prev, ads: { ...prev.ads, [key]: { ...prev.ads[key], label: value } } }) : prev)} />
-                      <TextField label={`${label} Zone ID`} value={slot.zone_id} onChange={(value) => setSettings((prev) => prev ? ({ ...prev, ads: { ...prev.ads, [key]: { ...prev.ads[key], zone_id: value } } }) : prev)} />
+                      <ToggleField label={`${label} Enabled`} checked={slot.enabled} onChange={(value) => setAdSlotValue(key, "enabled", value)} />
+                      <TextField label={`${label} Label`} value={slot.label} onChange={(value) => setAdSlotValue(key, "label", value)} />
+                      <TextField label={`${label} Zone ID`} value={slot.zone_id} onChange={(value) => setAdSlotValue(key, "zone_id", value)} />
                     </div>
                   );
                 })}
               </div>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
+              >
+                {saving ? "Saving Ads..." : "Save Ads Settings"}
+              </button>
             </SectionCard>
           )}
 
