@@ -13,6 +13,8 @@ import type {
   AdminImportStatusResponse,
   AdminSEOGenerateRequest,
   AdminSEOGenerateResponse,
+  AISEOStatusResponse,
+  AISEOLogsResponse,
   ContactSubmission,
   ContactSubmissionRequest,
   ContactSubmissionsResponse,
@@ -318,4 +320,16 @@ export async function generateAdminSEO(payload: AdminSEOGenerateRequest): Promis
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export async function getAISEOStatus(): Promise<AISEOStatusResponse> {
+  return fetchAdminAPI<AISEOStatusResponse>("/api/admin/ai-seo/status");
+}
+
+export async function getAISEOLogs(status = "", page = 1, perPage = 50): Promise<AISEOLogsResponse> {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  params.set("page", String(page));
+  params.set("per_page", String(perPage));
+  return fetchAdminAPI<AISEOLogsResponse>(`/api/admin/ai-seo/logs?${params.toString()}`);
 }

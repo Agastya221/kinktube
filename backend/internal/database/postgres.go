@@ -157,6 +157,21 @@ func (db *PostgresDB) InitSchema(ctx context.Context) error {
 			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);
 		CREATE INDEX IF NOT EXISTS idx_video_comments_video_id ON video_comments(video_id);
+
+		CREATE TABLE IF NOT EXISTS ai_seo_logs (
+			id BIGSERIAL PRIMARY KEY,
+			video_id BIGINT NOT NULL,
+			video_title TEXT NOT NULL DEFAULT '',
+			status VARCHAR(16) NOT NULL DEFAULT 'updated',
+			old_description TEXT NOT NULL DEFAULT '',
+			new_description TEXT NOT NULL DEFAULT '',
+			safety_notes TEXT NOT NULL DEFAULT '',
+			tokens_used INTEGER NOT NULL DEFAULT 0,
+			processed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_ai_seo_logs_processed_at ON ai_seo_logs(processed_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_ai_seo_logs_status ON ai_seo_logs(status);
+		CREATE INDEX IF NOT EXISTS idx_ai_seo_logs_video_id ON ai_seo_logs(video_id);
 	`
 
 	_, err := db.pool.Exec(ctx, schema)
@@ -873,4 +888,100 @@ func (db *PostgresDB) AddVideoComment(ctx context.Context, c *VideoComment) erro
 		 RETURNING id, created_at`,
 		c.VideoID, c.Name, c.Content,
 	).Scan(&c.ID, &c.CreatedAt)
+}
+
+// AISEOLog represents a single AI SEO processing record.
+type AISEOLog struct {
+	ID             int64     `json:"id"`
+	VideoID        int64     `json:"video_id"`
+	VideoTitle     string    `json:"video_title"`
+	Status         string    `json:"status"` // "updated", "rejected", "error"
+	OldDescription string    `json:"old_description"`
+	NewDescription string    `json:"new_description"`
+	SafetyNotes    string    `json:"safety_notes"`
+	TokensUsed     int       `json:"tokens_used"`
+	ProcessedAt    time.Time `json:"processed_at"`
+}
+
+// InsertAISEOLog records a single AI SEO processing event.
+func (db *PostgresDB) InsertAISEOLog(ctx context.Context, log *AISEOLog) error {
+	return db.pool.QueryRow(ctx,
+		`INSERT INTO ai_seo_logs (video_id, video_title, status, old_description, new_description, safety_notes, tokens_used)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)
+		 RETURNING id, processed_at`,
+		log.VideoID, log.VideoTitle, log.Status, log.OldDescription, log.NewDescription, log.SafetyNotes, log.TokensUsed,
+	).Scan(&log.ID, &log.ProcessedAt)
+}
+
+// ListAISEOLogs returns paginated AI SEO logs, newest first. Filter by status if non-empty.
+func (db *PostgresDB) ListAISEOLogs(ctx context.Context, status string, page, perPage int) ([]AISEOLog, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 50
+	}
+	if perPage > 200 {
+		perPage = 200
+	}
+	offset := (page - 1) * perPage
+
+	// Count total
+	var total int
+	countQuery := `SELECT COUNT(*) FROM ai_seo_logs`
+	if status != "" {
+		countQuery += ` WHERE status = $1`
+		err := db.pool.QueryRow(ctx, countQuery, status).Scan(&total)
+		if err != nil {
+			return nil, 0, err
+		}
+	} else {
+		err := db.pool.QueryRow(ctx, countQuery).Scan(&total)
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+
+	// Fetch page
+	var rows pgx.Rows
+	var err error
+	if status != "" {
+		rows, err = db.pool.Query(ctx,
+			`SELECT id, video_id, video_title, status, old_description, new_description, safety_notes, tokens_used, processed_at
+			 FROM ai_seo_logs WHERE status = $1 ORDER BY processed_at DESC LIMIT $2 OFFSET $3`,
+			status, perPage, offset)
+	} else {
+		rows, err = db.pool.Query(ctx,
+			`SELECT id, video_id, video_title, status, old_description, new_description, safety_notes, tokens_used, processed_at
+			 FROM ai_seo_logs ORDER BY processed_at DESC LIMIT $1 OFFSET $2`,
+			perPage, offset)
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	logs := make([]AISEOLog, 0, perPage)
+	for rows.Next() {
+		var l AISEOLog
+		if err := rows.Scan(&l.ID, &l.VideoID, &l.VideoTitle, &l.Status, &l.OldDescription, &l.NewDescription, &l.SafetyNotes, &l.TokensUsed, &l.ProcessedAt); err != nil {
+			return nil, 0, err
+		}
+		logs = append(logs, l)
+	}
+
+	return logs, total, rows.Err()
+}
+
+// GetAISEOLogStats returns aggregate counts for the AI SEO log table.
+func (db *PostgresDB) GetAISEOLogStats(ctx context.Context) (total int, updated int, rejected int, errored int, err error) {
+	err = db.pool.QueryRow(ctx,
+		`SELECT
+			COUNT(*),
+			COUNT(*) FILTER (WHERE status = 'updated'),
+			COUNT(*) FILTER (WHERE status = 'rejected'),
+			COUNT(*) FILTER (WHERE status = 'error')
+		 FROM ai_seo_logs`,
+	).Scan(&total, &updated, &rejected, &errored)
+	return
 }

@@ -9,13 +9,15 @@ import {
   getCategories,
   getStats,
   generateAdminSEO,
+  getAISEOStatus,
+  getAISEOLogs,
   loginAdmin,
   logoutAdmin,
   triggerAdminImport,
   updateAdminContactMessageStatus,
   updateAdminSettings,
 } from "@/lib/api";
-import type { AdminImportStatusResponse, AdminSEOGenerateResponse, AdminSessionResponse, CategoriesResponse, ContactSubmission, SiteSettings, StatsResponse } from "@/lib/types";
+import type { AdminImportStatusResponse, AdminSEOGenerateResponse, AdminSessionResponse, AISEOStatusResponse, AISEOLog, CategoriesResponse, ContactSubmission, SiteSettings, StatsResponse } from "@/lib/types";
 
 const tabs = [
   "overview",
@@ -24,6 +26,7 @@ const tabs = [
   "content",
   "ads",
   "seo",
+  "ai seo",
   "affiliates",
   "legal",
   "messages",
@@ -167,6 +170,14 @@ export default function AdminConsole() {
   const [seoGenerating, setSeoGenerating] = useState(false);
   const [seoResult, setSeoResult] = useState<AdminSEOGenerateResponse | null>(null);
 
+  // AI SEO dashboard state
+  const [aiSeoStatus, setAiSeoStatus] = useState<AISEOStatusResponse | null>(null);
+  const [aiSeoLogs, setAiSeoLogs] = useState<AISEOLog[]>([]);
+  const [aiSeoLogsTotal, setAiSeoLogsTotal] = useState(0);
+  const [aiSeoLogsPage, setAiSeoLogsPage] = useState(1);
+  const [aiSeoFilter, setAiSeoFilter] = useState<string>("");
+  const [aiSeoExpanded, setAiSeoExpanded] = useState<number | null>(null);
+
   const isAuthenticated = !!session?.authenticated;
 
   async function loadAdminData() {
@@ -215,6 +226,16 @@ export default function AdminConsole() {
       cancelled = true;
     };
   }, []);
+
+  // Auto-load AI SEO data when tab is active, refresh every 10s while running
+  useEffect(() => {
+    if (activeTab !== "ai seo" || !isAuthenticated) return;
+    loadAiSeoData();
+    const interval = setInterval(() => {
+      loadAiSeoData();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [activeTab, isAuthenticated]);
 
   const keywordText = useMemo(
     () => settings?.seo.default_keywords.join(", ") || "",
@@ -346,6 +367,33 @@ export default function AdminConsole() {
     } finally {
       setSeoGenerating(false);
     }
+  };
+
+  const loadAiSeoData = async (filter = aiSeoFilter, page = aiSeoLogsPage) => {
+    try {
+      const [statusData, logsData] = await Promise.all([
+        getAISEOStatus(),
+        getAISEOLogs(filter, page, 20),
+      ]);
+      setAiSeoStatus(statusData);
+      setAiSeoLogs(logsData.logs);
+      setAiSeoLogsTotal(logsData.total);
+    } catch {
+      // silently ignore
+    }
+  };
+
+  const handleAiSeoFilterChange = (filter: string) => {
+    setAiSeoFilter(filter);
+    setAiSeoLogsPage(1);
+    setAiSeoExpanded(null);
+    loadAiSeoData(filter, 1);
+  };
+
+  const handleAiSeoPageChange = (page: number) => {
+    setAiSeoLogsPage(page);
+    setAiSeoExpanded(null);
+    loadAiSeoData(aiSeoFilter, page);
   };
 
   if (loading && !session) {
@@ -633,6 +681,199 @@ export default function AdminConsole() {
                 <TextField label="Open Graph Description" value={settings.seo.open_graph_description} onChange={(value) => setNestedValue("seo", "open_graph_description", value)} multiline />
                 <TextField label="Twitter Description" value={settings.seo.twitter_description} onChange={(value) => setNestedValue("seo", "twitter_description", value)} multiline />
                 <TextField label="Default Keywords (comma separated)" value={keywordText} onChange={(value) => setSettings((prev) => prev ? ({ ...prev, seo: { ...prev.seo, default_keywords: value.split(",").map((item) => item.trim()).filter(Boolean) } }) : prev)} multiline />
+              </SectionCard>
+            </>
+          )}
+
+          {activeTab === "ai seo" && (
+            <>
+              {/* Status Header */}
+              <SectionCard title="AI SEO Backfill Status" description="Real-time monitoring of the automated video description generation pipeline.">
+                {aiSeoStatus ? (
+                  <div className="space-y-5">
+                    {/* Running indicator */}
+                    <div className="flex items-center gap-3">
+                      <span className={`h-3 w-3 rounded-full ${aiSeoStatus.running ? "bg-green-500 animate-pulse" : "bg-foreground-muted/40"}`} />
+                      <span className="text-sm font-semibold">
+                        {aiSeoStatus.running ? "Backfill Running" : "Backfill Idle / Paused"}
+                      </span>
+                    </div>
+
+                    {/* Token Budget Progress Bar */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-foreground-muted">
+                        <span>Daily Token Budget</span>
+                        <span>
+                          {(aiSeoStatus.tokens_used / 1_000_000).toFixed(2)}M / {(aiSeoStatus.tokens_budget / 1_000_000).toFixed(1)}M
+                          ({aiSeoStatus.tokens_percent.toFixed(1)}%)
+                        </span>
+                      </div>
+                      <div className="h-3 w-full rounded-full bg-background overflow-hidden border border-border">
+                        <div
+                          className="h-full rounded-full transition-all duration-700 ease-out"
+                          style={{
+                            width: `${Math.min(aiSeoStatus.tokens_percent, 100)}%`,
+                            background: aiSeoStatus.tokens_percent > 90
+                              ? "linear-gradient(90deg, #ef4444, #dc2626)"
+                              : aiSeoStatus.tokens_percent > 60
+                              ? "linear-gradient(90deg, #f59e0b, #eab308)"
+                              : "linear-gradient(90deg, rgb(var(--color-accent)), rgb(var(--color-accent-hover)))",
+                          }}
+                        />
+                      </div>
+                      <p className="text-xs text-foreground-muted">
+                        ~{aiSeoStatus.videos_remaining.toLocaleString()} videos can still be processed today
+                      </p>
+                    </div>
+
+                    {/* Stat Cards */}
+                    <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+                      <div className="rounded-xl border border-border bg-background p-3 text-center">
+                        <p className="text-2xl font-bold">{aiSeoStatus.total_processed.toLocaleString()}</p>
+                        <p className="text-xs text-foreground-muted mt-1">Total Processed</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-background p-3 text-center">
+                        <p className="text-2xl font-bold text-green-500">{aiSeoStatus.total_updated.toLocaleString()}</p>
+                        <p className="text-xs text-foreground-muted mt-1">Updated</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-background p-3 text-center">
+                        <p className="text-2xl font-bold text-yellow-500">{aiSeoStatus.total_rejected.toLocaleString()}</p>
+                        <p className="text-xs text-foreground-muted mt-1">Rejected</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-background p-3 text-center">
+                        <p className="text-2xl font-bold text-red-500">{aiSeoStatus.total_errors.toLocaleString()}</p>
+                        <p className="text-xs text-foreground-muted mt-1">Errors</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-foreground-muted">Loading status...</p>
+                )}
+              </SectionCard>
+
+              {/* Activity Log */}
+              <SectionCard title="Activity Log" description="Every video processed by the AI SEO pipeline with before and after descriptions.">
+                {/* Filter tabs */}
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "All", value: "" },
+                    { label: "Updated", value: "updated" },
+                    { label: "Rejected", value: "rejected" },
+                    { label: "Errors", value: "error" },
+                  ].map((f) => (
+                    <button
+                      key={f.value}
+                      type="button"
+                      onClick={() => handleAiSeoFilterChange(f.value)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                        aiSeoFilter === f.value
+                          ? "bg-accent text-white"
+                          : "bg-background text-foreground-muted hover:text-foreground border border-border"
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                  <span className="ml-auto text-xs text-foreground-muted self-center">
+                    {aiSeoLogsTotal.toLocaleString()} entries
+                  </span>
+                </div>
+
+                {/* Log entries */}
+                {aiSeoLogs.length === 0 ? (
+                  <p className="text-sm text-foreground-muted py-4">No activity logs yet. Start the backfill to see entries here.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {aiSeoLogs.map((entry) => (
+                      <div key={entry.id} className="rounded-xl border border-border bg-background overflow-hidden">
+                        {/* Collapsed row */}
+                        <button
+                          type="button"
+                          onClick={() => setAiSeoExpanded(aiSeoExpanded === entry.id ? null : entry.id)}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-background-secondary/50 transition-colors"
+                        >
+                          <span className={`h-2 w-2 rounded-full flex-shrink-0 ${
+                            entry.status === "updated" ? "bg-green-500" :
+                            entry.status === "rejected" ? "bg-yellow-500" : "bg-red-500"
+                          }`} />
+                          <span className="flex-1 text-sm font-medium truncate">{entry.video_title}</span>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            entry.status === "updated" ? "bg-green-500/10 text-green-500" :
+                            entry.status === "rejected" ? "bg-yellow-500/10 text-yellow-500" : "bg-red-500/10 text-red-500"
+                          }`}>
+                            {entry.status}
+                          </span>
+                          <span className="text-xs text-foreground-muted flex-shrink-0">
+                            ID:{entry.video_id}
+                          </span>
+                          <span className="text-xs text-foreground-muted flex-shrink-0">
+                            {new Date(entry.processed_at).toLocaleString()}
+                          </span>
+                          <svg className={`w-4 h-4 text-foreground-muted transition-transform ${aiSeoExpanded === entry.id ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+
+                        {/* Expanded detail */}
+                        {aiSeoExpanded === entry.id && (
+                          <div className="px-4 pb-4 border-t border-border space-y-3">
+                            {entry.safety_notes && (
+                              <div className="mt-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20 px-3 py-2">
+                                <p className="text-xs font-medium text-yellow-500">Safety Note</p>
+                                <p className="text-sm text-foreground-muted mt-1">{entry.safety_notes}</p>
+                              </div>
+                            )}
+
+                            <div className="grid gap-4 md:grid-cols-2 mt-3">
+                              <div>
+                                <p className="text-xs font-medium text-foreground-muted uppercase tracking-wider mb-2">Before (Old Description)</p>
+                                <div className="rounded-lg border border-border bg-background-secondary p-3 text-sm text-foreground-muted min-h-[80px] max-h-[200px] overflow-y-auto">
+                                  {entry.old_description || <span className="italic opacity-50">Empty — no description</span>}
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-green-500 uppercase tracking-wider mb-2">After (New Description)</p>
+                                <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3 text-sm text-foreground min-h-[80px] max-h-[200px] overflow-y-auto">
+                                  {entry.new_description || <span className="italic opacity-50">No description generated</span>}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-4 text-xs text-foreground-muted">
+                              <span>Tokens: ~{entry.tokens_used}</span>
+                              <span>Processed: {new Date(entry.processed_at).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Pagination */}
+                {aiSeoLogsTotal > 20 && (
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleAiSeoPageChange(aiSeoLogsPage - 1)}
+                      disabled={aiSeoLogsPage <= 1}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      ← Previous
+                    </button>
+                    <span className="text-xs text-foreground-muted">
+                      Page {aiSeoLogsPage} of {Math.ceil(aiSeoLogsTotal / 20)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleAiSeoPageChange(aiSeoLogsPage + 1)}
+                      disabled={aiSeoLogsPage >= Math.ceil(aiSeoLogsTotal / 20)}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
               </SectionCard>
             </>
           )}

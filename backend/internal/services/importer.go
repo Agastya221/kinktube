@@ -364,6 +364,11 @@ func (i *Importer) getDailyTokenUsage() (used int64, budget int64) {
 	return i.dailyTokensUsed, i.dailyTokenBudget
 }
 
+// GetDailyTokenUsagePublic is the exported version for API handlers.
+func (i *Importer) GetDailyTokenUsagePublic() (used int64, budget int64) {
+	return i.getDailyTokenUsage()
+}
+
 // BackfillMissingDescriptions generates cached SEO descriptions for existing videos.
 // It loops through batches until all videos are processed or the daily token budget
 // is exhausted. When the budget is hit, it logs the pause and returns.
@@ -457,22 +462,55 @@ func (i *Importer) BackfillMissingDescriptions(ctx context.Context, limit int, d
 			stats.TokensUsed += estimatedTokensPerVideo
 			totalProcessed++
 
+			oldDesc := video.Description
+
 			if aiErr != nil {
 				stats.Errors++
 				log.Printf("AI SEO backfill failed for video id=%d title=%q: %v", video.ID, video.Title, aiErr)
+				_ = i.db.InsertAISEOLog(ctx, &database.AISEOLog{
+					VideoID: video.ID, VideoTitle: video.Title, Status: "error",
+					OldDescription: oldDesc, SafetyNotes: aiErr.Error(),
+					TokensUsed: estimatedTokensPerVideo,
+				})
 			} else if metadata == nil || metadata.Rejected || metadata.Description == "" {
 				stats.Rejected++
+				safetyNote := ""
 				if metadata != nil && metadata.SafetyNotes != "" {
+					safetyNote = metadata.SafetyNotes
 					log.Printf("AI SEO backfill rejected video id=%d title=%q: %s", video.ID, video.Title, metadata.SafetyNotes)
 				}
+				_ = i.db.InsertAISEOLog(ctx, &database.AISEOLog{
+					VideoID: video.ID, VideoTitle: video.Title, Status: "rejected",
+					OldDescription: oldDesc, SafetyNotes: safetyNote,
+					TokensUsed: estimatedTokensPerVideo,
+				})
 			} else if err := i.db.UpdateVideoDescription(ctx, video.ID, metadata.Description); err != nil {
 				stats.Errors++
 				log.Printf("AI SEO backfill failed to save video id=%d: %v", video.ID, err)
+				_ = i.db.InsertAISEOLog(ctx, &database.AISEOLog{
+					VideoID: video.ID, VideoTitle: video.Title, Status: "error",
+					OldDescription: oldDesc, NewDescription: metadata.Description,
+					SafetyNotes: err.Error(), TokensUsed: estimatedTokensPerVideo,
+				})
 			} else {
 				video.Description = metadata.Description
 				_ = i.cache.Delete(ctx, database.VideoCacheKey(video.ID))
 				_ = i.cache.Delete(ctx, database.VideoExternalCacheKey(video.ExternalID))
 				stats.Updated++
+
+				// Log the successful update with a description preview
+				descPreview := metadata.Description
+				if len(descPreview) > 120 {
+					descPreview = descPreview[:120] + "..."
+				}
+				log.Printf("✅ AI SEO updated video id=%d title=%q → %q",
+					video.ID, video.Title, descPreview)
+
+				_ = i.db.InsertAISEOLog(ctx, &database.AISEOLog{
+					VideoID: video.ID, VideoTitle: video.Title, Status: "updated",
+					OldDescription: oldDesc, NewDescription: metadata.Description,
+					TokensUsed: estimatedTokensPerVideo,
+				})
 			}
 
 			if delay > 0 && index < len(videos)-1 {

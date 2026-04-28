@@ -850,6 +850,56 @@ func (h *Handler) GetImportStatus(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"running":              h.importer.IsRunning(),
 		"seo_backfill_running": h.importer.IsSEOBackfillRunning(),
+		"token_budget_status":  h.importer.FormatTokenBudgetStatus(),
+	})
+}
+
+// GetAISEOStatus handles GET /api/admin/ai-seo/status
+func (h *Handler) GetAISEOStatus(c *fiber.Ctx) error {
+	used, budget := h.importer.GetDailyTokenUsagePublic()
+	total, updated, rejected, errored, err := h.db.GetAISEOLogStats(c.Context())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get stats"})
+	}
+
+	pct := float64(0)
+	if budget > 0 {
+		pct = float64(used) / float64(budget) * 100
+	}
+	videosRemaining := int64(0)
+	if budget > 0 && used < budget {
+		videosRemaining = (budget - used) / 750
+	}
+
+	return c.JSON(fiber.Map{
+		"running":           h.importer.IsSEOBackfillRunning(),
+		"tokens_used":       used,
+		"tokens_budget":     budget,
+		"tokens_percent":    pct,
+		"videos_remaining":  videosRemaining,
+		"total_processed":   total,
+		"total_updated":     updated,
+		"total_rejected":    rejected,
+		"total_errors":      errored,
+	})
+}
+
+// GetAISEOLogs handles GET /api/admin/ai-seo/logs
+func (h *Handler) GetAISEOLogs(c *fiber.Ctx) error {
+	status := c.Query("status", "")
+	page := c.QueryInt("page", 1)
+	perPage := c.QueryInt("per_page", 50)
+
+	logs, total, err := h.db.ListAISEOLogs(c.Context(), status, page, perPage)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get logs"})
+	}
+
+	return c.JSON(fiber.Map{
+		"logs":     logs,
+		"total":    total,
+		"page":     page,
+		"per_page": perPage,
 	})
 }
 

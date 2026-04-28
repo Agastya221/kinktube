@@ -171,6 +171,38 @@ export interface AdminSessionResponse {
 export interface AdminImportStatusResponse {
   running: boolean;
   seo_backfill_running?: boolean;
+  token_budget_status?: string;
+}
+
+export interface AISEOStatusResponse {
+  running: boolean;
+  tokens_used: number;
+  tokens_budget: number;
+  tokens_percent: number;
+  videos_remaining: number;
+  total_processed: number;
+  total_updated: number;
+  total_rejected: number;
+  total_errors: number;
+}
+
+export interface AISEOLog {
+  id: number;
+  video_id: number;
+  video_title: string;
+  status: "updated" | "rejected" | "error";
+  old_description: string;
+  new_description: string;
+  safety_notes: string;
+  tokens_used: number;
+  processed_at: string;
+}
+
+export interface AISEOLogsResponse {
+  logs: AISEOLog[];
+  total: number;
+  page: number;
+  per_page: number;
 }
 
 export interface AdminSEOMetadata {

@@ -297,4 +297,6 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	admin.Post("/import/light", h.TriggerLightImport)
 	admin.Get("/import/status", h.GetImportStatus)
 	admin.Post("/seo/generate", h.GenerateAdminSEO)
+	admin.Get("/ai-seo/status", h.GetAISEOStatus)
+	admin.Get("/ai-seo/logs", h.GetAISEOLogs)
 }
