@@ -26,7 +26,7 @@ func TestUnsafeSEOInputRejectsMinorAndNonConsentSignals(t *testing.T) {
 		title string
 		tags  []string
 	}{
-		{name: "minor signal", title: "Teen bondage scene"},
+		{name: "minor signal", title: "Underage bondage scene"},
 		{name: "non consent signal", title: "BDSM scene", tags: []string{"non consensual"}},
 	}
 
@@ -42,7 +42,7 @@ func TestUnsafeSEOInputRejectsMinorAndNonConsentSignals(t *testing.T) {
 func TestUnsafeSEOInputAllowsConsensualBDSMTerms(t *testing.T) {
 	_, rejected := unsafeSEOInput(
 		"Strict mistress bondage training",
-		[]string{"femdom", "bondage"},
+		[]string{"femdom", "bondage", "teen"},
 		[]string{"slave roleplay", "orgasm control", "spanking"},
 	)
 	if rejected {
