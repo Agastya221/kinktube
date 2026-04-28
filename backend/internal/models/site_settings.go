@@ -211,7 +211,7 @@ func DefaultSiteSettings(cfg *config.Config) *SiteSettings {
 			VideoBanner: AdSlotSettings{
 				Enabled: strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_VIDEO_BANNER")) != "",
 				ZoneID:  strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_VIDEO_BANNER")),
-				Label:   "Video Page Banner",
+				Label:   "Video Player Ad",
 			},
 			MobileBanner: AdSlotSettings{
 				Enabled: strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_MOBILE_BANNER")) != "",

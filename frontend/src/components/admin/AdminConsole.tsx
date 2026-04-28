@@ -759,7 +759,7 @@ export default function AdminConsole() {
                   ["sidebar", "Sidebar"],
                   ["native", "Native"],
                   ["popunder", "Popunder"],
-                  ["video_banner", "Video Banner"],
+                  ["video_banner", "Video Player Ad"],
                   ["mobile_banner", "Mobile Banner"],
                 ] as const).map(([key, label]) => {
                   const slot = settings.ads[key];

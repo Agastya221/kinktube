@@ -111,7 +111,7 @@ export const fallbackPublicSiteSettings: PublicSiteSettings = {
     sidebar: { enabled: false, zone_id: "", label: "Sidebar" },
     native: { enabled: false, zone_id: "", label: "Native Sponsored Block" },
     popunder: { enabled: false, zone_id: "", label: "Popunder" },
-    video_banner: { enabled: false, zone_id: "", label: "Video Page Banner" },
+    video_banner: { enabled: false, zone_id: "", label: "Video Player Ad" },
     mobile_banner: { enabled: false, zone_id: "", label: "Mobile Banner" },
   },
   legal: {

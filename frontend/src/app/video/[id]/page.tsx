@@ -265,10 +265,6 @@ export default async function VideoPage({ params }: VideoPageProps) {
             {/* Comments Section */}
             <Comments videoId={video.id} />
 
-            {/* Ad Banners */}
-            <div className="hidden md:block">
-              <AdBanner position="video" />
-            </div>
             <div className="md:hidden">
               <AdBanner position="mobile" />
             </div>

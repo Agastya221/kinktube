@@ -46,7 +46,7 @@ const getAdConfig = (
     "sidebar": { width: 300, height: 250 },
     "native": { width: 300, height: 250 },
     "popunder": { width: 0, height: 0 },
-    "video-banner": { width: 468, height: 60 },
+    "video-banner": { width: 308, height: 298 },
     "mobile-banner": { width: 320, height: 50 },
   };
 
@@ -218,19 +218,13 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
     "sidebar": "w-[300px] h-[250px]",
     "native": "w-full max-w-[300px] min-h-[250px]",
     "popunder": "hidden",
-    "video-banner": "w-full max-w-[468px] h-[60px] mx-auto",
+    "video-banner": "w-[308px] max-w-[92vw] h-[298px] mx-auto",
     "mobile-banner": "w-full max-w-[320px] h-[50px] mx-auto md:hidden",
   };
 
   if (!config) {
     return fallback ? <>{fallback}</> : null;
   }
-
-  const placeholder = (
-    <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded border border-border bg-background-tertiary/60 text-[10px] uppercase tracking-[0.18em] text-foreground-muted">
-      Sponsored
-    </div>
-  );
 
   if (hasError && fallback) {
     return <>{fallback}</>;
@@ -241,7 +235,6 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
       className={`sponsor-placement ${sizeClasses[format]} ${className}`}
       data-placement={format}
     >
-      {placeholder}
       <div
         ref={adRef}
         className="relative z-10 flex h-full w-full items-center justify-center"
