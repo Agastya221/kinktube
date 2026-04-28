@@ -48,10 +48,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Video pages — fetch in parallel batches, cap at 20 pages × 500 = 10,000 videos
-  // Each batch of 5 pages runs in parallel; timeout per fetch = 10s
   const videoPages: MetadataRoute.Sitemap = [];
   const PER_PAGE = 500;
-  const MAX_PAGES = 20; // 10,000 videos max per sitemap response
+  const MAX_PAGES = 20;
 
   try {
     const statsRes = await fetch(`${SERVER_API}/api/stats`, {

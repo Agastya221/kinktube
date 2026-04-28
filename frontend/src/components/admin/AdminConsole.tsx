@@ -428,6 +428,80 @@ export default function AdminConsole() {
     }
   };
 
+  // ── Export helpers ─────────────────────────────────────────────────────────
+  const [exportLoading, setExportLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  const copyToClipboard = (text: string) => navigator.clipboard.writeText(text);
+
+  const handleCopyEntry = async (entry: AISEOLog) => {
+    const text = JSON.stringify({
+      video_id: entry.video_id,
+      title: entry.video_title,
+      status: entry.status,
+      safety_notes: entry.safety_notes || null,
+      old_description: entry.old_description || null,
+      new_description: entry.new_description || null,
+    }, null, 2);
+    await copyToClipboard(text);
+    setCopiedId(entry.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // Fetch ALL logs matching current filter and export as CSV or JSON
+  const handleExport = async (format: "csv" | "json") => {
+    setExportLoading(true);
+    try {
+      const data = await getAISEOLogs(aiSeoFilter, 1, 5000);
+      const logs = data.logs;
+      if (format === "json") {
+        const blob = new Blob([JSON.stringify(logs, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `seo-logs-${aiSeoFilter || "all"}-${new Date().toISOString().split("T")[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        // CSV
+        const header = ["video_id","video_title","status","new_description","safety_notes","processed_at"];
+        const rows = logs.map((l) => [
+          l.video_id,
+          `"${(l.video_title || "").replace(/"/g, '""')}"`,
+          l.status,
+          `"${(l.new_description || "").replace(/"/g, '""')}"`,
+          `"${(l.safety_notes || "").replace(/"/g, '""')}"`,
+          l.processed_at,
+        ]);
+        const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `seo-logs-${aiSeoFilter || "all"}-${new Date().toISOString().split("T")[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      alert("Export failed — try again");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleCopyAllVisible = async () => {
+    const text = JSON.stringify(aiSeoLogs.map((l) => ({
+      video_id: l.video_id,
+      title: l.video_title,
+      status: l.status,
+      new_description: l.new_description || null,
+      safety_notes: l.safety_notes || null,
+    })), null, 2);
+    await copyToClipboard(text);
+    setAiSeoActionMsg("Copied current page to clipboard!");
+    setTimeout(() => setAiSeoActionMsg(null), 2000);
+  };
+
   if (loading && !session) {
     return <div className="min-h-screen bg-background text-foreground p-8">Loading admin…</div>;
   }
@@ -811,8 +885,8 @@ export default function AdminConsole() {
 
               {/* Activity Log */}
               <SectionCard title="Activity Log" description="Every video processed by the AI SEO pipeline with before and after descriptions.">
-                {/* Filter tabs */}
-                <div className="flex flex-wrap gap-2">
+                {/* Filter tabs + Export controls */}
+                <div className="flex flex-wrap gap-2 items-center">
                   {[
                     { label: "All", value: "" },
                     { label: "Updated", value: "updated" },
@@ -832,9 +906,40 @@ export default function AdminConsole() {
                       {f.label}
                     </button>
                   ))}
-                  <span className="ml-auto text-xs text-foreground-muted self-center">
+                  <span className="text-xs text-foreground-muted self-center">
                     {aiSeoLogsTotal.toLocaleString()} entries
                   </span>
+
+                  {/* Export + Copy controls */}
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      id="btn-copy-visible-logs"
+                      type="button"
+                      onClick={handleCopyAllVisible}
+                      disabled={aiSeoLogs.length === 0}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border bg-background hover:border-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      📋 Copy Page
+                    </button>
+                    <button
+                      id="btn-export-csv"
+                      type="button"
+                      onClick={() => handleExport("csv")}
+                      disabled={exportLoading || aiSeoLogsTotal === 0}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border bg-background hover:border-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {exportLoading ? "…" : "⬇ CSV"}
+                    </button>
+                    <button
+                      id="btn-export-json"
+                      type="button"
+                      onClick={() => handleExport("json")}
+                      disabled={exportLoading || aiSeoLogsTotal === 0}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border bg-background hover:border-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {exportLoading ? "…" : "⬇ JSON"}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Log entries */}
@@ -897,9 +1002,16 @@ export default function AdminConsole() {
                               </div>
                             </div>
 
-                            <div className="flex gap-4 text-xs text-foreground-muted">
+                            <div className="flex gap-4 text-xs text-foreground-muted items-center">
                               <span>Tokens: ~{entry.tokens_used}</span>
                               <span>Processed: {new Date(entry.processed_at).toLocaleString()}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyEntry(entry)}
+                                className="ml-auto px-3 py-1 rounded-lg border border-border bg-background hover:border-accent text-xs font-medium transition-colors"
+                              >
+                                {copiedId === entry.id ? "✓ Copied!" : "📋 Copy Entry"}
+                              </button>
                             </div>
                           </div>
                         )}
