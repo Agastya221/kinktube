@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Video } from "@/lib/types";
 import VideoGrid from "./VideoGrid";
 import { Loader2 } from "lucide-react";
+import { getRelatedVideos } from "@/lib/api";
 
 interface PaginatedRelatedVideosProps {
   videoId: number;
@@ -24,10 +25,7 @@ export default function PaginatedRelatedVideos({
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/videos/${videoId}/related?page=${page}&limit=24`);
-      if (!res.ok) throw new Error("Failed to fetch more related videos");
-      
-      const data = await res.json();
+      const data = await getRelatedVideos(videoId, 24, page);
       const newVideos = data.videos || [];
       
       if (newVideos.length === 0) {

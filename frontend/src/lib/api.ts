@@ -85,8 +85,15 @@ export async function getVideo(id: string | number): Promise<Video> {
   return fetchAPI<Video>(`/api/videos/${encodeURIComponent(String(id))}`);
 }
 
-export async function getRelatedVideos(id: string | number, limit = 12): Promise<RelatedVideosResponse> {
-  return fetchAPI<RelatedVideosResponse>(`/api/videos/${encodeURIComponent(String(id))}/related?limit=${limit}`);
+export async function getRelatedVideos(id: string | number, limit = 12, page = 1): Promise<RelatedVideosResponse> {
+  const searchParams = new URLSearchParams({
+    limit: String(limit),
+    page: String(page),
+  });
+
+  return fetchAPI<RelatedVideosResponse>(
+    `/api/videos/${encodeURIComponent(String(id))}/related?${searchParams.toString()}`
+  );
 }
 
 // Category API functions
