@@ -451,6 +451,7 @@ func (db *PostgresDB) UpdateVideoDescription(ctx context.Context, id int64, desc
 }
 
 // ListVideosMissingDescriptions returns visible videos that still need cached AI SEO text.
+// It excludes videos that have already been rejected by the AI pipeline to avoid infinite retry loops.
 func (db *PostgresDB) ListVideosMissingDescriptions(ctx context.Context, limit int) ([]models.Video, error) {
 	if limit < 1 {
 		limit = 25
@@ -467,6 +468,9 @@ func (db *PostgresDB) ListVideosMissingDescriptions(ctx context.Context, limit i
 		WHERE is_english = TRUE
 		AND is_available = TRUE
 		AND (description IS NULL OR btrim(description) = '')
+		AND id NOT IN (
+			SELECT DISTINCT video_id FROM ai_seo_logs WHERE status = 'rejected'
+		)
 		ORDER BY added_at DESC
 		LIMIT $1
 	`, limit)
