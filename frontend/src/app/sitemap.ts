@@ -17,7 +17,7 @@ const VIDEOS_PER_SITEMAP = 1000;
 export async function generateSitemaps() {
   try {
     const stats = await getStatsServer();
-    const totalSitemaps = Math.ceil(stats.videos / VIDEOS_PER_SITEMAP);
+    const totalSitemaps = Math.ceil(stats.total_videos / VIDEOS_PER_SITEMAP);
     
     // Create an array of sitemap IDs: [{ id: 0 }, { id: 1 }, ... ]
     // id 0 will hold static pages & categories. id 1+ will hold videos.
@@ -67,12 +67,12 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
     const videoData = await getVideosServer({
       page: id,
       per_page: VIDEOS_PER_SITEMAP,
-      sort: "newest"
+      sort: "latest"
     });
 
     return videoData.videos.map((video) => ({
       url: `${siteURL}/video/${video.id}`,
-      lastModified: video.created_at ? new Date(video.created_at) : now,
+      lastModified: new Date(video.last_updated_at || video.added_at || now),
       changeFrequency: "weekly",
       priority: 0.7,
     }));
