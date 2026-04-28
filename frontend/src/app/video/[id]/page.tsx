@@ -180,9 +180,6 @@ export default async function VideoPage({ params }: VideoPageProps) {
               <VideoPlayer
                 embedUrl={video.embed_url}
                 title={video.title}
-                thumbnailUrl={getBestDisplayThumbnailUrl(video)}
-                videoId={video.id}
-                externalId={video.external_id}
               />
             </div>
 

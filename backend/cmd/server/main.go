@@ -280,7 +280,6 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	api.Get("/videos/:id/related", h.GetRelatedVideos)
 	api.Get("/videos/:id/affiliates", h.GetAffiliateLinks)
 	api.Post("/videos/:id/unavailable", h.ReportVideoUnavailable) // frontend reports dead embeds
-	api.Get("/videos/:id/stream", h.GetVideoStream)               // resolve direct HLS/MP4 stream URL
 	api.Get("/videos/:id/comments", h.GetVideoComments)
 	api.Post("/videos/:id/comments", h.AddVideoComment)
 	api.Get("/categories", h.GetCategories)
