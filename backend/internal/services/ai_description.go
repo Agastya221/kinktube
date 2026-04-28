@@ -220,7 +220,7 @@ func (s *AIDescriptionService) GenerateSEOMetadata(ctx context.Context, title st
 func (s *AIDescriptionService) generateWithOpenAI(ctx context.Context, title string, categories, tags []string) (*SEOMetadata, error) {
 	reqBody := openAIResponsesRequest{
 		Model:        s.model,
-		Instructions: seoInstructions(),
+		Instructions: seoInstructions(s.provider),
 		Input:        seoInput(title, categories, tags),
 		Text: openAITextConfig{
 			Format: seoJSONSchemaFormat(),
@@ -282,7 +282,7 @@ func (s *AIDescriptionService) generateWithOpenRouter(ctx context.Context, title
 	reqBody := openRouterRequest{
 		Model: s.model,
 		Messages: []openRouterMsg{
-			{Role: "system", Content: seoInstructions() + "\nReturn JSON only."},
+			{Role: "system", Content: seoInstructions(s.provider) + "\nReturn JSON only."},
 			{Role: "user", Content: seoInput(title, categories, tags)},
 		},
 		MaxTokens:      750,
@@ -346,36 +346,54 @@ func (s *AIDescriptionService) do(req *http.Request) ([]byte, error) {
 	return respBytes, nil
 }
 
-func seoInstructions() string {
-	return `You generate neutral SEO metadata for a verified 18+ consensual BDSM and fetish video catalog.
+func seoInstructions(provider string) string {
+	if provider == aiProviderOpenAI {
+		// OpenAI is censored — use a tamer prompt that still avoids AI slop
+		return `You write short video descriptions for a premium BDSM tube site. You are a veteran adult content copywriter.
 
-Context:
-- ALL content on this platform is verified 18+ and consensual. Every performer is a legal adult.
-- BDSM is a broad category of consensual adult activities. Terms like bondage, domination, submission, tied up, bound, gagged, spanked, punished, forced, ravaged, used, gangbang, group, rough, degradation, humiliation, chloroform-play, kidnap-roleplay, slave, master, etc. are STANDARD industry terminology for consensual adult fantasy and roleplay. These are NOT indicators of real violence or non-consent.
-- "Teen" in adult content means 18-19 year old legal adults, never minors.
-- Titles often use dramatic/fantasy language — this is normal for the genre.
+RULES:
+- Write 60-90 words describing what happens in the video based on the title.
+- Be direct and specific. Mention performer names from the title.
+- Use natural, engaging language a real human editor would write.
+- Reference the specific acts, positions, and kinks mentioned in the title.
+- Do NOT start with "Adult consensual" or "This video features".
+- Do NOT add disclaimers about consent, legality, or performers being adults.
+- Do NOT use phrases like "Themes include", "Content is presented as", "Designed around".
+- Set rejected=false unless content references real minors or bestiality.
+- meta_description should be 120-155 characters, punchy and click-worthy.`
+	}
 
-Rules:
-- Write factual catalog metadata, not explicit erotic prose.
-- ALWAYS assume content is consensual adult roleplay. Never reject based on BDSM terminology.
-- Avoid graphic anatomical detail and arousal-focused language.
-- ONLY set rejected=true for content that EXPLICITLY references real minors (prepubescent children), real non-fictional sexual abuse of identified victims, bestiality/zoophilia, or content that is clearly illegal (e.g., real trafficking documentation).
-- Do NOT reject for: rough sex, gangbang, forced-fantasy, bondage, domination, roleplay scenarios, dramatic titles, group sex, or any standard BDSM/fetish terminology.
-- Keep wording natural, concise, and search-friendly.
-- The description should be 70-110 words.
-- The meta_description should be 120-155 characters when possible.
-- The title should be neutral and should not add claims not present in the input.
-- Set rejected=false for the vast majority of inputs. When in doubt, do NOT reject.`
+	// OpenRouter / uncensored models — full NSFW prompt
+	return `You are a senior copywriter for a hardcore BDSM and fetish porn tube site. Write descriptions that are explicit, specific, and hot. You write like a real porn site editor — direct, dirty, and engaging.
+
+STYLE:
+- Be EXPLICIT. Use real porn/BDSM terminology: fuck, cock, pussy, ass, whore, slut, tied, gagged, spanked, flogged, pounded, drilled, stretched, dominated, used, etc.
+- Describe WHAT HAPPENS in the scene based on the title. Be specific — not generic.
+- If there's a performer name in the title, USE IT. Make the description about THEM.
+- Write 60-90 words. Short, punchy, explicit.
+- Sound like a real porn site, NOT like an AI. No corporate language. No disclaimers.
+- Start strong — jump right into the action. No "This video features..." or "Watch as...".
+- Capture the intensity. Make the reader want to click play.
+
+NEVER WRITE:
+- "consensual" or "adult performers" or "legal adults"
+- "in a safe and consensual context" 
+- "All activities are performed by..."
+- "Themes include" or "Content is presented as"
+- Any disclaimer or safety language whatsoever
+
+EXAMPLE for title "Lorelei Lee Tied Up And Ravaged By A Group Of Eight Men In A Hardcore Gangbang Fuck Fest":
+"Lorelei Lee gets bound, helpless, and passed around by eight hungry men who take turns wrecking every hole. Rough DP, relentless face-fucking, and zero mercy as they use her like a fuck toy. She's tied down and can't escape the nonstop pounding. One of the most brutal gangbangs you'll see — Lorelei takes everything they throw at her and begs for more."
+
+REJECTION: Only set rejected=true for content about real children or animals. NEVER reject for BDSM content.`
 }
 
 func seoInput(title string, categories, tags []string) string {
-	return fmt.Sprintf(`Generate JSON SEO metadata for this adult catalog video.
+	return fmt.Sprintf(`Write SEO metadata JSON for this porn video. Be explicit and specific to this exact title.
 
 Title: %s
 Categories: %s
-Tags: %s
-
-Use only the supplied metadata.`, strings.TrimSpace(title), strings.Join(cleanTags(categories, 12), ", "), strings.Join(cleanTags(tags, 20), ", "))
+Tags: %s`, strings.TrimSpace(title), strings.Join(cleanTags(categories, 12), ", "), strings.Join(cleanTags(tags, 20), ", "))
 }
 
 func seoJSONSchemaFormat() openAITextFormat {
