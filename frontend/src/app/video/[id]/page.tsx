@@ -277,10 +277,7 @@ export default async function VideoPage({ params }: VideoPageProps) {
           {/* Sidebar */}
           <aside className="lg:col-span-1 space-y-6">
             <div className="hidden lg:block">
-              <SidebarAds count={1} />
-            </div>
-            <div className="hidden lg:block">
-              <SidebarAds count={1} />
+              <SidebarAds count={2} />
             </div>
           </aside>
         </div>

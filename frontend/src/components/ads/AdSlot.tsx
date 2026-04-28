@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSiteSettings } from "@/components/SiteSettingsProvider";
 
 // Ad network configurations
@@ -160,15 +160,16 @@ const generateAdCode = (config: AdConfig): string => {
 
 export default function AdSlot({ format, className = "", fallback }: AdSlotProps) {
   const siteSettings = useSiteSettings();
-  const config = getAdConfig(format, siteSettings);
+  const config = useMemo(
+    () => getAdConfig(format, siteSettings),
+    [format, siteSettings]
+  );
   const adRef = useRef<HTMLDivElement>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (!config || !adRef.current) {
       setHasError(true);
-      setIsLoaded(false);
       return;
     }
 
@@ -179,13 +180,11 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
 
     try {
       setHasError(false);
-      setIsLoaded(false);
       adRef.current.innerHTML = "";
 
       if (config.network === "juicyads") {
         if (!renderJuicyAds(adRef.current, config)) {
           setHasError(true);
-          setIsLoaded(false);
           return;
         }
       } else {
@@ -206,7 +205,6 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
         });
       }
 
-      setIsLoaded(true);
     } catch {
       setHasError(true);
     }
@@ -243,7 +241,7 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
       className={`sponsor-placement ${sizeClasses[format]} ${className}`}
       data-placement={format}
     >
-      {(hasError || !isLoaded) ? placeholder : null}
+      {placeholder}
       <div
         ref={adRef}
         className="relative z-10 flex h-full w-full items-center justify-center"

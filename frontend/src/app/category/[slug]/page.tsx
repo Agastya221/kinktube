@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import VideoGrid from "@/components/VideoGrid";
 import CategoryNav from "@/components/CategoryNav";
 import Pagination from "@/components/Pagination";
-import { AdBanner } from "@/components/ads";
+import { AdBanner, NativeAd } from "@/components/ads";
 import { SortSelect } from "@/components/SortSelect";
 import { getVideosServer, getCategoriesServer, getPublicSiteSettingsServer } from "@/lib/api";
 import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
@@ -292,6 +292,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       </section>
 
       <VideoGrid videos={videosData.videos} />
+
+      {videosData.videos.length > 12 ? (
+        <div className="my-8 flex justify-center">
+          <NativeAd className="max-w-sm" />
+        </div>
+      ) : null}
 
       {!videosData.videos.length ? null : (
         <Suspense fallback={null}>
