@@ -41,9 +41,14 @@ export default function PlayerAd({ onComplete }: PlayerAdProps) {
   }
 
   return (
-    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black px-3">
-      <div className="w-[308px] max-w-[92vw] overflow-hidden rounded-md bg-black shadow-2xl">
-        <AdSlot format="video-banner" />
+    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black px-3 sm:px-6">
+      <div className="flex w-full max-w-2xl flex-col items-center justify-center rounded-xl border border-white/10 bg-zinc-950 px-3 py-4 shadow-2xl sm:px-6 sm:py-6">
+        <div className="mb-3 hidden text-xs font-medium uppercase tracking-[0.18em] text-white/50 sm:block">
+          Advertisement
+        </div>
+        <div className="w-[308px] max-w-[92vw] overflow-hidden rounded-md bg-black">
+          <AdSlot format="video-banner" />
+        </div>
       </div>
       <div className="mt-3 flex h-9 items-center justify-center">
         <button

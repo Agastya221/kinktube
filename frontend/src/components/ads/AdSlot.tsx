@@ -126,18 +126,41 @@ function renderJuicyAds(parent: HTMLElement, config: AdConfig): boolean {
   return true;
 }
 
+function renderExoClick(parent: HTMLElement, config: AdConfig): boolean {
+  const zoneId = config.zoneId.trim();
+
+  if (config.format === "popunder") {
+    return false;
+  }
+
+  if (!isNumericZoneId(zoneId)) {
+    return false;
+  }
+
+  appendScript(parent, {
+    src: "https://a.magsrv.com/ad-provider.js",
+    attrs: {
+      async: "async",
+    },
+  });
+
+  const ins = document.createElement("ins");
+  ins.className = "eas6a97888e";
+  ins.setAttribute("data-zoneid", zoneId);
+  parent.appendChild(ins);
+
+  appendScript(parent, {
+    text: `(AdProvider = window.AdProvider || []).push({"serve": {}});`,
+  });
+
+  return true;
+}
+
 // Generate ad code based on network
 const generateAdCode = (config: AdConfig): string => {
   switch (config.network) {
     case "exoclick":
-      return `
-        <script type="text/javascript">
-          var ad_idzone = "${config.zoneId}";
-          var ad_width = "${config.width}";
-          var ad_height = "${config.height}";
-        </script>
-        <script type="text/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
-      `;
+      return "";
 
     case "trafficjunky":
       return `
@@ -184,6 +207,11 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
 
       if (config.network === "juicyads") {
         if (!renderJuicyAds(adRef.current, config)) {
+          setHasError(true);
+          return;
+        }
+      } else if (config.network === "exoclick") {
+        if (!renderExoClick(adRef.current, config)) {
           setHasError(true);
           return;
         }

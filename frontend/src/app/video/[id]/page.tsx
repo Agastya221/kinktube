@@ -183,6 +183,10 @@ export default async function VideoPage({ params }: VideoPageProps) {
               />
             </div>
 
+            <div className="md:hidden">
+              <AdBanner position="mobile" />
+            </div>
+
             {/* Affiliate Buttons */}
             <AffiliateButtons
               links={affiliate_links}
@@ -264,10 +268,6 @@ export default async function VideoPage({ params }: VideoPageProps) {
 
             {/* Comments Section */}
             <Comments videoId={video.id} />
-
-            <div className="md:hidden">
-              <AdBanner position="mobile" />
-            </div>
           </div>
 
           {/* Sidebar */}
