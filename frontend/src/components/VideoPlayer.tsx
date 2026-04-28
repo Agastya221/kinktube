@@ -9,7 +9,6 @@ import {
   VolumeX,
   Maximize2,
   Minimize2,
-  AlertTriangle,
   Settings,
   RotateCcw,
   Loader2,
@@ -93,9 +92,6 @@ export default function VideoPlayer({
   const [isBuffering, setIsBuffering] = useState(false);
   const [qualityLevels, setQualityLevels] = useState<string[]>([]);
   const [showQuality, setShowQuality] = useState(false);
-  const [isUnavailable, setIsUnavailable] = useState(false);
-
-  const reportedRef = useRef(false);
 
   // ── thumbnail URL ─────────────────────────────────────────────────────────
   const displayThumbnail = getDisplayThumbnailUrl(thumbnailUrl);
@@ -147,6 +143,21 @@ export default function VideoPlayer({
 
     const video = videoRef.current;
 
+    // Watchdog: if canplay never fires within 10s, fall back to iframe
+    let watchdog: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      setPhase("iframe_fallback");
+    }, 10000);
+
+    const clearWatchdog = () => {
+      if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+    };
+
+    const onCanPlayOnce = () => {
+      clearWatchdog();
+      setIsBuffering(false);
+    };
+    video.addEventListener("canplay", onCanPlayOnce, { once: true });
+
     const attachDirect = () => {
       video.src = streamUrl;
       if (autoplay) video.play().catch(() => {});
@@ -154,14 +165,14 @@ export default function VideoPlayer({
 
     if (streamType === "mp4") {
       attachDirect();
-      return;
+      return () => { clearWatchdog(); video.removeEventListener("canplay", onCanPlayOnce); };
     }
 
     // HLS stream
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       // Safari — native HLS support
       attachDirect();
-      return;
+      return () => { clearWatchdog(); video.removeEventListener("canplay", onCanPlayOnce); };
     }
 
     // Other browsers — use hls.js
@@ -175,6 +186,10 @@ export default function VideoPlayer({
         enableWorker: true,
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
+        // Pass Referer so Eporner CDN accepts segment requests
+        xhrSetup: (xhr: XMLHttpRequest) => {
+          xhr.setRequestHeader("Referer", "https://www.eporner.com/");
+        },
       });
 
       hlsRef.current = hls;
@@ -192,18 +207,20 @@ export default function VideoPlayer({
 
       hls.on(Hls.Events.ERROR, (_, data: { fatal?: boolean }) => {
         if (data.fatal) {
-          // Fatal error — report unavailable and fall back to iframe
-          setIsUnavailable(true);
-          if (videoId && !reportedRef.current) {
-            reportedRef.current = true;
-            fetch(`${API_BASE}/api/videos/${videoId}/unavailable`, { method: "POST" }).catch(() => {});
-          }
+          // Don't mark video as permanently unavailable — HLS may fail due to
+          // CORS/CDN restrictions. Just silently fall back to the embed iframe.
+          clearWatchdog();
+          const hlsInst = hlsRef.current as { destroy?: () => void } | null;
+          if (hlsInst?.destroy) hlsInst.destroy();
+          hlsRef.current = null;
           setPhase("iframe_fallback");
         }
       });
     });
 
     return () => {
+      clearWatchdog();
+      video.removeEventListener("canplay", onCanPlayOnce);
       const hls = hlsRef.current as { destroy?: () => void } | null;
       if (hls?.destroy) hls.destroy();
       hlsRef.current = null;
@@ -405,25 +422,7 @@ export default function VideoPlayer({
     );
   }
 
-  // ── [C] Unavailable ───────────────────────────────────────────────────────
-  if (isUnavailable) {
-    return (
-      <div className="video-player-wrapper relative">
-        <div
-          className="relative w-full overflow-hidden rounded-lg bg-background-secondary flex flex-col items-center justify-center gap-3"
-          style={{ aspectRatio: "16 / 9" }}
-        >
-          <AlertTriangle className="w-12 h-12 text-red-500/70" />
-          <p className="text-base font-semibold text-foreground">Video Unavailable</p>
-          <p className="text-sm text-center max-w-xs px-4 text-foreground-muted">
-            This video has been removed from the source and will be cleaned up shortly.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── [D] Iframe fallback (stream resolve failed) ───────────────────────────
+  // ── [C] Iframe fallback (stream resolve failed or HLS error) ─────────────
   if (phase === "iframe_fallback") {
     const iframeUrl = (() => {
       try {
