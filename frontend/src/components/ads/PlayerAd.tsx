@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import AdSlot from "./AdSlot";
 import { useSiteSettings } from "@/components/SiteSettingsProvider";
@@ -75,9 +75,18 @@ function ExoClickVastPreroll({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [creative, setCreative] = useState<VastCreative | null>(null);
   const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
   const [canSkip, setCanSkip] = useState(false);
+  const completedRef = useRef(false);
   const vastUrl = useMemo(() => buildExoClickVastUrl(zoneId), [zoneId]);
+
+  const completeOnce = useCallback(() => {
+    if (completedRef.current) {
+      return;
+    }
+
+    completedRef.current = true;
+    onComplete();
+  }, [onComplete]);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,7 +109,7 @@ function ExoClickVastPreroll({
       })
       .catch(() => {
         if (!cancelled) {
-          setFailed(true);
+          completeOnce();
         }
       })
       .finally(() => {
@@ -112,7 +121,7 @@ function ExoClickVastPreroll({
     return () => {
       cancelled = true;
     };
-  }, [vastUrl]);
+  }, [completeOnce, vastUrl]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setCanSkip(true), EXOCLICK_SKIP_SECONDS * 1000);
@@ -130,17 +139,8 @@ function ExoClickVastPreroll({
       <div className="relative flex h-full w-full items-center justify-center">
         {loading ? (
           <div className="text-sm text-white/60">Loading ad...</div>
-        ) : failed || !creative ? (
-          <div className="flex flex-col items-center gap-3 text-center">
-            <p className="text-sm text-white/60">Ad unavailable</p>
-            <button
-              type="button"
-              onClick={onComplete}
-              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-            >
-              Continue to Video
-            </button>
-          </div>
+        ) : !creative ? (
+          null
         ) : (
           <button
             type="button"
@@ -154,18 +154,18 @@ function ExoClickVastPreroll({
               autoPlay
               muted
               playsInline
-              onEnded={onComplete}
-              onError={() => setFailed(true)}
+              onEnded={completeOnce}
+              onError={completeOnce}
               className="h-full w-full object-contain"
             />
           </button>
         )}
       </div>
 
-      {!failed && creative ? (
+      {creative ? (
         <button
           type="button"
-          onClick={canSkip ? onComplete : undefined}
+          onClick={canSkip ? completeOnce : undefined}
           disabled={!canSkip}
           className="absolute bottom-3 right-3 rounded-full border border-white/20 bg-black/80 px-4 py-2 text-xs font-semibold text-white transition-colors enabled:hover:bg-white/15 disabled:cursor-not-allowed disabled:text-white/50"
         >
