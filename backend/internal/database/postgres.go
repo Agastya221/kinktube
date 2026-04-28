@@ -69,6 +69,12 @@ type CategoryMenuThumbnailCache struct {
 	QueryKey  string
 }
 
+// SitemapVideo is the minimal shape needed by offline sitemap generation.
+type SitemapVideo struct {
+	ID           int64     `json:"id"`
+	LastModified time.Time `json:"last_modified"`
+}
+
 // NewPostgresDB creates a new database connection pool
 func NewPostgresDB(ctx context.Context, databaseURL string) (*PostgresDB, error) {
 	config, err := pgxpool.ParseConfig(databaseURL)
@@ -182,6 +188,9 @@ func (db *PostgresDB) InitSchema(ctx context.Context) error {
 		ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT TRUE;
 
 		CREATE INDEX IF NOT EXISTS idx_videos_is_available ON videos(is_available);
+		CREATE INDEX IF NOT EXISTS idx_videos_sitemap_visible_id
+			ON videos(id)
+			WHERE is_english = TRUE AND is_available = TRUE;
 
 		CREATE TABLE IF NOT EXISTS video_comments (
 			id BIGSERIAL PRIMARY KEY,
@@ -737,6 +746,44 @@ func (db *PostgresDB) GetTotalVideoCount(ctx context.Context) (int64, error) {
 	var count int64
 	err := db.pool.QueryRow(ctx, "SELECT COUNT(*) FROM videos WHERE is_english = TRUE").Scan(&count)
 	return count, err
+}
+
+// ListSitemapVideos returns a keyset-paginated, minimal list for sitemap generation.
+func (db *PostgresDB) ListSitemapVideos(ctx context.Context, afterID int64, limit int) ([]SitemapVideo, error) {
+	if afterID < 0 {
+		afterID = 0
+	}
+	if limit < 1 {
+		limit = 10000
+	}
+	if limit > 10000 {
+		limit = 10000
+	}
+
+	rows, err := db.pool.Query(ctx, `
+		SELECT id, COALESCE(last_updated_at, added_at, NOW()) AS last_modified
+		FROM videos
+		WHERE is_english = TRUE
+		AND is_available = TRUE
+		AND id > $1
+		ORDER BY id ASC
+		LIMIT $2
+	`, afterID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	videos := make([]SitemapVideo, 0, limit)
+	for rows.Next() {
+		var video SitemapVideo
+		if err := rows.Scan(&video.ID, &video.LastModified); err != nil {
+			return nil, err
+		}
+		videos = append(videos, video)
+	}
+
+	return videos, rows.Err()
 }
 
 // GetRelatedVideos fetches videos related by category or tags

@@ -826,6 +826,30 @@ func (h *Handler) GetStats(c *fiber.Ctx) error {
 	})
 }
 
+// ListSitemapVideos handles GET /api/sitemap/videos for offline sitemap generation.
+func (h *Handler) ListSitemapVideos(c *fiber.Ctx) error {
+	cursor, _ := strconv.ParseInt(c.Query("cursor", "0"), 10, 64)
+	limit, _ := strconv.Atoi(c.Query("limit", "10000"))
+
+	videos, err := h.db.ListSitemapVideos(c.Context(), cursor, limit)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch sitemap videos",
+		})
+	}
+
+	nextCursor := cursor
+	if len(videos) > 0 {
+		nextCursor = videos[len(videos)-1].ID
+	}
+
+	return c.JSON(fiber.Map{
+		"videos":      videos,
+		"next_cursor": nextCursor,
+		"has_more":    len(videos) == limit,
+	})
+}
+
 // TriggerImport handles POST /api/admin/import (protected endpoint)
 func (h *Handler) TriggerImport(c *fiber.Ctx) error {
 	// Check if import is already running
@@ -872,15 +896,15 @@ func (h *Handler) GetAISEOStatus(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"running":           h.importer.IsSEOBackfillRunning(),
-		"tokens_used":       used,
-		"tokens_budget":     budget,
-		"tokens_percent":    pct,
-		"videos_remaining":  videosRemaining,
-		"total_processed":   total,
-		"total_updated":     updated,
-		"total_rejected":    rejected,
-		"total_errors":      errored,
+		"running":          h.importer.IsSEOBackfillRunning(),
+		"tokens_used":      used,
+		"tokens_budget":    budget,
+		"tokens_percent":   pct,
+		"videos_remaining": videosRemaining,
+		"total_processed":  total,
+		"total_updated":    updated,
+		"total_rejected":   rejected,
+		"total_errors":     errored,
 	})
 }
 

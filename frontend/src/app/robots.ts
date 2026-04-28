@@ -1,11 +1,12 @@
 import { MetadataRoute } from "next";
-import { getPublicSiteSettingsServer } from "@/lib/api";
-import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
-export default async function robots(): Promise<MetadataRoute.Robots> {
-  const settings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
-  const siteURL = settings.seo.site_url || fallbackPublicSiteSettings.seo.site_url;
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.SITE_URL ||
+  "https://kinktube.fun"
+).replace(/\/+$/, "");
 
+export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
@@ -18,6 +19,6 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         disallow: ["/"],
       },
     ],
-    sitemap: `${siteURL}/sitemap.xml`,
+    sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

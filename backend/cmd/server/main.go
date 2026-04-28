@@ -287,6 +287,7 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	api.Get("/menu-categories", h.GetMenuCategories)
 	api.Get("/media/thumbnail", h.ProxyThumbnail)
 	api.Get("/stats", h.GetStats)
+	api.Get("/sitemap/videos", h.ListSitemapVideos)
 
 	// Admin routes (in production, add authentication middleware)
 	admin := api.Group("/admin")

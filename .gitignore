@@ -7,6 +7,10 @@ backend/kinktube
 frontend/.next/
 frontend/out/
 backend/.gocache
+frontend/public/sitemaps/sitemap-videos-*.xml
+frontend/public/sitemaps/sitemap-videos-*.xml.gz
+frontend/public/sitemaps/*.xml.gz
+frontend/public/sitemaps/sitemap-manifest.json
 
 # Environment files
 .env
