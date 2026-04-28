@@ -78,7 +78,7 @@ export default function VideoPlayer({
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [streamType, setStreamType] = useState<"hls" | "mp4">("hls");
   const [fallbackEmbedUrl, setFallbackEmbedUrl] = useState<string>(embedUrl);
-  const [errorMessage, setErrorMessage] = useState<string>("");
+
 
   // playback controls state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -92,7 +92,7 @@ export default function VideoPlayer({
   const [isBuffering, setIsBuffering] = useState(false);
   const [qualityLevels, setQualityLevels] = useState<string[]>([]);
   const [showQuality, setShowQuality] = useState(false);
-  const [unavailable, setUnavailable] = useState(false);
+  const [isUnavailable, setIsUnavailable] = useState(false);
 
   const reportedRef = useRef(false);
 
@@ -183,6 +183,7 @@ export default function VideoPlayer({
       hls.on(Hls.Events.ERROR, (_, data: { fatal?: boolean }) => {
         if (data.fatal) {
           // Fatal error — report unavailable and fall back to iframe
+          setIsUnavailable(true);
           if (videoId && !reportedRef.current) {
             reportedRef.current = true;
             fetch(`${API_BASE}/api/videos/${videoId}/unavailable`, { method: "POST" }).catch(() => {});
@@ -244,7 +245,7 @@ export default function VideoPlayer({
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
-    v.paused ? v.play() : v.pause();
+    if (v.paused) { v.play(); } else { v.pause(); }
   };
 
   const toggleMute = () => {
@@ -395,7 +396,7 @@ export default function VideoPlayer({
   }
 
   // ── [C] Unavailable ───────────────────────────────────────────────────────
-  if (unavailable) {
+  if (isUnavailable) {
     return (
       <div className="video-player-wrapper relative">
         <div
