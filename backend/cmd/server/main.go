@@ -74,11 +74,11 @@ func main() {
 	epornerClient := services.NewEpornerClient(cfg.EpornerBaseURL)
 
 	// Initialize AI description service
-	aiService := services.NewAIDescriptionService(cfg.OpenRouterAPIKey, cfg.AIModel)
+	aiService := services.NewAIDescriptionService(cfg.OpenAIAPIKey, cfg.OpenRouterAPIKey, cfg.AIProvider, cfg.AIModel)
 	if aiService.IsEnabled() {
-		log.Printf("AI description service enabled (model: %s)", cfg.AIModel)
+		log.Printf("AI SEO service enabled (provider: %s, model: %s)", aiService.Provider(), aiService.Model())
 	} else {
-		log.Println("AI description service disabled (set OPENROUTER_API_KEY to enable)")
+		log.Println("AI SEO service disabled (set OPENAI_API_KEY or OPENROUTER_API_KEY to enable)")
 	}
 
 	// Initialize importer
@@ -99,7 +99,7 @@ func main() {
 	log.Printf("Affiliate service initialized with %d programs", len(affiliateService.GetAllPrograms()))
 
 	// Initialize handlers
-	handler := handlers.NewHandler(cfg, db, cache, importer, affiliateService, epornerClient, siteSettings)
+	handler := handlers.NewHandler(cfg, db, cache, importer, affiliateService, epornerClient, aiService, siteSettings)
 
 	// Create Fiber app
 	startedAt := time.Now()
@@ -277,4 +277,5 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	admin.Post("/import", h.TriggerImport)
 	admin.Post("/import/light", h.TriggerLightImport)
 	admin.Get("/import/status", h.GetImportStatus)
+	admin.Post("/seo/generate", h.GenerateAdminSEO)
 }

@@ -172,6 +172,34 @@ export interface AdminImportStatusResponse {
   running: boolean;
 }
 
+export interface AdminSEOMetadata {
+  title: string;
+  meta_description: string;
+  description: string;
+  slug: string;
+  tags: string[];
+  category: string;
+  safety_notes: string;
+  rejected: boolean;
+}
+
+export interface AdminSEOGenerateRequest {
+  video_id?: string;
+  title?: string;
+  categories?: string[];
+  tags?: string[];
+  save?: boolean;
+}
+
+export interface AdminSEOGenerateResponse {
+  ok: boolean;
+  provider: string;
+  model: string;
+  seo: AdminSEOMetadata;
+  saved: boolean;
+  video?: Video;
+}
+
 export interface ContactSubmissionRequest {
   type: "content_removal" | "dmca" | "privacy" | "general";
   name?: string;

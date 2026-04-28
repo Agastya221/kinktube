@@ -11,6 +11,8 @@ import type {
   SiteSettings,
   AdminSessionResponse,
   AdminImportStatusResponse,
+  AdminSEOGenerateRequest,
+  AdminSEOGenerateResponse,
   ContactSubmission,
   ContactSubmissionRequest,
   ContactSubmissionsResponse,
@@ -308,5 +310,12 @@ export async function updateAdminContactMessageStatus(id: number, status: Contac
 export async function triggerAdminImport(light = false): Promise<{ message: string; status: string }> {
   return fetchAdminAPI<{ message: string; status: string }>(light ? "/api/admin/import/light" : "/api/admin/import", {
     method: "POST",
+  });
+}
+
+export async function generateAdminSEO(payload: AdminSEOGenerateRequest): Promise<AdminSEOGenerateResponse> {
+  return fetchAdminAPI<AdminSEOGenerateResponse>("/api/admin/seo/generate", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }

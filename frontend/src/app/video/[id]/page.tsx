@@ -37,23 +37,23 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
 
-    // Build SEO-optimised title: Video Title - Category Porn | KinkTube
-    const seoTitle = `${video.title} - Free ${categoryLabel} Porn`;
+    // Build SEO-optimised title in neutral adult catalog language.
+    const seoTitle = `${video.title} - Free ${categoryLabel} BDSM Video`;
 
     // Build rich meta description using category + top tags
     const topTags = video.tags.slice(0, 4).join(", ");
     const seoDescription = video.description
-      ? `${video.description.slice(0, 140)}... Watch free ${categoryLabel} videos on KinkTube.`
-      : `Watch ${video.title} - a ${video.duration_str} free ${categoryLabel} video on KinkTube. Features: ${topTags}. New kink and BDSM content added daily.`;
+      ? `${video.description.slice(0, 140)}... Watch free adult ${categoryLabel} videos on KinkTube.`
+      : `Watch ${video.title} - a ${video.duration_str} free adult ${categoryLabel} video on KinkTube. Features: ${topTags}. New kink and BDSM content added daily.`;
 
     // Keywords from categories + tags (max 15 to avoid stuffing)
     const keywords = [
       ...video.categories,
       ...video.tags.slice(0, 10),
-      "BDSM",
+      "adult BDSM",
       "fetish video",
-      "free bondage",
-      "kink porn",
+      "bondage video",
+      "kink catalog",
     ]
       .filter((v, i, a) => a.indexOf(v) === i) // deduplicate
       .slice(0, 15)
@@ -127,7 +127,7 @@ function generateVideoSchema(video: {
     "@context": "https://schema.org",
     "@type": "VideoObject",
     name: video.title,
-    description: video.description || `Free ${primaryCategory} video on KinkTube. ${video.title}.`,
+    description: video.description || `Free adult ${primaryCategory} video on KinkTube. ${video.title}.`,
     thumbnailUrl: getBestDisplayThumbnailUrl(video),
     // ISO 8601 duration required for Google Rich Results
     duration: `PT${Math.floor(video.duration / 60)}M${video.duration % 60}S`,

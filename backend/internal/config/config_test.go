@@ -19,3 +19,20 @@ func TestLoadImportDepthSettings(t *testing.T) {
 		t.Fatalf("expected LightImportKeywords=55, got %d", cfg.LightImportKeywords)
 	}
 }
+
+func TestLoadPrefersOpenAISEOModelWhenOpenAIKeyExists(t *testing.T) {
+	t.Setenv("AI_PROVIDER", "")
+	t.Setenv("OPENAI_API_KEY", "sk-test")
+	t.Setenv("OPENROUTER_API_KEY", "or-test")
+	t.Setenv("AI_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
+	t.Setenv("OPENAI_SEO_MODEL", "gpt-4o-mini")
+
+	cfg := Load()
+
+	if cfg.OpenAIAPIKey != "sk-test" {
+		t.Fatal("expected OpenAI API key to load")
+	}
+	if cfg.AIModel != "gpt-4o-mini" {
+		t.Fatalf("expected OpenAI SEO model, got %q", cfg.AIModel)
+	}
+}

@@ -8,13 +8,14 @@ import {
   getAdminSettings,
   getCategories,
   getStats,
+  generateAdminSEO,
   loginAdmin,
   logoutAdmin,
   triggerAdminImport,
   updateAdminContactMessageStatus,
   updateAdminSettings,
 } from "@/lib/api";
-import type { AdminImportStatusResponse, AdminSessionResponse, CategoriesResponse, ContactSubmission, SiteSettings, StatsResponse } from "@/lib/types";
+import type { AdminImportStatusResponse, AdminSEOGenerateResponse, AdminSessionResponse, CategoriesResponse, ContactSubmission, SiteSettings, StatsResponse } from "@/lib/types";
 
 const tabs = [
   "overview",
@@ -138,6 +139,13 @@ function ColorField({
   );
 }
 
+function splitList(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export default function AdminConsole() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [session, setSession] = useState<AdminSessionResponse | null>(null);
@@ -151,6 +159,13 @@ export default function AdminConsole() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [seoVideoId, setSeoVideoId] = useState("");
+  const [seoTitle, setSeoTitle] = useState("");
+  const [seoCategories, setSeoCategories] = useState("bdsm");
+  const [seoTags, setSeoTags] = useState("");
+  const [seoSave, setSeoSave] = useState(false);
+  const [seoGenerating, setSeoGenerating] = useState(false);
+  const [seoResult, setSeoResult] = useState<AdminSEOGenerateResponse | null>(null);
 
   const isAuthenticated = !!session?.authenticated;
 
@@ -308,6 +323,28 @@ export default function AdminConsole() {
       setImportStatus({ running: true });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Failed to trigger import.");
+    }
+  };
+
+  const handleGenerateSEO = async () => {
+    setSeoGenerating(true);
+    setSeoResult(null);
+    setNotice(null);
+
+    try {
+      const response = await generateAdminSEO({
+        video_id: seoVideoId.trim() || undefined,
+        title: seoTitle.trim() || undefined,
+        categories: splitList(seoCategories),
+        tags: splitList(seoTags),
+        save: seoSave,
+      });
+      setSeoResult(response);
+      setNotice(response.saved ? "Generated SEO description saved." : "Generated SEO preview ready.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Failed to generate SEO metadata.");
+    } finally {
+      setSeoGenerating(false);
     }
   };
 
@@ -537,19 +574,64 @@ export default function AdminConsole() {
           )}
 
           {activeTab === "seo" && (
-            <SectionCard title="SEO" description="Runtime metadata, sitemap domain, and social copy.">
-              <div className="grid gap-4 md:grid-cols-2">
-                <TextField label="Site URL" value={settings.seo.site_url} onChange={(value) => setNestedValue("seo", "site_url", value)} />
-                <TextField label="Title Template" value={settings.seo.title_template} onChange={(value) => setNestedValue("seo", "title_template", value)} />
-                <TextField label="Default Title" value={settings.seo.default_title} onChange={(value) => setNestedValue("seo", "default_title", value)} />
-                <TextField label="Open Graph Title" value={settings.seo.open_graph_title} onChange={(value) => setNestedValue("seo", "open_graph_title", value)} />
-                <TextField label="Twitter Title" value={settings.seo.twitter_title} onChange={(value) => setNestedValue("seo", "twitter_title", value)} />
-              </div>
-              <TextField label="Default Description" value={settings.seo.default_description} onChange={(value) => setNestedValue("seo", "default_description", value)} multiline />
-              <TextField label="Open Graph Description" value={settings.seo.open_graph_description} onChange={(value) => setNestedValue("seo", "open_graph_description", value)} multiline />
-              <TextField label="Twitter Description" value={settings.seo.twitter_description} onChange={(value) => setNestedValue("seo", "twitter_description", value)} multiline />
-              <TextField label="Default Keywords (comma separated)" value={keywordText} onChange={(value) => setSettings((prev) => prev ? ({ ...prev, seo: { ...prev.seo, default_keywords: value.split(",").map((item) => item.trim()).filter(Boolean) } }) : prev)} multiline />
-            </SectionCard>
+            <>
+              <SectionCard title="AI SEO Test" description="Generate neutral adult catalog text for a video page.">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <TextField label="Video ID or External ID" value={seoVideoId} onChange={setSeoVideoId} />
+                  <ToggleField label="Save To Video Description" checked={seoSave} onChange={setSeoSave} />
+                </div>
+                <TextField label="Title Override" value={seoTitle} onChange={setSeoTitle} />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <TextField label="Categories" value={seoCategories} onChange={setSeoCategories} />
+                  <TextField label="Tags" value={seoTags} onChange={setSeoTags} />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGenerateSEO}
+                  disabled={seoGenerating}
+                  className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
+                >
+                  {seoGenerating ? "Generating..." : "Generate SEO"}
+                </button>
+
+                {seoResult ? (
+                  <div className="rounded-2xl border border-border bg-background p-4 text-sm">
+                    <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.2em] text-foreground-muted">
+                      <span>{seoResult.provider}</span>
+                      <span>{seoResult.model}</span>
+                      <span>{seoResult.saved ? "saved" : seoResult.ok ? "preview" : "rejected"}</span>
+                    </div>
+                    <h3 className="mt-3 text-base font-semibold">{seoResult.seo.title}</h3>
+                    <p className="mt-2 text-foreground-muted">{seoResult.seo.meta_description}</p>
+                    <p className="mt-3 whitespace-pre-line leading-relaxed text-foreground">{seoResult.seo.description}</p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-foreground-muted">
+                      {seoResult.seo.tags.map((tag) => (
+                        <span key={tag} className="rounded-full border border-border px-2 py-1">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    {seoResult.seo.safety_notes ? (
+                      <p className="mt-3 text-sm text-foreground-muted">{seoResult.seo.safety_notes}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </SectionCard>
+
+              <SectionCard title="SEO" description="Runtime metadata, sitemap domain, and social copy.">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <TextField label="Site URL" value={settings.seo.site_url} onChange={(value) => setNestedValue("seo", "site_url", value)} />
+                  <TextField label="Title Template" value={settings.seo.title_template} onChange={(value) => setNestedValue("seo", "title_template", value)} />
+                  <TextField label="Default Title" value={settings.seo.default_title} onChange={(value) => setNestedValue("seo", "default_title", value)} />
+                  <TextField label="Open Graph Title" value={settings.seo.open_graph_title} onChange={(value) => setNestedValue("seo", "open_graph_title", value)} />
+                  <TextField label="Twitter Title" value={settings.seo.twitter_title} onChange={(value) => setNestedValue("seo", "twitter_title", value)} />
+                </div>
+                <TextField label="Default Description" value={settings.seo.default_description} onChange={(value) => setNestedValue("seo", "default_description", value)} multiline />
+                <TextField label="Open Graph Description" value={settings.seo.open_graph_description} onChange={(value) => setNestedValue("seo", "open_graph_description", value)} multiline />
+                <TextField label="Twitter Description" value={settings.seo.twitter_description} onChange={(value) => setNestedValue("seo", "twitter_description", value)} multiline />
+                <TextField label="Default Keywords (comma separated)" value={keywordText} onChange={(value) => setSettings((prev) => prev ? ({ ...prev, seo: { ...prev.seo, default_keywords: value.split(",").map((item) => item.trim()).filter(Boolean) } }) : prev)} multiline />
+              </SectionCard>
+            </>
           )}
 
           {activeTab === "affiliates" && (

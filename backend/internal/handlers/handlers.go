@@ -17,13 +17,14 @@ type Handler struct {
 	importer  *services.Importer
 	affiliate *services.AffiliateService
 	eporner   *services.EpornerClient
+	ai        *services.AIDescriptionService
 
 	siteSettingsMu sync.RWMutex
 	siteSettings   *models.SiteSettings
 }
 
 // NewHandler creates a new handler with dependencies
-func NewHandler(cfg *config.Config, db *database.PostgresDB, cache *database.RedisCache, importer *services.Importer, affiliate *services.AffiliateService, eporner *services.EpornerClient, initialSettings *models.SiteSettings) *Handler {
+func NewHandler(cfg *config.Config, db *database.PostgresDB, cache *database.RedisCache, importer *services.Importer, affiliate *services.AffiliateService, eporner *services.EpornerClient, ai *services.AIDescriptionService, initialSettings *models.SiteSettings) *Handler {
 	return &Handler{
 		config:       cfg,
 		db:           db,
@@ -31,6 +32,7 @@ func NewHandler(cfg *config.Config, db *database.PostgresDB, cache *database.Red
 		importer:     importer,
 		affiliate:    affiliate,
 		eporner:      eporner,
+		ai:           ai,
 		siteSettings: initialSettings,
 	}
 }

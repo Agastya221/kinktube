@@ -425,6 +425,16 @@ func (db *PostgresDB) GetVideoByExternalID(ctx context.Context, externalID strin
 	return video, nil
 }
 
+// UpdateVideoDescription stores a generated SEO description for an existing video.
+func (db *PostgresDB) UpdateVideoDescription(ctx context.Context, id int64, description string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE videos SET description = $1, last_updated_at = NOW() WHERE id = $2`,
+		description,
+		id,
+	)
+	return err
+}
+
 // ListVideos retrieves videos with pagination and optional filtering
 func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy, category, search string) (*models.VideoListResponse, error) {
 	if page < 1 {

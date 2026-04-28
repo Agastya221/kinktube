@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Config holds all application configuration
@@ -38,7 +39,9 @@ type Config struct {
 	// Frontend URL for CORS
 	FrontendURL string
 
-	// AI Description Generation (OpenRouter)
+	// AI Description Generation
+	AIProvider       string
+	OpenAIAPIKey     string
 	OpenRouterAPIKey string
 	AIModel          string
 
@@ -63,6 +66,19 @@ func Load() *Config {
 	lightImportMaxPages, _ := strconv.Atoi(getEnv("LIGHT_IMPORT_MAX_PAGES", "2"))
 	lightImportKeywords, _ := strconv.Atoi(getEnv("LIGHT_IMPORT_KEYWORDS", "40"))
 
+	openAIAPIKey := getEnv("OPENAI_API_KEY", "")
+	openRouterAPIKey := getEnv("OPENROUTER_API_KEY", "")
+	aiProvider := strings.ToLower(getEnv("AI_PROVIDER", ""))
+	defaultAIModel := "gpt-4o-mini"
+	useOpenRouterModel := aiProvider == "openrouter" || (openAIAPIKey == "" && openRouterAPIKey != "")
+	if useOpenRouterModel {
+		defaultAIModel = "meta-llama/llama-3.1-8b-instruct:free"
+	}
+	aiModel := getEnv("OPENAI_SEO_MODEL", defaultAIModel)
+	if useOpenRouterModel {
+		aiModel = getEnv("AI_MODEL", defaultAIModel)
+	}
+
 	return &Config{
 		ServerPort:          getEnv("SERVER_PORT", "8080"),
 		ServerHost:          getEnv("SERVER_HOST", "0.0.0.0"),
@@ -81,8 +97,10 @@ func Load() *Config {
 		LightImportKeywords: lightImportKeywords,
 		CacheTTL:            cacheTTL,
 		FrontendURL:         getEnv("FRONTEND_URL", "http://localhost:3000"),
-		OpenRouterAPIKey:    getEnv("OPENROUTER_API_KEY", ""),
-		AIModel:             getEnv("AI_MODEL", "meta-llama/llama-3.1-8b-instruct:free"),
+		AIProvider:          aiProvider,
+		OpenAIAPIKey:        openAIAPIKey,
+		OpenRouterAPIKey:    openRouterAPIKey,
+		AIModel:             aiModel,
 		AdminAPIKey:         getEnv("ADMIN_API_KEY", ""),
 		AdminUsername:       getEnv("ADMIN_USERNAME", "admin"),
 		AdminPassword:       getEnv("ADMIN_PASSWORD", ""),
