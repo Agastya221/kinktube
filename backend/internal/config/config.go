@@ -47,6 +47,7 @@ type Config struct {
 	AISEOAutoBackfill      bool
 	AISEOBackfillBatchSize int
 	AISEOBackfillDelayMS   int
+	AISEODailyTokenBudget  int // Max estimated tokens per UTC day (0 = unlimited)
 
 	// Admin API key for protected endpoints
 	AdminAPIKey       string
@@ -71,6 +72,7 @@ func Load() *Config {
 	aiSEOAutoBackfill, _ := strconv.ParseBool(getEnv("AI_SEO_AUTO_BACKFILL", "true"))
 	aiSEOBackfillBatchSize, _ := strconv.Atoi(getEnv("AI_SEO_BACKFILL_BATCH_SIZE", "25"))
 	aiSEOBackfillDelayMS, _ := strconv.Atoi(getEnv("AI_SEO_BACKFILL_DELAY_MS", "750"))
+	aiSEODailyTokenBudget, _ := strconv.Atoi(getEnv("AI_SEO_DAILY_TOKEN_BUDGET", "9500000"))
 
 	openAIAPIKey := getEnv("OPENAI_API_KEY", "")
 	openRouterAPIKey := getEnv("OPENROUTER_API_KEY", "")
@@ -110,6 +112,7 @@ func Load() *Config {
 		AISEOAutoBackfill:      aiSEOAutoBackfill,
 		AISEOBackfillBatchSize: aiSEOBackfillBatchSize,
 		AISEOBackfillDelayMS:   aiSEOBackfillDelayMS,
+		AISEODailyTokenBudget:  aiSEODailyTokenBudget,
 		AdminAPIKey:            getEnv("ADMIN_API_KEY", ""),
 		AdminUsername:          getEnv("ADMIN_USERNAME", "admin"),
 		AdminPassword:          getEnv("ADMIN_PASSWORD", ""),

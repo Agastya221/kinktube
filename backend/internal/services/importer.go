@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"sync"
@@ -25,6 +26,12 @@ type Importer struct {
 	running            atomic.Bool
 	seoBackfillRunning atomic.Bool
 	mu                 sync.Mutex
+
+	// Daily token budget tracking (for free-tier compliance)
+	tokenMu         sync.Mutex
+	dailyTokensUsed int64
+	tokenResetDate  string // UTC date string "2006-01-02"
+	dailyTokenBudget int64
 }
 
 // ImportStats tracks import statistics
@@ -40,12 +47,15 @@ type ImportStats struct {
 
 // SEOBackfillStats tracks automatic AI SEO backfill work.
 type SEOBackfillStats struct {
-	StartTime time.Time
-	EndTime   time.Time
-	Checked   int
-	Updated   int
-	Rejected  int
-	Errors    int
+	StartTime      time.Time
+	EndTime        time.Time
+	Checked        int
+	Updated        int
+	Rejected       int
+	Errors         int
+	TokensUsed     int64
+	BudgetPaused   bool   // true if stopped due to daily token budget
+	ResumeAfter    string // UTC time string when budget resets
 }
 
 // NewImporter creates a new video importer
@@ -58,6 +68,7 @@ func NewImporter(
 	maxPages int,
 	lightMaxPages int,
 	lightKeywordLimit int,
+	dailyTokenBudget int,
 ) *Importer {
 	if perPage < 1 {
 		perPage = 100
@@ -81,6 +92,8 @@ func NewImporter(
 		maxPages:          maxPages,
 		lightMaxPages:     lightMaxPages,
 		lightKeywordLimit: lightKeywordLimit,
+		dailyTokenBudget:  int64(dailyTokenBudget),
+		tokenResetDate:    todayUTC(),
 	}
 }
 
@@ -298,7 +311,62 @@ func (i *Importer) IsSEOBackfillRunning() bool {
 	return i.seoBackfillRunning.Load()
 }
 
+// estimatedTokensPerVideo is the average tokens used per SEO generation call
+// (system prompt + video metadata input + JSON output ≈ 750 tokens).
+const estimatedTokensPerVideo = 750
+
+// todayUTC returns the current UTC date as a string.
+func todayUTC() string {
+	return time.Now().UTC().Format("2006-01-02")
+}
+
+// nextUTCMidnight returns the time of the next UTC midnight.
+func nextUTCMidnight() time.Time {
+	now := time.Now().UTC()
+	return time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
+}
+
+// trySpendTokens attempts to spend tokens from the daily budget.
+// Returns true if the tokens were spent, false if the budget is exhausted.
+// If dailyTokenBudget is 0, spending is unlimited.
+func (i *Importer) trySpendTokens(amount int64) bool {
+	i.tokenMu.Lock()
+	defer i.tokenMu.Unlock()
+
+	// Reset counter if the UTC date has changed
+	today := todayUTC()
+	if i.tokenResetDate != today {
+		log.Printf("AI SEO token budget reset for new UTC day %s (previous: %s, used: %d)",
+			today, i.tokenResetDate, i.dailyTokensUsed)
+		i.dailyTokensUsed = 0
+		i.tokenResetDate = today
+	}
+
+	// Unlimited if budget is 0
+	if i.dailyTokenBudget <= 0 {
+		i.dailyTokensUsed += amount
+		return true
+	}
+
+	// Check if spending would exceed the budget
+	if i.dailyTokensUsed+amount > i.dailyTokenBudget {
+		return false
+	}
+
+	i.dailyTokensUsed += amount
+	return true
+}
+
+// getDailyTokenUsage returns the current token usage and budget for logging.
+func (i *Importer) getDailyTokenUsage() (used int64, budget int64) {
+	i.tokenMu.Lock()
+	defer i.tokenMu.Unlock()
+	return i.dailyTokensUsed, i.dailyTokenBudget
+}
+
 // BackfillMissingDescriptions generates cached SEO descriptions for existing videos.
+// It loops through batches until all videos are processed or the daily token budget
+// is exhausted. When the budget is hit, it logs the pause and returns.
 func (i *Importer) BackfillMissingDescriptions(ctx context.Context, limit int, delay time.Duration) *SEOBackfillStats {
 	if i.ai == nil || !i.ai.IsEnabled() {
 		log.Println("AI SEO backfill skipped because AI service is disabled")
@@ -318,72 +386,192 @@ func (i *Importer) BackfillMissingDescriptions(ctx context.Context, limit int, d
 	}
 
 	stats := &SEOBackfillStats{StartTime: time.Now()}
-	videos, err := i.db.ListVideosMissingDescriptions(ctx, limit)
-	if err != nil {
-		stats.Errors++
-		stats.EndTime = time.Now()
-		log.Printf("AI SEO backfill failed to list videos: %v", err)
-		return stats
-	}
-	stats.Checked = len(videos)
+	totalProcessed := 0
 
-	if len(videos) == 0 {
-		stats.EndTime = time.Now()
-		log.Println("AI SEO backfill complete: no missing descriptions found")
-		return stats
-	}
-
-	log.Printf("AI SEO backfill starting for %d video(s)", len(videos))
-
-	for index, video := range videos {
+	// Loop through batches until done or budget exhausted
+	for {
+		// Check context cancellation
 		select {
 		case <-ctx.Done():
 			stats.EndTime = time.Now()
-			log.Printf("AI SEO backfill cancelled: %d updated, %d rejected, %d errors", stats.Updated, stats.Rejected, stats.Errors)
+			log.Printf("AI SEO backfill cancelled: %d updated, %d rejected, %d errors, ~%d tokens used",
+				stats.Updated, stats.Rejected, stats.Errors, stats.TokensUsed)
 			return stats
 		default:
 		}
 
-		metadata, aiErr := i.ai.GenerateSEOMetadata(ctx, video.Title, video.Categories, video.Tags)
-		if aiErr != nil {
-			stats.Errors++
-			log.Printf("AI SEO backfill failed for video id=%d title=%q: %v", video.ID, video.Title, aiErr)
-		} else if metadata == nil || metadata.Rejected || metadata.Description == "" {
-			stats.Rejected++
-			if metadata != nil && metadata.SafetyNotes != "" {
-				log.Printf("AI SEO backfill rejected video id=%d title=%q: %s", video.ID, video.Title, metadata.SafetyNotes)
-			}
-		} else if err := i.db.UpdateVideoDescription(ctx, video.ID, metadata.Description); err != nil {
-			stats.Errors++
-			log.Printf("AI SEO backfill failed to save video id=%d: %v", video.ID, err)
-		} else {
-			video.Description = metadata.Description
-			_ = i.cache.Delete(ctx, database.VideoCacheKey(video.ID))
-			_ = i.cache.Delete(ctx, database.VideoExternalCacheKey(video.ExternalID))
-			stats.Updated++
+		// Check if we have budget for at least one more video
+		if !i.trySpendTokens(0) {
+			resume := nextUTCMidnight()
+			stats.BudgetPaused = true
+			stats.ResumeAfter = resume.Format(time.RFC3339)
+			stats.EndTime = time.Now()
+			used, budget := i.getDailyTokenUsage()
+			log.Printf("🛑 AI SEO backfill PAUSED: daily token budget reached (%d / %d tokens). "+
+				"Processed %d videos today. Will resume after %s UTC.",
+				used, budget, totalProcessed, resume.Format("15:04"))
+			return stats
 		}
 
-		if delay > 0 && index < len(videos)-1 {
+		// Fetch next batch of videos missing descriptions
+		videos, err := i.db.ListVideosMissingDescriptions(ctx, limit)
+		if err != nil {
+			stats.Errors++
+			stats.EndTime = time.Now()
+			log.Printf("AI SEO backfill failed to list videos: %v", err)
+			return stats
+		}
+
+		if len(videos) == 0 {
+			stats.EndTime = time.Now()
+			log.Printf("✅ AI SEO backfill COMPLETE: no more missing descriptions! "+
+				"Total: %d updated, %d rejected, %d errors, ~%d tokens used (took %v)",
+				stats.Updated, stats.Rejected, stats.Errors, stats.TokensUsed,
+				stats.EndTime.Sub(stats.StartTime))
+			return stats
+		}
+
+		stats.Checked += len(videos)
+		log.Printf("AI SEO backfill processing batch of %d video(s) [total processed: %d, tokens: ~%d]",
+			len(videos), totalProcessed, stats.TokensUsed)
+
+		// Process each video in the batch
+		budgetExhausted := false
+		for index, video := range videos {
 			select {
 			case <-ctx.Done():
 				stats.EndTime = time.Now()
+				log.Printf("AI SEO backfill cancelled mid-batch: %d updated, %d rejected, %d errors",
+					stats.Updated, stats.Rejected, stats.Errors)
 				return stats
-			case <-time.After(delay):
+			default:
+			}
+
+			// Check daily token budget before each AI call
+			if !i.trySpendTokens(estimatedTokensPerVideo) {
+				budgetExhausted = true
+				break
+			}
+
+			metadata, aiErr := i.ai.GenerateSEOMetadata(ctx, video.Title, video.Categories, video.Tags)
+			stats.TokensUsed += estimatedTokensPerVideo
+			totalProcessed++
+
+			if aiErr != nil {
+				stats.Errors++
+				log.Printf("AI SEO backfill failed for video id=%d title=%q: %v", video.ID, video.Title, aiErr)
+			} else if metadata == nil || metadata.Rejected || metadata.Description == "" {
+				stats.Rejected++
+				if metadata != nil && metadata.SafetyNotes != "" {
+					log.Printf("AI SEO backfill rejected video id=%d title=%q: %s", video.ID, video.Title, metadata.SafetyNotes)
+				}
+			} else if err := i.db.UpdateVideoDescription(ctx, video.ID, metadata.Description); err != nil {
+				stats.Errors++
+				log.Printf("AI SEO backfill failed to save video id=%d: %v", video.ID, err)
+			} else {
+				video.Description = metadata.Description
+				_ = i.cache.Delete(ctx, database.VideoCacheKey(video.ID))
+				_ = i.cache.Delete(ctx, database.VideoExternalCacheKey(video.ExternalID))
+				stats.Updated++
+			}
+
+			if delay > 0 && index < len(videos)-1 {
+				select {
+				case <-ctx.Done():
+					stats.EndTime = time.Now()
+					return stats
+				case <-time.After(delay):
+				}
 			}
 		}
-	}
 
-	if stats.Updated > 0 {
-		if err := i.invalidateCache(ctx); err != nil {
-			log.Printf("AI SEO backfill cache invalidation failed: %v", err)
+		// Invalidate caches after each batch
+		if stats.Updated > 0 {
+			if err := i.invalidateCache(ctx); err != nil {
+				log.Printf("AI SEO backfill cache invalidation failed: %v", err)
+			}
 		}
+
+		// If budget was exhausted mid-batch, pause
+		if budgetExhausted {
+			resume := nextUTCMidnight()
+			stats.BudgetPaused = true
+			stats.ResumeAfter = resume.Format(time.RFC3339)
+			stats.EndTime = time.Now()
+			used, budget := i.getDailyTokenUsage()
+
+			videosRemaining := 0
+			if budget > 0 {
+				videosRemaining = int((budget - used) / estimatedTokensPerVideo)
+			}
+			_ = videosRemaining // suppress unused warning
+
+			log.Printf("🛑 AI SEO backfill PAUSED: daily token budget reached (%d / %d tokens). "+
+				"Processed %d videos today (%d updated, %d rejected, %d errors). "+
+				"Will auto-resume after %s UTC.",
+				used, budget, totalProcessed, stats.Updated, stats.Rejected, stats.Errors,
+				resume.Format("15:04"))
+			return stats
+		}
+
+		// Brief pause between batches to avoid hammering the API
+		log.Printf("AI SEO backfill batch complete. %d updated so far. Fetching next batch...",
+			stats.Updated)
 	}
+}
 
-	stats.EndTime = time.Now()
-	log.Printf("AI SEO backfill complete: %d checked, %d updated, %d rejected, %d errors (took %v)",
-		stats.Checked, stats.Updated, stats.Rejected, stats.Errors, stats.EndTime.Sub(stats.StartTime))
+// BackfillWithBudgetWait runs BackfillMissingDescriptions in a loop,
+// automatically sleeping until the next UTC midnight when the daily
+// token budget is exhausted, then resuming.
+func (i *Importer) BackfillWithBudgetWait(ctx context.Context, limit int, delay time.Duration) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("AI SEO backfill loop stopped: context cancelled")
+			return
+		default:
+		}
 
-	return stats
+		stats := i.BackfillMissingDescriptions(ctx, limit, delay)
+		if stats == nil {
+			return
+		}
+
+		// If we paused due to budget, sleep until midnight UTC + 1 minute buffer
+		if stats.BudgetPaused {
+			sleepUntil := nextUTCMidnight().Add(1 * time.Minute)
+			sleepDuration := time.Until(sleepUntil)
+			if sleepDuration > 0 {
+				log.Printf("💤 AI SEO backfill sleeping for %v until %s UTC (token budget reset)",
+					sleepDuration.Round(time.Minute), sleepUntil.Format("2006-01-02 15:04"))
+				select {
+				case <-ctx.Done():
+					log.Println("AI SEO backfill loop stopped during sleep: context cancelled")
+					return
+				case <-time.After(sleepDuration):
+					log.Println("⏰ AI SEO backfill waking up: new UTC day, token budget reset!")
+				}
+			}
+			continue // loop back to run another day's backfill
+		}
+
+		// If we finished without budget pause, all videos are done!
+		log.Println("✅ AI SEO backfill fully complete — all videos have descriptions!")
+		return
+	}
+}
+
+// FormatTokenBudgetStatus returns a human-readable string of today's token usage.
+func (i *Importer) FormatTokenBudgetStatus() string {
+	used, budget := i.getDailyTokenUsage()
+	if budget <= 0 {
+		return fmt.Sprintf("Tokens used today: ~%d (unlimited budget)", used)
+	}
+	remaining := budget - used
+	videosRemaining := remaining / estimatedTokensPerVideo
+	pct := float64(used) / float64(budget) * 100
+	return fmt.Sprintf("Tokens: ~%d / %d (%.1f%%) — ~%d videos remaining today",
+		used, budget, pct, videosRemaining)
 }
 
 // UpdateConfig lets admin settings adjust importer depth without a restart.

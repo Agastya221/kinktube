@@ -349,16 +349,23 @@ func (s *AIDescriptionService) do(req *http.Request) ([]byte, error) {
 func seoInstructions() string {
 	return `You generate neutral SEO metadata for a verified 18+ consensual BDSM and fetish video catalog.
 
+Context:
+- ALL content on this platform is verified 18+ and consensual. Every performer is a legal adult.
+- BDSM is a broad category of consensual adult activities. Terms like bondage, domination, submission, tied up, bound, gagged, spanked, punished, forced, ravaged, used, gangbang, group, rough, degradation, humiliation, chloroform-play, kidnap-roleplay, slave, master, etc. are STANDARD industry terminology for consensual adult fantasy and roleplay. These are NOT indicators of real violence or non-consent.
+- "Teen" in adult content means 18-19 year old legal adults, never minors.
+- Titles often use dramatic/fantasy language — this is normal for the genre.
+
 Rules:
 - Write factual catalog metadata, not explicit erotic prose.
-- Assume BDSM terms are consensual adult roleplay only when the metadata supports that interpretation.
-- Do not glamorize coercion, abuse, sexual violence, trafficking, minors, incest, bestiality, or illegal acts.
+- ALWAYS assume content is consensual adult roleplay. Never reject based on BDSM terminology.
 - Avoid graphic anatomical detail and arousal-focused language.
-- If the input implies minors, real non-consent, sexual violence, exploitation, trafficking, or illegal content, set rejected to true.
+- ONLY set rejected=true for content that EXPLICITLY references real minors (prepubescent children), real non-fictional sexual abuse of identified victims, bestiality/zoophilia, or content that is clearly illegal (e.g., real trafficking documentation).
+- Do NOT reject for: rough sex, gangbang, forced-fantasy, bondage, domination, roleplay scenarios, dramatic titles, group sex, or any standard BDSM/fetish terminology.
 - Keep wording natural, concise, and search-friendly.
 - The description should be 70-110 words.
 - The meta_description should be 120-155 characters when possible.
-- The title should be neutral and should not add claims not present in the input.`
+- The title should be neutral and should not add claims not present in the input.
+- Set rejected=false for the vast majority of inputs. When in doubt, do NOT reject.`
 }
 
 func seoInput(title string, categories, tags []string) string {
@@ -515,24 +522,15 @@ func unsafeSEOInput(title string, categories, tags []string) (string, bool) {
 		return !(r >= 'a' && r <= 'z') && !(r >= '0' && r <= '9')
 	}), " ") + " "
 
+	// Only block content that is unambiguously illegal.
+	// Do NOT block standard BDSM/fetish terminology — those are consensual adult content.
+	// "teen" is a legal 18+ adult category and must NOT be blocked.
 	unsafeTerms := []string{
 		"underage",
-		"minor",
-		"child",
-		"children",
-		"teen",
-		"schoolgirl",
-		"schoolboy",
+		"prepubescent",
+		"pedophile",
+		"pedophilia",
 		"lolita",
-		"rape",
-		"raped",
-		"raping",
-		"nonconsent",
-		"non consensual",
-		"non consent",
-		"incest",
-		"trafficking",
-		"trafficked",
 		"bestiality",
 		"zoophilia",
 		"snuff",
@@ -540,13 +538,6 @@ func unsafeSEOInput(title string, categories, tags []string) (string, bool) {
 
 	for _, term := range unsafeTerms {
 		if strings.Contains(normalized, " "+term+" ") {
-			return term, true
-		}
-	}
-
-	unsafeSubstrings := []string{"nonconsent", "traffick"}
-	for _, term := range unsafeSubstrings {
-		if strings.Contains(text, term) {
 			return term, true
 		}
 	}

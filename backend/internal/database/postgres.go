@@ -440,8 +440,8 @@ func (db *PostgresDB) ListVideosMissingDescriptions(ctx context.Context, limit i
 	if limit < 1 {
 		limit = 25
 	}
-	if limit > 200 {
-		limit = 200
+	if limit > 500 {
+		limit = 500
 	}
 
 	rows, err := db.pool.Query(ctx, `

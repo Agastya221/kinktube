@@ -91,6 +91,7 @@ func main() {
 		siteSettings.Import.ImportMaxPages,
 		siteSettings.Import.LightImportMaxPages,
 		siteSettings.Import.LightImportKeywords,
+		cfg.AISEODailyTokenBudget,
 	)
 
 	// Initialize affiliate service
@@ -250,7 +251,7 @@ func runAutoSEOBackfill(ctx context.Context, cfg *config.Config, importer *servi
 		return
 	}
 
-	go importer.BackfillMissingDescriptions(
+	go importer.BackfillWithBudgetWait(
 		ctx,
 		cfg.AISEOBackfillBatchSize,
 		time.Duration(cfg.AISEOBackfillDelayMS)*time.Millisecond,
