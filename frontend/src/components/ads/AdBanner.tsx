@@ -21,7 +21,7 @@ export default function AdBanner({ position, className = "" }: AdBannerProps) {
   const format = formatMap[position] || "banner";
 
   return (
-    <div className={`ad-banner ad-${position} ${className}`}>
+    <div className={`sponsor-block sponsor-${position} ${className}`}>
       <AdSlot format={format} />
       {/* Mobile fallback for desktop banners */}
       {(position === "top" || position === "bottom") && (
@@ -36,9 +36,9 @@ export default function AdBanner({ position, className = "" }: AdBannerProps) {
 // Sidebar ad stack - multiple ads in sidebar
 export function SidebarAds({ count = 2 }: { count?: number }) {
   return (
-    <div className="sidebar-ads space-y-6 sticky top-20">
+    <div className="sponsor-sidebar space-y-6 sticky top-20">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="sidebar-ad-slot">
+        <div key={i} className="sponsor-sidebar-slot">
           <AdSlot format="sidebar" />
         </div>
       ))}
@@ -49,7 +49,7 @@ export function SidebarAds({ count = 2 }: { count?: number }) {
 // Native ad that blends with content
 export function NativeAd({ className = "" }: { className?: string }) {
   return (
-    <div className={`native-ad ${className}`}>
+    <div className={`sponsor-native ${className}`}>
       <div className="text-xs text-foreground-muted mb-1">Sponsored</div>
       <AdSlot format="native" />
     </div>

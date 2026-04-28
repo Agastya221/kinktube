@@ -228,23 +228,27 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
     return fallback ? <>{fallback}</> : null;
   }
 
+  const placeholder = (
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded border border-border bg-background-tertiary/60 text-[10px] uppercase tracking-[0.18em] text-foreground-muted">
+      Sponsored
+    </div>
+  );
+
   if (hasError && fallback) {
     return <>{fallback}</>;
   }
 
-  if (hasError) {
-    return null;
-  }
-
   return (
     <div
-      ref={adRef}
-      className={`ad-slot ad-${format} ${sizeClasses[format]} ${className} ${
-        !isLoaded ? "bg-background-tertiary animate-pulse" : ""
-      }`}
-      data-format={format}
-      aria-label="Advertisement"
-    />
+      className={`sponsor-placement ${sizeClasses[format]} ${className}`}
+      data-placement={format}
+    >
+      {(hasError || !isLoaded) ? placeholder : null}
+      <div
+        ref={adRef}
+        className="relative z-10 flex h-full w-full items-center justify-center"
+      />
+    </div>
   );
 }
 
