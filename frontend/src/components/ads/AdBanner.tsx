@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import AdSlot from "./AdSlot";
 
 interface AdBannerProps {
@@ -7,8 +9,28 @@ interface AdBannerProps {
   className?: string;
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const sync = () => setIsMobile(mediaQuery.matches);
+
+    sync();
+    mediaQuery.addEventListener("change", sync);
+
+    return () => {
+      mediaQuery.removeEventListener("change", sync);
+    };
+  }, []);
+
+  return isMobile;
+}
+
 // Wrapper component for common ad placements
 export default function AdBanner({ position, className = "" }: AdBannerProps) {
+  const isMobile = useIsMobile();
+
   // Map positions to ad formats
   const formatMap: Record<string, "banner" | "sidebar" | "video-banner" | "mobile-banner"> = {
     top: "banner",
@@ -18,17 +40,22 @@ export default function AdBanner({ position, className = "" }: AdBannerProps) {
     mobile: "mobile-banner",
   };
 
-  const format = formatMap[position] || "banner";
+  if (isMobile === null) {
+    return null;
+  }
+
+  if (position === "mobile" && !isMobile) {
+    return null;
+  }
+
+  const format =
+    (position === "top" || position === "bottom") && isMobile
+      ? "mobile-banner"
+      : formatMap[position] || "banner";
 
   return (
     <div className={`sponsor-block sponsor-${position} ${className}`}>
       <AdSlot format={format} />
-      {/* Mobile fallback for desktop banners */}
-      {(position === "top" || position === "bottom") && (
-        <div className="md:hidden">
-          <AdSlot format="mobile-banner" />
-        </div>
-      )}
     </div>
   );
 }

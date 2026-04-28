@@ -275,6 +275,10 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         <CategoryNav categories={categories.categories} />
       </section>
 
+      <div className="mb-4 md:hidden">
+        <AdBanner position="mobile" />
+      </div>
+
       <section className="mb-4 md:mb-6 flex items-center justify-between gap-2">
         <h2 className="text-base sm:text-xl font-semibold truncate">
           {sort === "latest"
@@ -310,11 +314,6 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           />
         </Suspense>
       )}
-
-      {/* Mobile Ad - After content */}
-      <div className="mt-6 md:hidden">
-        <AdBanner position="mobile" />
-      </div>
 
       {/* Bottom Ad Banner */}
       <div className="mt-8 hidden md:block">

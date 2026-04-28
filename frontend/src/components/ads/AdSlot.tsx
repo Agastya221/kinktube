@@ -47,7 +47,7 @@ const getAdConfig = (
     "native": { width: 300, height: 250 },
     "popunder": { width: 0, height: 0 },
     "video-banner": { width: 308, height: 298 },
-    "mobile-banner": { width: 320, height: 50 },
+    "mobile-banner": { width: 300, height: 100 },
   };
 
   return {
@@ -247,7 +247,7 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
     "native": "w-full max-w-[300px] min-h-[250px]",
     "popunder": "hidden",
     "video-banner": "w-[308px] max-w-[92vw] h-[298px] mx-auto",
-    "mobile-banner": "w-full max-w-[320px] h-[50px] mx-auto md:hidden",
+    "mobile-banner": "w-full max-w-[320px] min-h-[100px] mx-auto md:hidden",
   };
 
   if (!config) {
