@@ -183,7 +183,7 @@ export default async function VideoPage({ params }: VideoPageProps) {
               />
             </div>
 
-            <div className="md:hidden">
+            <div className="flex justify-center py-3 md:hidden">
               <AdBanner position="mobile" />
             </div>
 

@@ -275,7 +275,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         <CategoryNav categories={categories.categories} />
       </section>
 
-      <div className="mb-4 md:hidden">
+      <div className="my-5 flex justify-center md:hidden">
         <AdBanner position="mobile" />
       </div>
 
