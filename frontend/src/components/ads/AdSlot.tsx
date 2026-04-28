@@ -58,6 +58,74 @@ const getAdConfig = (
   };
 };
 
+function isNumericZoneId(zoneId: string): boolean {
+  return /^\d+$/.test(zoneId.trim());
+}
+
+function appendScript(parent: HTMLElement, options: { src?: string; text?: string; attrs?: Record<string, string> }) {
+  const script = document.createElement("script");
+  script.type = "text/javascript";
+
+  if (options.src) {
+    script.src = options.src;
+  }
+  if (options.text) {
+    script.text = options.text;
+  }
+  if (options.attrs) {
+    Object.entries(options.attrs).forEach(([key, value]) => {
+      script.setAttribute(key, value);
+    });
+  }
+
+  parent.appendChild(script);
+}
+
+function renderJuicyAds(parent: HTMLElement, config: AdConfig): boolean {
+  const zoneId = config.zoneId.trim();
+
+  if (config.format === "popunder") {
+    return false;
+  }
+
+  if (!isNumericZoneId(zoneId)) {
+    return false;
+  }
+
+  if (config.format === "native") {
+    appendScript(parent, {
+      src: "https://js.juicyads.com/juicyads.native-ads.min.js",
+      attrs: {
+        "data-cfasync": "false",
+        "data-id": "juicyads-native-ads",
+        "data-ad-zone": zoneId,
+        "data-targets": "a",
+      },
+    });
+    return true;
+  }
+
+  appendScript(parent, {
+    src: "https://adserver.juicyads.com/js/jads.js",
+    attrs: {
+      async: "async",
+      "data-cfasync": "false",
+    },
+  });
+
+  const ins = document.createElement("ins");
+  ins.id = zoneId;
+  ins.setAttribute("data-width", String(config.width || 300));
+  ins.setAttribute("data-height", String(config.height || 250));
+  parent.appendChild(ins);
+
+  appendScript(parent, {
+    text: `(adsbyjuicy = window.adsbyjuicy || []).push({'adzone':${zoneId}});`,
+  });
+
+  return true;
+}
+
 // Generate ad code based on network
 const generateAdCode = (config: AdConfig): string => {
   switch (config.network) {
@@ -80,9 +148,7 @@ const generateAdCode = (config: AdConfig): string => {
       `;
 
     case "juicyads":
-      return `
-        <script type="text/javascript" src="https://js.juicyads.com/jp.php?c=${config.zoneId}&u=YOUR_USER_ID"></script>
-      `;
+      return "";
 
     case "custom":
       return config.customCode || "";
@@ -112,21 +178,33 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
     }
 
     try {
-      const adCode = generateAdCode(config);
-      adRef.current.innerHTML = adCode;
+      setHasError(false);
+      setIsLoaded(false);
+      adRef.current.innerHTML = "";
 
-      // Execute any scripts in the ad code
-      const scripts = adRef.current.getElementsByTagName("script");
-      Array.from(scripts).forEach((oldScript) => {
-        const newScript = document.createElement("script");
-        if (oldScript.src) {
-          newScript.src = oldScript.src;
-        } else {
-          newScript.textContent = oldScript.textContent;
+      if (config.network === "juicyads") {
+        if (!renderJuicyAds(adRef.current, config)) {
+          setHasError(true);
+          setIsLoaded(false);
+          return;
         }
-        newScript.type = "text/javascript";
-        oldScript.parentNode?.replaceChild(newScript, oldScript);
-      });
+      } else {
+        const adCode = generateAdCode(config);
+        adRef.current.innerHTML = adCode;
+
+        // Execute any scripts in the ad code
+        const scripts = adRef.current.getElementsByTagName("script");
+        Array.from(scripts).forEach((oldScript) => {
+          const newScript = document.createElement("script");
+          if (oldScript.src) {
+            newScript.src = oldScript.src;
+          } else {
+            newScript.textContent = oldScript.textContent;
+          }
+          newScript.type = "text/javascript";
+          oldScript.parentNode?.replaceChild(newScript, oldScript);
+        });
+      }
 
       setIsLoaded(true);
     } catch {
@@ -182,11 +260,21 @@ export function PopunderAd() {
       if (hasTriggered.current) return;
       hasTriggered.current = true;
 
-      // ExoClick popunder
-      const script = document.createElement("script");
-      script.src = `https://a.magsrv.com/punder.php?idzone=${zoneId}`;
-      script.async = true;
-      document.body.appendChild(script);
+      const network = siteSettings.ads.network;
+
+      if (network === "juicyads") {
+        if (/^https?:\/\//i.test(zoneId)) {
+          window.open(zoneId, "_blank", "noopener,noreferrer");
+        }
+        return;
+      }
+
+      if (network === "exoclick") {
+        const script = document.createElement("script");
+        script.src = `https://a.magsrv.com/punder.php?idzone=${zoneId}`;
+        script.async = true;
+        document.body.appendChild(script);
+      }
     };
 
     // Trigger on first user interaction
