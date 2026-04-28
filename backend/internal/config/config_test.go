@@ -36,3 +36,21 @@ func TestLoadPrefersOpenAISEOModelWhenOpenAIKeyExists(t *testing.T) {
 		t.Fatalf("expected OpenAI SEO model, got %q", cfg.AIModel)
 	}
 }
+
+func TestLoadAISEOBackfillSettings(t *testing.T) {
+	t.Setenv("AI_SEO_AUTO_BACKFILL", "false")
+	t.Setenv("AI_SEO_BACKFILL_BATCH_SIZE", "7")
+	t.Setenv("AI_SEO_BACKFILL_DELAY_MS", "123")
+
+	cfg := Load()
+
+	if cfg.AISEOAutoBackfill {
+		t.Fatal("expected AISEOAutoBackfill=false")
+	}
+	if cfg.AISEOBackfillBatchSize != 7 {
+		t.Fatalf("expected AISEOBackfillBatchSize=7, got %d", cfg.AISEOBackfillBatchSize)
+	}
+	if cfg.AISEOBackfillDelayMS != 123 {
+		t.Fatalf("expected AISEOBackfillDelayMS=123, got %d", cfg.AISEOBackfillDelayMS)
+	}
+}

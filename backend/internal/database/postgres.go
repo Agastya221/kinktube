@@ -435,6 +435,43 @@ func (db *PostgresDB) UpdateVideoDescription(ctx context.Context, id int64, desc
 	return err
 }
 
+// ListVideosMissingDescriptions returns visible videos that still need cached AI SEO text.
+func (db *PostgresDB) ListVideosMissingDescriptions(ctx context.Context, limit int) ([]models.Video, error) {
+	if limit < 1 {
+		limit = 25
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	rows, err := db.pool.Query(ctx, `
+		SELECT id, external_id, title, description, duration, duration_str,
+			views, rating, thumbnail, thumbnail_lg, embed_url, source_url,
+			tags, categories, keywords, added_at, published_at, last_updated_at
+		FROM videos
+		WHERE is_english = TRUE
+		AND is_available = TRUE
+		AND (description IS NULL OR btrim(description) = '')
+		ORDER BY added_at DESC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	videos := make([]models.Video, 0, limit)
+	for rows.Next() {
+		var video models.Video
+		if err := scanVideoRow(rows, &video); err != nil {
+			return nil, err
+		}
+		videos = append(videos, video)
+	}
+
+	return videos, rows.Err()
+}
+
 // ListVideos retrieves videos with pagination and optional filtering
 func (db *PostgresDB) ListVideos(ctx context.Context, page, perPage int, sortBy, category, search string) (*models.VideoListResponse, error) {
 	if page < 1 {

@@ -848,7 +848,8 @@ func (h *Handler) TriggerImport(c *fiber.Ctx) error {
 // GetImportStatus handles GET /api/admin/import/status
 func (h *Handler) GetImportStatus(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
-		"running": h.importer.IsRunning(),
+		"running":              h.importer.IsRunning(),
+		"seo_backfill_running": h.importer.IsSEOBackfillRunning(),
 	})
 }
 

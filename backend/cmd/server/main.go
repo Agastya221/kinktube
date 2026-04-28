@@ -153,6 +153,7 @@ func main() {
 
 		log.Println("Running scheduled import...")
 		importer.Run(context.Background())
+		runAutoSEOBackfill(context.Background(), cfg, importer)
 	})
 	if err != nil {
 		log.Printf("Warning: Failed to setup import cron: %v", err)
@@ -185,6 +186,7 @@ func main() {
 		if count == 0 && siteSettings.Import.ImportEnabled {
 			log.Println("Database empty, running initial import...")
 			importer.Run(ctx)
+			runAutoSEOBackfill(ctx, cfg, importer)
 		} else if cfg.RefreshOnStartup && siteSettings.Import.ImportEnabled {
 			log.Println("Running startup cache refresh and light import...")
 			// Clear stale cache first
@@ -202,6 +204,9 @@ func main() {
 			}
 			// Run light import to get fresh content
 			importer.RunLight(ctx)
+			runAutoSEOBackfill(ctx, cfg, importer)
+		} else {
+			runAutoSEOBackfill(ctx, cfg, importer)
 		}
 	}()
 
@@ -240,6 +245,18 @@ func main() {
 	log.Println("Server stopped")
 }
 
+func runAutoSEOBackfill(ctx context.Context, cfg *config.Config, importer *services.Importer) {
+	if !cfg.AISEOAutoBackfill {
+		return
+	}
+
+	go importer.BackfillMissingDescriptions(
+		ctx,
+		cfg.AISEOBackfillBatchSize,
+		time.Duration(cfg.AISEOBackfillDelayMS)*time.Millisecond,
+	)
+}
+
 func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	// Health check
 	app.Get("/health", h.HealthCheck)
@@ -260,6 +277,7 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	api.Get("/videos/:id/related", h.GetRelatedVideos)
 	api.Get("/videos/:id/affiliates", h.GetAffiliateLinks)
 	api.Post("/videos/:id/unavailable", h.ReportVideoUnavailable) // frontend reports dead embeds
+	api.Get("/videos/:id/stream", h.GetVideoStream)               // resolve direct HLS/MP4 stream URL
 	api.Get("/videos/:id/comments", h.GetVideoComments)
 	api.Post("/videos/:id/comments", h.AddVideoComment)
 	api.Get("/categories", h.GetCategories)

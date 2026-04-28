@@ -30,23 +30,19 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
   try {
     const { video } = await getCachedVideoWithAffiliates(id);
 
-    // Primary category for contextual keywords
     const primaryCategory = video.categories?.[0] ?? "bdsm";
     const categoryLabel = primaryCategory
       .split("-")
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
 
-    // Build SEO-optimised title in neutral adult catalog language.
     const seoTitle = `${video.title} - Free ${categoryLabel} BDSM Video`;
 
-    // Build rich meta description using category + top tags
     const topTags = video.tags.slice(0, 4).join(", ");
     const seoDescription = video.description
       ? `${video.description.slice(0, 140)}... Watch free adult ${categoryLabel} videos on KinkTube.`
       : `Watch ${video.title} - a ${video.duration_str} free adult ${categoryLabel} video on KinkTube. Features: ${topTags}. New kink and BDSM content added daily.`;
 
-    // Keywords from categories + tags (max 15 to avoid stuffing)
     const keywords = [
       ...video.categories,
       ...video.tags.slice(0, 10),
@@ -55,7 +51,7 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
       "bondage video",
       "kink catalog",
     ]
-      .filter((v, i, a) => a.indexOf(v) === i) // deduplicate
+      .filter((v, i, a) => a.indexOf(v) === i)
       .slice(0, 15)
       .join(", ");
 
@@ -105,7 +101,7 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
   }
 }
 
-// Generate JSON-LD VideoObject structured data (Google Rich Results)
+// Generate JSON-LD VideoObject structured data
 function generateVideoSchema(video: {
   id: number;
   title: string;
@@ -129,10 +125,8 @@ function generateVideoSchema(video: {
     name: video.title,
     description: video.description || `Free adult ${primaryCategory} video on KinkTube. ${video.title}.`,
     thumbnailUrl: getBestDisplayThumbnailUrl(video),
-    // ISO 8601 duration required for Google Rich Results
     duration: `PT${Math.floor(video.duration / 60)}M${video.duration % 60}S`,
     embedUrl: video.embed_url,
-    // Ensure ISO 8601 date format
     uploadDate: new Date(video.added_at).toISOString(),
     interactionStatistic: {
       "@type": "InteractionCounter",
@@ -188,10 +182,11 @@ export default async function VideoPage({ params }: VideoPageProps) {
                 title={video.title}
                 thumbnailUrl={getBestDisplayThumbnailUrl(video)}
                 videoId={video.id}
+                externalId={video.external_id}
               />
             </div>
 
-            {/* Affiliate Buttons - Primary CTA */}
+            {/* Affiliate Buttons */}
             <AffiliateButtons
               links={affiliate_links}
               videoTitle={video.title}
@@ -200,7 +195,6 @@ export default async function VideoPage({ params }: VideoPageProps) {
 
             {/* Video Info Card */}
             <div className="bg-background-secondary rounded-xl p-4 sm:p-6 border border-border">
-              {/* Title */}
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-4 leading-tight">
                 {video.title}
               </h1>
@@ -212,19 +206,16 @@ export default async function VideoPage({ params }: VideoPageProps) {
                   <span className="font-medium">{formatViews(video.views)}</span>
                   <span className="text-sm">views</span>
                 </span>
-
                 <span className="flex items-center gap-2">
                   <Clock className="w-5 h-5" />
                   <span className="font-medium">
                     {video.duration_str || formatDuration(video.duration)}
                   </span>
                 </span>
-
                 <span className="flex items-center gap-2">
                   <Star className="w-5 h-5 text-yellow-500" />
                   <span className="font-medium">{video.rating.toFixed(1)}</span>
                 </span>
-
                 <span className="flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
                   <span className="text-sm">{formatRelativeTime(video.added_at)}</span>
@@ -234,9 +225,7 @@ export default async function VideoPage({ params }: VideoPageProps) {
               {/* Description */}
               {video.description && (
                 <div className="mb-6">
-                  <p className="text-foreground-muted leading-relaxed">
-                    {video.description}
-                  </p>
+                  <p className="text-foreground-muted leading-relaxed">{video.description}</p>
                 </div>
               )}
 
@@ -249,11 +238,7 @@ export default async function VideoPage({ params }: VideoPageProps) {
                   </h2>
                   <div className="flex flex-wrap gap-2">
                     {video.categories.map((cat) => (
-                      <Link
-                        key={cat}
-                        href={`/category/${cat}`}
-                        className="category-pill"
-                      >
+                      <Link key={cat} href={`/category/${cat}`} className="category-pill">
                         {cat.charAt(0).toUpperCase() + cat.slice(1).replace("-", " ")}
                       </Link>
                     ))}
@@ -264,9 +249,7 @@ export default async function VideoPage({ params }: VideoPageProps) {
               {/* Tags */}
               {video.tags && video.tags.length > 0 && (
                 <div className="mb-6">
-                  <h2 className="text-sm font-semibold text-foreground-muted mb-3">
-                    Tags
-                  </h2>
+                  <h2 className="text-sm font-semibold text-foreground-muted mb-3">Tags</h2>
                   <div className="flex flex-wrap gap-2">
                     {video.tags.slice(0, 20).map((tag) => (
                       <Link
@@ -280,18 +263,15 @@ export default async function VideoPage({ params }: VideoPageProps) {
                   </div>
                 </div>
               )}
-
             </div>
 
             {/* Comments Section */}
             <Comments videoId={video.id} />
 
-            {/* Ad Banner Below Video Info */}
+            {/* Ad Banners */}
             <div className="hidden md:block">
               <AdBanner position="video" />
             </div>
-
-            {/* Mobile Ad */}
             <div className="md:hidden">
               <AdBanner position="mobile" />
             </div>
@@ -299,26 +279,21 @@ export default async function VideoPage({ params }: VideoPageProps) {
 
           {/* Sidebar */}
           <aside className="lg:col-span-1 space-y-6">
-            {/* Sidebar Ads */}
             <div className="hidden lg:block">
               <SidebarAds count={1} />
             </div>
-
-            {/* Deleted Related Videos - Sidebar Version */}
-
-            {/* Second Sidebar Ad */}
             <div className="hidden lg:block">
               <SidebarAds count={1} />
             </div>
           </aside>
         </div>
 
-        {/* More Related Videos - Full Width Grid */}
+        {/* Related Videos */}
         {relatedVideos.videos && relatedVideos.videos.length > 0 && (
           <PaginatedRelatedVideos videoId={video.id} initialVideos={relatedVideos.videos} />
         )}
 
-        {/* Bottom Ad Banner */}
+        {/* Bottom Ad */}
         <div className="mt-8 hidden md:block">
           <AdBanner position="bottom" />
         </div>

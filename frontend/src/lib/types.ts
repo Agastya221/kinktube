@@ -170,6 +170,7 @@ export interface AdminSessionResponse {
 
 export interface AdminImportStatusResponse {
   running: boolean;
+  seo_backfill_running?: boolean;
 }
 
 export interface AdminSEOMetadata {

@@ -14,16 +14,17 @@ import (
 
 // Importer handles the automated video import process
 type Importer struct {
-	db                *database.PostgresDB
-	cache             *database.RedisCache
-	eporner           *EpornerClient
-	ai                *AIDescriptionService
-	perPage           int
-	maxPages          int
-	lightMaxPages     int
-	lightKeywordLimit int
-	running           atomic.Bool
-	mu                sync.Mutex
+	db                 *database.PostgresDB
+	cache              *database.RedisCache
+	eporner            *EpornerClient
+	ai                 *AIDescriptionService
+	perPage            int
+	maxPages           int
+	lightMaxPages      int
+	lightKeywordLimit  int
+	running            atomic.Bool
+	seoBackfillRunning atomic.Bool
+	mu                 sync.Mutex
 }
 
 // ImportStats tracks import statistics
@@ -35,6 +36,16 @@ type ImportStats struct {
 	VideosImported  int
 	VideosSkipped   int
 	Errors          int
+}
+
+// SEOBackfillStats tracks automatic AI SEO backfill work.
+type SEOBackfillStats struct {
+	StartTime time.Time
+	EndTime   time.Time
+	Checked   int
+	Updated   int
+	Rejected  int
+	Errors    int
 }
 
 // NewImporter creates a new video importer
@@ -280,6 +291,99 @@ func (i *Importer) invalidateCache(ctx context.Context) error {
 // IsRunning returns whether an import is currently in progress
 func (i *Importer) IsRunning() bool {
 	return i.running.Load()
+}
+
+// IsSEOBackfillRunning returns whether automatic AI SEO backfill is active.
+func (i *Importer) IsSEOBackfillRunning() bool {
+	return i.seoBackfillRunning.Load()
+}
+
+// BackfillMissingDescriptions generates cached SEO descriptions for existing videos.
+func (i *Importer) BackfillMissingDescriptions(ctx context.Context, limit int, delay time.Duration) *SEOBackfillStats {
+	if i.ai == nil || !i.ai.IsEnabled() {
+		log.Println("AI SEO backfill skipped because AI service is disabled")
+		return nil
+	}
+	if !i.seoBackfillRunning.CompareAndSwap(false, true) {
+		log.Println("AI SEO backfill already running, skipping")
+		return nil
+	}
+	defer i.seoBackfillRunning.Store(false)
+
+	if limit < 1 {
+		limit = 25
+	}
+	if delay < 0 {
+		delay = 0
+	}
+
+	stats := &SEOBackfillStats{StartTime: time.Now()}
+	videos, err := i.db.ListVideosMissingDescriptions(ctx, limit)
+	if err != nil {
+		stats.Errors++
+		stats.EndTime = time.Now()
+		log.Printf("AI SEO backfill failed to list videos: %v", err)
+		return stats
+	}
+	stats.Checked = len(videos)
+
+	if len(videos) == 0 {
+		stats.EndTime = time.Now()
+		log.Println("AI SEO backfill complete: no missing descriptions found")
+		return stats
+	}
+
+	log.Printf("AI SEO backfill starting for %d video(s)", len(videos))
+
+	for index, video := range videos {
+		select {
+		case <-ctx.Done():
+			stats.EndTime = time.Now()
+			log.Printf("AI SEO backfill cancelled: %d updated, %d rejected, %d errors", stats.Updated, stats.Rejected, stats.Errors)
+			return stats
+		default:
+		}
+
+		metadata, aiErr := i.ai.GenerateSEOMetadata(ctx, video.Title, video.Categories, video.Tags)
+		if aiErr != nil {
+			stats.Errors++
+			log.Printf("AI SEO backfill failed for video id=%d title=%q: %v", video.ID, video.Title, aiErr)
+		} else if metadata == nil || metadata.Rejected || metadata.Description == "" {
+			stats.Rejected++
+			if metadata != nil && metadata.SafetyNotes != "" {
+				log.Printf("AI SEO backfill rejected video id=%d title=%q: %s", video.ID, video.Title, metadata.SafetyNotes)
+			}
+		} else if err := i.db.UpdateVideoDescription(ctx, video.ID, metadata.Description); err != nil {
+			stats.Errors++
+			log.Printf("AI SEO backfill failed to save video id=%d: %v", video.ID, err)
+		} else {
+			video.Description = metadata.Description
+			_ = i.cache.Delete(ctx, database.VideoCacheKey(video.ID))
+			_ = i.cache.Delete(ctx, database.VideoExternalCacheKey(video.ExternalID))
+			stats.Updated++
+		}
+
+		if delay > 0 && index < len(videos)-1 {
+			select {
+			case <-ctx.Done():
+				stats.EndTime = time.Now()
+				return stats
+			case <-time.After(delay):
+			}
+		}
+	}
+
+	if stats.Updated > 0 {
+		if err := i.invalidateCache(ctx); err != nil {
+			log.Printf("AI SEO backfill cache invalidation failed: %v", err)
+		}
+	}
+
+	stats.EndTime = time.Now()
+	log.Printf("AI SEO backfill complete: %d checked, %d updated, %d rejected, %d errors (took %v)",
+		stats.Checked, stats.Updated, stats.Rejected, stats.Errors, stats.EndTime.Sub(stats.StartTime))
+
+	return stats
 }
 
 // UpdateConfig lets admin settings adjust importer depth without a restart.

@@ -460,6 +460,9 @@ export default function AdminConsole() {
                   <p className={`text-lg font-semibold ${importStatus?.running ? "text-accent" : "text-foreground"}`}>
                     {importStatus?.running ? "Running" : "Idle"}
                   </p>
+                  {importStatus?.seo_backfill_running ? (
+                    <p className="mt-1 text-sm text-foreground-muted">AI SEO backfill running</p>
+                  ) : null}
                 </SectionCard>
                 <SectionCard title="Page Size">
                   <p className="text-3xl font-bold">{settings.content.videos_per_page}</p>

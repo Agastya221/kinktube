@@ -40,10 +40,13 @@ type Config struct {
 	FrontendURL string
 
 	// AI Description Generation
-	AIProvider       string
-	OpenAIAPIKey     string
-	OpenRouterAPIKey string
-	AIModel          string
+	AIProvider             string
+	OpenAIAPIKey           string
+	OpenRouterAPIKey       string
+	AIModel                string
+	AISEOAutoBackfill      bool
+	AISEOBackfillBatchSize int
+	AISEOBackfillDelayMS   int
 
 	// Admin API key for protected endpoints
 	AdminAPIKey       string
@@ -65,6 +68,9 @@ func Load() *Config {
 	importMaxPages, _ := strconv.Atoi(getEnv("IMPORT_MAX_PAGES", "8"))
 	lightImportMaxPages, _ := strconv.Atoi(getEnv("LIGHT_IMPORT_MAX_PAGES", "2"))
 	lightImportKeywords, _ := strconv.Atoi(getEnv("LIGHT_IMPORT_KEYWORDS", "40"))
+	aiSEOAutoBackfill, _ := strconv.ParseBool(getEnv("AI_SEO_AUTO_BACKFILL", "true"))
+	aiSEOBackfillBatchSize, _ := strconv.Atoi(getEnv("AI_SEO_BACKFILL_BATCH_SIZE", "25"))
+	aiSEOBackfillDelayMS, _ := strconv.Atoi(getEnv("AI_SEO_BACKFILL_DELAY_MS", "750"))
 
 	openAIAPIKey := getEnv("OPENAI_API_KEY", "")
 	openRouterAPIKey := getEnv("OPENROUTER_API_KEY", "")
@@ -80,32 +86,35 @@ func Load() *Config {
 	}
 
 	return &Config{
-		ServerPort:          getEnv("SERVER_PORT", "8080"),
-		ServerHost:          getEnv("SERVER_HOST", "0.0.0.0"),
-		DatabaseURL:         getEnv("DATABASE_URL", "postgres://kinktube:kinktube@localhost:5432/kinktube?sslmode=disable"),
-		RedisURL:            getEnv("REDIS_URL", "redis://localhost:6379"),
-		RedisPoolSize:       redisPoolSize,
-		RedisMinIdleConns:   redisMinIdleConns,
-		EpornerBaseURL:      getEnv("EPORNER_BASE_URL", "https://www.eporner.com/api/v2"),
-		EpornerPerPage:      perPage,
-		ImportEnabled:       importEnabled,
-		ImportSchedule:      getEnv("IMPORT_SCHEDULE", "0 */6 * * *"), // Every 6 hours by default
-		RefreshOnStartup:    refreshOnStartup,
-		StartupRefreshDelay: startupDelay,
-		ImportMaxPages:      importMaxPages,
-		LightImportMaxPages: lightImportMaxPages,
-		LightImportKeywords: lightImportKeywords,
-		CacheTTL:            cacheTTL,
-		FrontendURL:         getEnv("FRONTEND_URL", "http://localhost:3000"),
-		AIProvider:          aiProvider,
-		OpenAIAPIKey:        openAIAPIKey,
-		OpenRouterAPIKey:    openRouterAPIKey,
-		AIModel:             aiModel,
-		AdminAPIKey:         getEnv("ADMIN_API_KEY", ""),
-		AdminUsername:       getEnv("ADMIN_USERNAME", "admin"),
-		AdminPassword:       getEnv("ADMIN_PASSWORD", ""),
-		AdminPasswordHash:   getEnv("ADMIN_PASSWORD_HASH", ""),
-		SiteURL:             getEnv("SITE_URL", "https://yourdomain.com"),
+		ServerPort:             getEnv("SERVER_PORT", "8080"),
+		ServerHost:             getEnv("SERVER_HOST", "0.0.0.0"),
+		DatabaseURL:            getEnv("DATABASE_URL", "postgres://kinktube:kinktube@localhost:5432/kinktube?sslmode=disable"),
+		RedisURL:               getEnv("REDIS_URL", "redis://localhost:6379"),
+		RedisPoolSize:          redisPoolSize,
+		RedisMinIdleConns:      redisMinIdleConns,
+		EpornerBaseURL:         getEnv("EPORNER_BASE_URL", "https://www.eporner.com/api/v2"),
+		EpornerPerPage:         perPage,
+		ImportEnabled:          importEnabled,
+		ImportSchedule:         getEnv("IMPORT_SCHEDULE", "0 */6 * * *"), // Every 6 hours by default
+		RefreshOnStartup:       refreshOnStartup,
+		StartupRefreshDelay:    startupDelay,
+		ImportMaxPages:         importMaxPages,
+		LightImportMaxPages:    lightImportMaxPages,
+		LightImportKeywords:    lightImportKeywords,
+		CacheTTL:               cacheTTL,
+		FrontendURL:            getEnv("FRONTEND_URL", "http://localhost:3000"),
+		AIProvider:             aiProvider,
+		OpenAIAPIKey:           openAIAPIKey,
+		OpenRouterAPIKey:       openRouterAPIKey,
+		AIModel:                aiModel,
+		AISEOAutoBackfill:      aiSEOAutoBackfill,
+		AISEOBackfillBatchSize: aiSEOBackfillBatchSize,
+		AISEOBackfillDelayMS:   aiSEOBackfillDelayMS,
+		AdminAPIKey:            getEnv("ADMIN_API_KEY", ""),
+		AdminUsername:          getEnv("ADMIN_USERNAME", "admin"),
+		AdminPassword:          getEnv("ADMIN_PASSWORD", ""),
+		AdminPasswordHash:      getEnv("ADMIN_PASSWORD_HASH", ""),
+		SiteURL:                getEnv("SITE_URL", "https://yourdomain.com"),
 	}
 }
 
