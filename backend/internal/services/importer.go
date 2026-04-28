@@ -30,9 +30,9 @@ type Importer struct {
 	mu                 sync.Mutex
 
 	// Daily token budget tracking (for free-tier compliance)
-	tokenMu         sync.Mutex
-	dailyTokensUsed int64
-	tokenResetDate  string // UTC date string "2006-01-02"
+	tokenMu          sync.Mutex
+	dailyTokensUsed  int64
+	tokenResetDate   string // UTC date string "2006-01-02"
 	dailyTokenBudget int64
 }
 
@@ -49,15 +49,16 @@ type ImportStats struct {
 
 // SEOBackfillStats tracks automatic AI SEO backfill work.
 type SEOBackfillStats struct {
-	StartTime      time.Time
-	EndTime        time.Time
-	Checked        int
-	Updated        int
-	Rejected       int
-	Errors         int
-	TokensUsed     int64
-	BudgetPaused   bool   // true if stopped due to daily token budget
-	ResumeAfter    string // UTC time string when budget resets
+	StartTime    time.Time
+	EndTime      time.Time
+	Checked      int
+	Updated      int
+	Rejected     int
+	Errors       int
+	TokensUsed   int64
+	BudgetPaused bool   // true if stopped due to daily token budget
+	Completed    bool   // true when there are no more videos missing descriptions
+	ResumeAfter  string // UTC time string when budget resets
 }
 
 // NewImporter creates a new video importer
@@ -438,6 +439,7 @@ func (i *Importer) BackfillMissingDescriptions(ctx context.Context, limit int, d
 		}
 
 		if len(videos) == 0 {
+			stats.Completed = true
 			stats.EndTime = time.Now()
 			log.Printf("✅ AI SEO backfill COMPLETE: no more missing descriptions! "+
 				"Total: %d updated, %d rejected, %d errors, ~%d tokens used (took %v)",
@@ -603,8 +605,13 @@ func (i *Importer) BackfillWithBudgetWait(ctx context.Context, limit int, delay 
 			continue // loop back to run another day's backfill
 		}
 
-		// If we finished without budget pause, all videos are done!
-		log.Println("✅ AI SEO backfill fully complete — all videos have descriptions!")
+		if stats.Completed {
+			log.Println("✅ AI SEO backfill fully complete — all videos have descriptions!")
+			return
+		}
+
+		log.Printf("AI SEO backfill stopped before completion: %d updated, %d rejected, %d errors, ~%d tokens used",
+			stats.Updated, stats.Rejected, stats.Errors, stats.TokensUsed)
 		return
 	}
 }
@@ -620,6 +627,9 @@ func (i *Importer) StartSEOBackfill(parentCtx context.Context, limit int, delay 
 
 	if i.seoBackfillRunning.Load() {
 		return fmt.Errorf("AI SEO backfill is already running")
+	}
+	if i.seoBackfillCancel != nil {
+		return fmt.Errorf("AI SEO backfill is already starting or stopping")
 	}
 
 	ctx, cancel := context.WithCancel(parentCtx)

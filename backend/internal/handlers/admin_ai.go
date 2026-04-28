@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -168,12 +169,12 @@ func (h *Handler) StartAdminSEOBackfill(c *fiber.Ctx) error {
 	}
 
 	if err := h.importer.StartSEOBackfill(
-		c.Context(),
+		context.Background(),
 		h.config.AISEOBackfillBatchSize,
 		time.Duration(h.config.AISEOBackfillDelayMS)*time.Millisecond,
 	); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Failed to start AI SEO backfill",
+			"error":   "Failed to start AI SEO backfill",
 			"message": err.Error(),
 		})
 	}
@@ -188,7 +189,7 @@ func (h *Handler) StartAdminSEOBackfill(c *fiber.Ctx) error {
 func (h *Handler) StopAdminSEOBackfill(c *fiber.Ctx) error {
 	if err := h.importer.StopSEOBackfill(); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Failed to stop AI SEO backfill",
+			"error":   "Failed to stop AI SEO backfill",
 			"message": err.Error(),
 		})
 	}
@@ -210,22 +211,19 @@ func (h *Handler) ResetAdminSEOBackfill(c *fiber.Ctx) error {
 	}
 
 	all := req.Timeframe == "all"
-	
+
 	// Ensure we stop backfill before resetting
 	_ = h.importer.StopSEOBackfill()
 
 	count, err := h.db.ResetAISEO(c.Context(), all)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to reset AI SEO data",
+			"error":   "Failed to reset AI SEO data",
 			"message": err.Error(),
 		})
 	}
 
-	// Reset tokens for today if resetting today's
-	if !all || all {
-		h.importer.ResetDailyTokenUsage()
-	}
+	h.importer.ResetDailyTokenUsage()
 
 	return c.JSON(fiber.Map{
 		"ok":      true,

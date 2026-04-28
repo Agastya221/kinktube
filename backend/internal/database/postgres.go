@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -14,14 +15,47 @@ import (
 
 const defaultListPerPage = 24
 
-func scanVideoRow(rows pgx.Rows, v *models.Video) error {
-	return rows.Scan(
-		&v.ID, &v.ExternalID, &v.Title, &v.Description,
-		&v.Duration, &v.DurationStr, &v.Views, &v.Rating,
-		&v.Thumbnail, &v.ThumbnailLg, &v.EmbedURL, &v.SourceURL,
-		&v.Tags, &v.Categories, &v.Keywords, &v.AddedAt,
-		&v.PublishedAt, &v.LastUpdatedAt,
-	)
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanVideoRow(row rowScanner, v *models.Video) error {
+	var description sql.NullString
+	var durationStr sql.NullString
+	var thumbnailLg sql.NullString
+	var sourceURL sql.NullString
+	var keywords sql.NullString
+	var publishedAt sql.NullTime
+
+	if err := row.Scan(
+		&v.ID, &v.ExternalID, &v.Title, &description,
+		&v.Duration, &durationStr, &v.Views, &v.Rating,
+		&v.Thumbnail, &thumbnailLg, &v.EmbedURL, &sourceURL,
+		&v.Tags, &v.Categories, &keywords, &v.AddedAt,
+		&publishedAt, &v.LastUpdatedAt,
+	); err != nil {
+		return err
+	}
+
+	v.Description = nullString(description)
+	v.DurationStr = nullString(durationStr)
+	v.ThumbnailLg = nullString(thumbnailLg)
+	v.SourceURL = nullString(sourceURL)
+	v.Keywords = nullString(keywords)
+	if publishedAt.Valid {
+		v.PublishedAt = publishedAt.Time
+	} else {
+		v.PublishedAt = time.Time{}
+	}
+
+	return nil
+}
+
+func nullString(value sql.NullString) string {
+	if value.Valid {
+		return value.String
+	}
+	return ""
 }
 
 // PostgresDB wraps the connection pool
@@ -394,13 +428,7 @@ func (db *PostgresDB) GetVideoByID(ctx context.Context, id int64) (*models.Video
 	`
 
 	video := &models.Video{}
-	err := db.pool.QueryRow(ctx, query, id).Scan(
-		&video.ID, &video.ExternalID, &video.Title, &video.Description,
-		&video.Duration, &video.DurationStr, &video.Views, &video.Rating,
-		&video.Thumbnail, &video.ThumbnailLg, &video.EmbedURL, &video.SourceURL,
-		&video.Tags, &video.Categories, &video.Keywords, &video.AddedAt,
-		&video.PublishedAt, &video.LastUpdatedAt,
-	)
+	err := scanVideoRow(db.pool.QueryRow(ctx, query, id), video)
 
 	if err == pgx.ErrNoRows {
 		return nil, nil
@@ -422,13 +450,7 @@ func (db *PostgresDB) GetVideoByExternalID(ctx context.Context, externalID strin
 	`
 
 	video := &models.Video{}
-	err := db.pool.QueryRow(ctx, query, externalID).Scan(
-		&video.ID, &video.ExternalID, &video.Title, &video.Description,
-		&video.Duration, &video.DurationStr, &video.Views, &video.Rating,
-		&video.Thumbnail, &video.ThumbnailLg, &video.EmbedURL, &video.SourceURL,
-		&video.Tags, &video.Categories, &video.Keywords, &video.AddedAt,
-		&video.PublishedAt, &video.LastUpdatedAt,
-	)
+	err := scanVideoRow(db.pool.QueryRow(ctx, query, externalID), video)
 
 	if err == pgx.ErrNoRows {
 		return nil, nil
