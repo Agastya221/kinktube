@@ -80,10 +80,11 @@ func Load() *Config {
 	defaultAIModel := "gpt-4o-mini"
 	useOpenRouterModel := aiProvider == "openrouter" || (openAIAPIKey == "" && openRouterAPIKey != "")
 	if useOpenRouterModel {
-		defaultAIModel = "meta-llama/llama-3.1-8b-instruct:free"
+		defaultAIModel = "cognitivecomputations/dolphin-mistral-24b-venice-edition:free"
 	}
-	aiModel := getEnv("OPENAI_SEO_MODEL", defaultAIModel)
-	if useOpenRouterModel {
+	// OPENAI_SEO_MODEL works for both providers; AI_MODEL is a legacy fallback
+	aiModel := getEnv("OPENAI_SEO_MODEL", "")
+	if aiModel == "" {
 		aiModel = getEnv("AI_MODEL", defaultAIModel)
 	}
 
