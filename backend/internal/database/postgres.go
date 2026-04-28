@@ -985,3 +985,46 @@ func (db *PostgresDB) GetAISEOLogStats(ctx context.Context) (total int, updated 
 	).Scan(&total, &updated, &rejected, &errored)
 	return
 }
+
+// ResetAISEO reverts AI generated descriptions and deletes AI SEO logs.
+// If all is true, it resets everything. If false, it only resets logs from the current UTC day.
+func (db *PostgresDB) ResetAISEO(ctx context.Context, all bool) (int, error) {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	timeCondition := ""
+	if !all {
+		timeCondition = "AND processed_at >= CURRENT_DATE"
+	}
+
+	// First, update videos back to old description (NULL if it was empty, but our DB is TEXT so empty string is fine)
+	updateQuery := fmt.Sprintf(`
+		UPDATE videos v
+		SET description = NULLIF(a.old_description, ''), last_updated_at = NOW()
+		FROM ai_seo_logs a
+		WHERE v.id = a.video_id AND a.status = 'updated' %s
+	`, timeCondition)
+
+	if _, err := tx.Exec(ctx, updateQuery); err != nil {
+		return 0, err
+	}
+
+	// Then, delete the logs
+	deleteQuery := fmt.Sprintf(`
+		DELETE FROM ai_seo_logs WHERE 1=1 %s
+	`, timeCondition)
+
+	tag, err := tx.Exec(ctx, deleteQuery)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+
+	return int(tag.RowsAffected()), nil
+}

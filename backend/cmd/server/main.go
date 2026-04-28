@@ -301,6 +301,7 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	admin.Post("/seo/generate", h.GenerateAdminSEO)
 	admin.Post("/seo/backfill/start", h.StartAdminSEOBackfill)
 	admin.Post("/seo/backfill/stop", h.StopAdminSEOBackfill)
+	admin.Post("/seo/backfill/reset", h.ResetAdminSEOBackfill)
 	admin.Get("/ai-seo/status", h.GetAISEOStatus)
 	admin.Get("/ai-seo/logs", h.GetAISEOLogs)
 }

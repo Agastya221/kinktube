@@ -345,3 +345,10 @@ export async function stopSEOBackfill(): Promise<{ ok: boolean; message: string 
     method: "POST",
   });
 }
+
+export async function resetSEOBackfill(timeframe: "today" | "all"): Promise<{ ok: boolean; message: string; count: number }> {
+  return fetchAdminAPI<{ ok: boolean; message: string; count: number }>("/api/admin/seo/backfill/reset", {
+    method: "POST",
+    body: JSON.stringify({ timeframe }),
+  });
+}

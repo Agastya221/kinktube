@@ -197,3 +197,38 @@ func (h *Handler) StopAdminSEOBackfill(c *fiber.Ctx) error {
 		"message": "AI SEO backfill stopped",
 	})
 }
+
+// ResetAdminSEOBackfill handles POST /api/admin/seo/backfill/reset
+func (h *Handler) ResetAdminSEOBackfill(c *fiber.Ctx) error {
+	type Request struct {
+		Timeframe string `json:"timeframe"` // "today" or "all"
+	}
+	var req Request
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	all := req.Timeframe == "all"
+	
+	// Ensure we stop backfill before resetting
+	_ = h.importer.StopSEOBackfill()
+
+	count, err := h.db.ResetAISEO(c.Context(), all)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to reset AI SEO data",
+			"message": err.Error(),
+		})
+	}
+
+	// Reset tokens for today if resetting today's
+	if !all || all {
+		h.importer.ResetDailyTokenUsage()
+	}
+
+	return c.JSON(fiber.Map{
+		"ok":      true,
+		"message": fmt.Sprintf("Reset AI SEO: reverted %d videos and cleared logs", count),
+		"count":   count,
+	})
+}

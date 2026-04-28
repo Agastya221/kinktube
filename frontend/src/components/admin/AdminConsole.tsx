@@ -428,6 +428,24 @@ export default function AdminConsole() {
     }
   };
 
+  const handleResetBackfill = async (timeframe: "today" | "all") => {
+    if (!confirm(`Are you sure you want to revert AI descriptions and delete logs for ${timeframe}? This cannot be undone.`)) {
+      return;
+    }
+    setAiSeoActionLoading(true);
+    setAiSeoActionMsg(null);
+    try {
+      const { resetSEOBackfill } = await import("@/lib/api");
+      const res = await resetSEOBackfill(timeframe);
+      setAiSeoActionMsg(res.message || `Reset ${timeframe} AI SEO data`);
+      setTimeout(() => loadAiSeoData(), 1500);
+    } catch (e: unknown) {
+      setAiSeoActionMsg((e as Error).message || "Failed to reset AI SEO data");
+    } finally {
+      setAiSeoActionLoading(false);
+    }
+  };
+
   // ── Export helpers ─────────────────────────────────────────────────────────
   const [exportLoading, setExportLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -823,6 +841,25 @@ export default function AdminConsole() {
                             {aiSeoActionLoading ? "Stopping…" : "⏹ Stop Backfill"}
                           </button>
                         )}
+                        <div className="h-6 w-px bg-border mx-1"></div>
+                        <button
+                          type="button"
+                          onClick={() => handleResetBackfill("today")}
+                          disabled={aiSeoActionLoading || aiSeoStatus.running}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border bg-background hover:border-yellow-500 hover:text-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="Revert today's AI updates and clear today's logs"
+                        >
+                          ↺ Reset Today
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleResetBackfill("all")}
+                          disabled={aiSeoActionLoading || aiSeoStatus.running}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border bg-background hover:border-red-500 hover:text-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="Revert ALL AI updates ever made and clear ALL logs"
+                        >
+                          ⚠️ Reset ALL
+                        </button>
                       </div>
                     </div>
                     {aiSeoActionMsg && (

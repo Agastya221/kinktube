@@ -371,6 +371,14 @@ func (i *Importer) GetDailyTokenUsagePublic() (used int64, budget int64) {
 	return i.getDailyTokenUsage()
 }
 
+// ResetDailyTokenUsage clears the tracked daily token usage, allowing the process to start fresh.
+func (i *Importer) ResetDailyTokenUsage() {
+	i.tokenMu.Lock()
+	defer i.tokenMu.Unlock()
+	i.dailyTokensUsed = 0
+	i.tokenResetDate = time.Now().UTC().Format("2006-01-02")
+}
+
 // BackfillMissingDescriptions generates cached SEO descriptions for existing videos.
 // It loops through batches until all videos are processed or the daily token budget
 // is exhausted. When the budget is hit, it logs the pause and returns.
