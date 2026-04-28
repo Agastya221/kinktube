@@ -25,7 +25,10 @@ export async function generateMetadata(): Promise<Metadata> {
     settings = fallbackPublicSiteSettings;
   }
 
+  const siteURL = settings.seo.site_url || "https://kinktube.fun";
+
   return {
+    metadataBase: new URL(siteURL),
     title: {
       default: settings.seo.default_title,
       template: settings.seo.title_template || `%s | ${settings.branding.site_name}`,
