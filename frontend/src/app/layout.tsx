@@ -16,10 +16,6 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-const juicyAdsVerification =
-  process.env.NEXT_PUBLIC_JUICYADS_SITE_VERIFICATION ||
-  "4efbddf29a1d7da79474550ecb10fc4c";
-
 export async function generateMetadata(): Promise<Metadata> {
   let settings = fallbackPublicSiteSettings;
 
@@ -85,9 +81,10 @@ export default async function RootLayout({
         {/* RTA Label for adult content filtering */}
         <meta name="rating" content="adult" />
         <meta name="RATING" content="RTA-5042-1996-1400-1577-RTA" />
-        {juicyAdsVerification ? (
-          <meta name="juicyads-site-verification" content={juicyAdsVerification} />
-        ) : null}
+        <meta
+          httpEquiv="Accept-CH"
+          content="Sec-CH-UA, Sec-CH-UA-Mobile, Sec-CH-UA-Platform, Sec-CH-UA-Arch, Sec-CH-UA-Model"
+        />
       </head>
       <body>
         <ChromeGate

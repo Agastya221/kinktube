@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import AdSlot from "./AdSlot";
 import { useSiteSettings } from "@/components/SiteSettingsProvider";
@@ -10,6 +10,171 @@ interface PlayerAdProps {
 }
 
 const PREROLL_SECONDS = 8;
+const EXOCLICK_SKIP_SECONDS = 5;
+
+interface VastCreative {
+  mediaUrl: string;
+  clickThrough?: string;
+  impressions: string[];
+}
+
+function buildExoClickVastUrl(value: string): string {
+  const trimmed = value.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return `https://s.magsrv.com/v1/vast.php?idzone=${encodeURIComponent(trimmed)}`;
+}
+
+function textFromElement(parent: Element | Document, selector: string): string {
+  return parent.querySelector(selector)?.textContent?.trim() || "";
+}
+
+function parseVast(xml: string): VastCreative | null {
+  const document = new DOMParser().parseFromString(xml, "application/xml");
+  const parserError = document.querySelector("parsererror");
+  if (parserError) {
+    return null;
+  }
+
+  const mediaFiles = Array.from(document.querySelectorAll("MediaFile"));
+  const mp4Media =
+    mediaFiles.find((file) => file.getAttribute("type")?.toLowerCase().includes("mp4")) ||
+    mediaFiles.find((file) => file.textContent?.trim());
+  const mediaUrl = mp4Media?.textContent?.trim();
+
+  if (!mediaUrl) {
+    return null;
+  }
+
+  return {
+    mediaUrl,
+    clickThrough: textFromElement(document, "VideoClicks ClickThrough"),
+    impressions: Array.from(document.querySelectorAll("Impression"))
+      .map((node) => node.textContent?.trim() || "")
+      .filter(Boolean),
+  };
+}
+
+function trackPixels(urls: string[]) {
+  urls.forEach((url) => {
+    const pixel = new Image();
+    pixel.referrerPolicy = "no-referrer-when-downgrade";
+    pixel.src = url;
+  });
+}
+
+function ExoClickVastPreroll({
+  zoneId,
+  onComplete,
+}: {
+  zoneId: string;
+  onComplete: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [creative, setCreative] = useState<VastCreative | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [canSkip, setCanSkip] = useState(false);
+  const vastUrl = useMemo(() => buildExoClickVastUrl(zoneId), [zoneId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(vastUrl, { cache: "no-store", credentials: "omit" })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`VAST failed: ${response.status}`);
+        }
+        return response.text();
+      })
+      .then((xml) => {
+        if (cancelled) return;
+        const nextCreative = parseVast(xml);
+        if (!nextCreative) {
+          throw new Error("No playable VAST media file");
+        }
+        setCreative(nextCreative);
+        trackPixels(nextCreative.impressions);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFailed(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [vastUrl]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setCanSkip(true), EXOCLICK_SKIP_SECONDS * 1000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const openClickThrough = () => {
+    if (creative?.clickThrough) {
+      window.open(creative.clickThrough, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  return (
+    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black">
+      <div className="relative flex h-full w-full items-center justify-center">
+        {loading ? (
+          <div className="text-sm text-white/60">Loading ad...</div>
+        ) : failed || !creative ? (
+          <div className="flex flex-col items-center gap-3 text-center">
+            <p className="text-sm text-white/60">Ad unavailable</p>
+            <button
+              type="button"
+              onClick={onComplete}
+              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+            >
+              Continue to Video
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={openClickThrough}
+            className="flex h-full w-full items-center justify-center bg-black"
+            aria-label="Open advertiser"
+          >
+            <video
+              ref={videoRef}
+              src={creative.mediaUrl}
+              autoPlay
+              muted
+              playsInline
+              onEnded={onComplete}
+              onError={() => setFailed(true)}
+              className="h-full w-full object-contain"
+            />
+          </button>
+        )}
+      </div>
+
+      {!failed && creative ? (
+        <button
+          type="button"
+          onClick={canSkip ? onComplete : undefined}
+          disabled={!canSkip}
+          className="absolute bottom-3 right-3 rounded-full border border-white/20 bg-black/80 px-4 py-2 text-xs font-semibold text-white transition-colors enabled:hover:bg-white/15 disabled:cursor-not-allowed disabled:text-white/50"
+        >
+          {canSkip ? "Skip Ad" : `Skip in ${EXOCLICK_SKIP_SECONDS}`}
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 export default function PlayerAd({ onComplete }: PlayerAdProps) {
   const siteSettings = useSiteSettings();
@@ -38,6 +203,15 @@ export default function PlayerAd({ onComplete }: PlayerAdProps) {
 
   if (!videoAdEnabled) {
     return null;
+  }
+
+  if (siteSettings.ads.network === "exoclick") {
+    return (
+      <ExoClickVastPreroll
+        zoneId={siteSettings.ads.video_banner.zone_id}
+        onComplete={onComplete}
+      />
+    );
   }
 
   return (
