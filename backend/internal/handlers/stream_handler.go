@@ -170,8 +170,8 @@ func (h *Handler) GetVideoStream(c *fiber.Ctx) error {
 		})
 	}
 
-	// Resolve stream URL with timeout
-	ctx, cancel := context.WithTimeout(c.Context(), 15*time.Second)
+	// Resolve stream URL with a tight timeout — embed iframe is always the fallback
+	ctx, cancel := context.WithTimeout(c.Context(), 8*time.Second)
 	defer cancel()
 
 	streamURL, streamType, resolveErr := resolveEpornerStreamURL(ctx, video.ExternalID)
@@ -191,6 +191,7 @@ func (h *Handler) GetVideoStream(c *fiber.Ctx) error {
 		"url":         streamURL,
 		"type":        streamType,
 		"external_id": video.ExternalID,
+		"embed_url":   video.EmbedURL,
 		"cached":      false,
 	})
 }

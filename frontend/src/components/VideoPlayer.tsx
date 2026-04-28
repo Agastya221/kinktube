@@ -23,6 +23,7 @@ interface StreamResponse {
   url: string;
   type: "hls" | "mp4";
   external_id: string;
+  embed_url?: string;
   cached: boolean;
 }
 
@@ -110,8 +111,16 @@ export default function VideoPlayer({
       return;
     }
 
+    // Abort if the backend hasn't responded within 8 seconds
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+
     try {
-      const res = await fetch(`${API_BASE}/api/videos/${identifier}/stream`);
+      const res = await fetch(`${API_BASE}/api/videos/${identifier}/stream`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+
       if (!res.ok) {
         const err: StreamError = await res.json().catch(() => ({ error: "unknown" }));
         if (err.embed_url) {
@@ -126,7 +135,8 @@ export default function VideoPlayer({
       setStreamType(data.type);
       setPhase("ready");
     } catch {
-      // Network error — use iframe embed as fallback
+      clearTimeout(timer);
+      // Network error or timeout — use iframe embed as fallback
       setPhase("iframe_fallback");
     }
   }, [videoId, externalId]);
