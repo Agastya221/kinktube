@@ -251,11 +251,13 @@ func runAutoSEOBackfill(ctx context.Context, cfg *config.Config, importer *servi
 		return
 	}
 
-	go importer.BackfillWithBudgetWait(
+	if err := importer.StartSEOBackfill(
 		ctx,
 		cfg.AISEOBackfillBatchSize,
 		time.Duration(cfg.AISEOBackfillDelayMS)*time.Millisecond,
-	)
+	); err != nil {
+		log.Printf("Failed to auto-start AI SEO backfill: %v", err)
+	}
 }
 
 func setupRoutes(app *fiber.App, h *handlers.Handler) {
@@ -297,6 +299,8 @@ func setupRoutes(app *fiber.App, h *handlers.Handler) {
 	admin.Post("/import/light", h.TriggerLightImport)
 	admin.Get("/import/status", h.GetImportStatus)
 	admin.Post("/seo/generate", h.GenerateAdminSEO)
+	admin.Post("/seo/backfill/start", h.StartAdminSEOBackfill)
+	admin.Post("/seo/backfill/stop", h.StopAdminSEOBackfill)
 	admin.Get("/ai-seo/status", h.GetAISEOStatus)
 	admin.Get("/ai-seo/logs", h.GetAISEOLogs)
 }

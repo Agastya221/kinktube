@@ -11,6 +11,8 @@ import {
   generateAdminSEO,
   getAISEOStatus,
   getAISEOLogs,
+  startSEOBackfill,
+  stopSEOBackfill,
   loginAdmin,
   logoutAdmin,
   triggerAdminImport,
@@ -176,6 +178,8 @@ export default function AdminConsole() {
   const [aiSeoLogsTotal, setAiSeoLogsTotal] = useState(0);
   const [aiSeoLogsPage, setAiSeoLogsPage] = useState(1);
   const [aiSeoFilter, setAiSeoFilter] = useState<string>("");
+  const [aiSeoActionLoading, setAiSeoActionLoading] = useState(false);
+  const [aiSeoActionMsg, setAiSeoActionMsg] = useState<string | null>(null);
   const [aiSeoExpanded, setAiSeoExpanded] = useState<number | null>(null);
 
   const isAuthenticated = !!session?.authenticated;
@@ -394,6 +398,34 @@ export default function AdminConsole() {
     setAiSeoLogsPage(page);
     setAiSeoExpanded(null);
     loadAiSeoData(aiSeoFilter, page);
+  };
+
+  const handleStartBackfill = async () => {
+    setAiSeoActionLoading(true);
+    setAiSeoActionMsg(null);
+    try {
+      const res = await startSEOBackfill();
+      setAiSeoActionMsg(res.message || "Backfill started");
+      setTimeout(() => loadAiSeoData(), 1500);
+    } catch (e: unknown) {
+      setAiSeoActionMsg((e as Error).message || "Failed to start backfill");
+    } finally {
+      setAiSeoActionLoading(false);
+    }
+  };
+
+  const handleStopBackfill = async () => {
+    setAiSeoActionLoading(true);
+    setAiSeoActionMsg(null);
+    try {
+      const res = await stopSEOBackfill();
+      setAiSeoActionMsg(res.message || "Backfill stopped");
+      setTimeout(() => loadAiSeoData(), 1500);
+    } catch (e: unknown) {
+      setAiSeoActionMsg((e as Error).message || "Failed to stop backfill");
+    } finally {
+      setAiSeoActionLoading(false);
+    }
   };
 
   if (loading && !session) {
@@ -691,13 +723,39 @@ export default function AdminConsole() {
               <SectionCard title="AI SEO Backfill Status" description="Real-time monitoring of the automated video description generation pipeline.">
                 {aiSeoStatus ? (
                   <div className="space-y-5">
-                    {/* Running indicator */}
-                    <div className="flex items-center gap-3">
-                      <span className={`h-3 w-3 rounded-full ${aiSeoStatus.running ? "bg-green-500 animate-pulse" : "bg-foreground-muted/40"}`} />
+                    {/* Running indicator + controls */}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className={`h-3 w-3 rounded-full flex-shrink-0 ${aiSeoStatus.running ? "bg-green-500 animate-pulse" : "bg-foreground-muted/40"}`} />
                       <span className="text-sm font-semibold">
                         {aiSeoStatus.running ? "Backfill Running" : "Backfill Idle / Paused"}
                       </span>
+                      <div className="ml-auto flex items-center gap-2">
+                        {!aiSeoStatus.running ? (
+                          <button
+                            id="btn-seo-backfill-start"
+                            onClick={handleStartBackfill}
+                            disabled={aiSeoActionLoading}
+                            className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+                          >
+                            {aiSeoActionLoading ? "Starting…" : "▶ Start Backfill"}
+                          </button>
+                        ) : (
+                          <button
+                            id="btn-seo-backfill-stop"
+                            onClick={handleStopBackfill}
+                            disabled={aiSeoActionLoading}
+                            className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+                          >
+                            {aiSeoActionLoading ? "Stopping…" : "⏹ Stop Backfill"}
+                          </button>
+                        )}
+                      </div>
                     </div>
+                    {aiSeoActionMsg && (
+                      <p className="text-xs px-3 py-1.5 rounded-lg bg-background border border-border text-foreground-muted">
+                        {aiSeoActionMsg}
+                      </p>
+                    )}
 
                     {/* Token Budget Progress Bar */}
                     <div className="space-y-2">

@@ -333,3 +333,15 @@ export async function getAISEOLogs(status = "", page = 1, perPage = 50): Promise
   params.set("per_page", String(perPage));
   return fetchAdminAPI<AISEOLogsResponse>(`/api/admin/ai-seo/logs?${params.toString()}`);
 }
+
+export async function startSEOBackfill(): Promise<{ ok: boolean; message: string }> {
+  return fetchAdminAPI<{ ok: boolean; message: string }>("/api/admin/seo/backfill/start", {
+    method: "POST",
+  });
+}
+
+export async function stopSEOBackfill(): Promise<{ ok: boolean; message: string }> {
+  return fetchAdminAPI<{ ok: boolean; message: string }>("/api/admin/seo/backfill/stop", {
+    method: "POST",
+  });
+}

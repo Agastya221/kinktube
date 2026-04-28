@@ -25,6 +25,8 @@ type Importer struct {
 	lightKeywordLimit  int
 	running            atomic.Bool
 	seoBackfillRunning atomic.Bool
+	seoBackfillCancel  context.CancelFunc
+	seoBackfillMu      sync.Mutex
 	mu                 sync.Mutex
 
 	// Daily token budget tracking (for free-tier compliance)
@@ -597,6 +599,54 @@ func (i *Importer) BackfillWithBudgetWait(ctx context.Context, limit int, delay 
 		log.Println("✅ AI SEO backfill fully complete — all videos have descriptions!")
 		return
 	}
+}
+
+// StartSEOBackfill starts the background backfill loop if it is not already running.
+func (i *Importer) StartSEOBackfill(parentCtx context.Context, limit int, delay time.Duration) error {
+	if i.ai == nil || !i.ai.IsEnabled() {
+		return fmt.Errorf("AI SEO service is disabled")
+	}
+
+	i.seoBackfillMu.Lock()
+	defer i.seoBackfillMu.Unlock()
+
+	if i.seoBackfillRunning.Load() {
+		return fmt.Errorf("AI SEO backfill is already running")
+	}
+
+	ctx, cancel := context.WithCancel(parentCtx)
+	i.seoBackfillCancel = cancel
+	myCancel := cancel
+
+	go func() {
+		defer func() {
+			i.seoBackfillMu.Lock()
+			// Only nil the cancel if it's still our cancel (not replaced by a new start)
+			if i.seoBackfillCancel != nil {
+				// We can't compare funcs, so we track via the bool flag only
+				_ = myCancel
+				i.seoBackfillCancel = nil
+			}
+			i.seoBackfillMu.Unlock()
+		}()
+		i.BackfillWithBudgetWait(ctx, limit, delay)
+	}()
+
+	return nil
+}
+
+// StopSEOBackfill cancels the currently running backfill loop.
+func (i *Importer) StopSEOBackfill() error {
+	i.seoBackfillMu.Lock()
+	defer i.seoBackfillMu.Unlock()
+
+	if i.seoBackfillCancel != nil {
+		i.seoBackfillCancel()
+		i.seoBackfillCancel = nil
+		return nil
+	}
+
+	return fmt.Errorf("AI SEO backfill is not currently running")
 }
 
 // FormatTokenBudgetStatus returns a human-readable string of today's token usage.

@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -154,4 +155,45 @@ func cleanRequestList(values []string) []string {
 		cleaned = append(cleaned, value)
 	}
 	return cleaned
+}
+
+// StartAdminSEOBackfill handles POST /api/admin/seo/backfill/start
+func (h *Handler) StartAdminSEOBackfill(c *fiber.Ctx) error {
+	if h.ai == nil || !h.ai.IsEnabled() {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error":   "AI SEO is disabled",
+			"message": "Set OPENAI_API_KEY or OPENROUTER_API_KEY to enable AI SEO generation",
+		})
+	}
+
+	if err := h.importer.StartSEOBackfill(
+		c.Context(),
+		h.config.AISEOBackfillBatchSize,
+		time.Duration(h.config.AISEOBackfillDelayMS)*time.Millisecond,
+	); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Failed to start AI SEO backfill",
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"ok":      true,
+		"message": "AI SEO backfill started",
+	})
+}
+
+// StopAdminSEOBackfill handles POST /api/admin/seo/backfill/stop
+func (h *Handler) StopAdminSEOBackfill(c *fiber.Ctx) error {
+	if err := h.importer.StopSEOBackfill(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Failed to stop AI SEO backfill",
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"ok":      true,
+		"message": "AI SEO backfill stopped",
+	})
 }
