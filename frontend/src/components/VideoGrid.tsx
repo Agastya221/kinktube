@@ -1,13 +1,18 @@
+"use client";
+
 import type { Video } from "@/lib/types";
 import { getVideoIdentifier } from "@/lib/types";
 import VideoCard, { VideoCardSkeleton } from "./VideoCard";
+import { NativeAdCard } from "@/components/ads";
 
 interface VideoGridProps {
   videos: Video[];
   loading?: boolean;
+  /** Positions (0-indexed) at which to inject native ad cards. Default: [3, 7, 15] */
+  adPositions?: number[];
 }
 
-export default function VideoGrid({ videos, loading }: VideoGridProps) {
+export default function VideoGrid({ videos, loading, adPositions = [3, 7, 15] }: VideoGridProps) {
   if (loading) {
     return (
       <div className="video-grid">
@@ -32,11 +37,26 @@ export default function VideoGrid({ videos, loading }: VideoGridProps) {
     );
   }
 
-  return (
-    <div className="video-grid">
-      {validVideos.map((video, index) => (
-        <VideoCard key={getVideoIdentifier(video)} video={video} priority={index < 2} />
-      ))}
-    </div>
-  );
+  // Build the grid items with native ads injected at specified positions
+  const gridItems: React.ReactNode[] = [];
+  let adIndex = 0;
+  const adPositionSet = new Set(adPositions);
+
+  for (let i = 0; i < validVideos.length; i++) {
+    // Insert native ad before this position if it matches
+    if (adPositionSet.has(i) && adIndex < adPositions.length) {
+      gridItems.push(<NativeAdCard key={`ad-${adIndex}`} />);
+      adIndex++;
+    }
+
+    gridItems.push(
+      <VideoCard
+        key={getVideoIdentifier(validVideos[i])}
+        video={validVideos[i]}
+        priority={i < 2}
+      />
+    );
+  }
+
+  return <div className="video-grid">{gridItems}</div>;
 }

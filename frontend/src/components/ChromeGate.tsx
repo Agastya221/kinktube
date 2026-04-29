@@ -14,6 +14,10 @@ interface ChromeGateProps {
   footer: React.ReactNode;
   disclaimer: React.ReactNode;
   popunder: React.ReactNode;
+  stickyMobile: React.ReactNode;
+  inPagePush: React.ReactNode;
+  interstitial: React.ReactNode;
+  aboveFooterAd: React.ReactNode;
   analytics: React.ReactNode;
 }
 
@@ -24,6 +28,10 @@ export default function ChromeGate({
   footer,
   disclaimer,
   popunder,
+  stickyMobile,
+  inPagePush,
+  interstitial,
+  aboveFooterAd,
   analytics,
 }: ChromeGateProps) {
   const pathname = usePathname();
@@ -35,8 +43,12 @@ export default function ChromeGate({
       {settings.content.show_disclaimer ? disclaimer : null}
       {header}
       <main className="flex-1">{children}</main>
+      {aboveFooterAd}
       {footer}
       {settings.content.enable_popunder_ads ? popunder : null}
+      {stickyMobile}
+      {inPagePush}
+      {interstitial}
     </>
   );
 

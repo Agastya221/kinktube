@@ -5,6 +5,7 @@ import type { Video } from "@/lib/types";
 import VideoGrid from "./VideoGrid";
 import { Loader2 } from "lucide-react";
 import { getRelatedVideos } from "@/lib/api";
+import { NativeAd } from "@/components/ads";
 
 interface PaginatedRelatedVideosProps {
   videoId: number;
@@ -54,6 +55,13 @@ export default function PaginatedRelatedVideos({
       </h2>
       
       <VideoGrid videos={videos} />
+
+      {/* Ad after related videos */}
+      {videos.length > 12 && (
+        <div className="my-8 flex justify-center">
+          <NativeAd className="max-w-sm" />
+        </div>
+      )}
 
       {hasMore && (
         <div className="mt-10 text-center">

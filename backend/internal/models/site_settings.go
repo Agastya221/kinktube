@@ -72,13 +72,19 @@ type AdSlotSettings struct {
 }
 
 type AdSettings struct {
-	Network      string         `json:"network"`
-	Banner       AdSlotSettings `json:"banner"`
-	Sidebar      AdSlotSettings `json:"sidebar"`
-	Native       AdSlotSettings `json:"native"`
-	Popunder     AdSlotSettings `json:"popunder"`
-	VideoBanner  AdSlotSettings `json:"video_banner"`
-	MobileBanner AdSlotSettings `json:"mobile_banner"`
+	Network        string         `json:"network"`
+	Banner         AdSlotSettings `json:"banner"`
+	Sidebar        AdSlotSettings `json:"sidebar"`
+	Native         AdSlotSettings `json:"native"`
+	Popunder       AdSlotSettings `json:"popunder"`
+	VideoBanner    AdSlotSettings `json:"video_banner"`
+	MobileBanner   AdSlotSettings `json:"mobile_banner"`
+	StickyMobile   AdSlotSettings `json:"sticky_mobile"`
+	InPagePush     AdSlotSettings `json:"in_page_push"`
+	Interstitial   AdSlotSettings `json:"interstitial"`
+	Skyscraper     AdSlotSettings `json:"skyscraper"`
+	AboveFooter    AdSlotSettings `json:"above_footer"`
+	BetweenContent AdSlotSettings `json:"between_content"`
 }
 
 type AffiliateSettings struct {
@@ -218,6 +224,36 @@ func DefaultSiteSettings(cfg *config.Config) *SiteSettings {
 				ZoneID:  strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_MOBILE_BANNER")),
 				Label:   "Mobile Banner",
 			},
+			StickyMobile: AdSlotSettings{
+				Enabled: strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_STICKY_MOBILE")) != "",
+				ZoneID:  strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_STICKY_MOBILE")),
+				Label:   "Sticky Mobile Banner",
+			},
+			InPagePush: AdSlotSettings{
+				Enabled: strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_IN_PAGE_PUSH")) != "",
+				ZoneID:  strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_IN_PAGE_PUSH")),
+				Label:   "In-Page Push Notification",
+			},
+			Interstitial: AdSlotSettings{
+				Enabled: strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_INTERSTITIAL")) != "",
+				ZoneID:  strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_INTERSTITIAL")),
+				Label:   "Fullpage Interstitial",
+			},
+			Skyscraper: AdSlotSettings{
+				Enabled: strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_SKYSCRAPER")) != "",
+				ZoneID:  strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_SKYSCRAPER")),
+				Label:   "Sidebar Skyscraper",
+			},
+			AboveFooter: AdSlotSettings{
+				Enabled: strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_ABOVE_FOOTER")) != "",
+				ZoneID:  strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_ABOVE_FOOTER")),
+				Label:   "Above Footer Banner",
+			},
+			BetweenContent: AdSlotSettings{
+				Enabled: strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_BETWEEN_CONTENT")) != "",
+				ZoneID:  strings.TrimSpace(os.Getenv("NEXT_PUBLIC_AD_ZONE_BETWEEN_CONTENT")),
+				Label:   "Between Content Ad",
+			},
 		},
 		Affiliates: AffiliateSettings{
 			KinkyDollarsID:  strings.TrimSpace(os.Getenv("AFFILIATE_KINKYDOLLARS_ID")),
@@ -309,6 +345,12 @@ func ApplyAdEnvDefaults(settings *SiteSettings) {
 	applyAdSlotEnvDefault(&settings.Ads.Popunder, "NEXT_PUBLIC_AD_ZONE_POPUNDER")
 	applyAdSlotEnvDefault(&settings.Ads.VideoBanner, "NEXT_PUBLIC_AD_ZONE_VIDEO_BANNER")
 	applyAdSlotEnvDefault(&settings.Ads.MobileBanner, "NEXT_PUBLIC_AD_ZONE_MOBILE_BANNER")
+	applyAdSlotEnvDefault(&settings.Ads.StickyMobile, "NEXT_PUBLIC_AD_ZONE_STICKY_MOBILE")
+	applyAdSlotEnvDefault(&settings.Ads.InPagePush, "NEXT_PUBLIC_AD_ZONE_IN_PAGE_PUSH")
+	applyAdSlotEnvDefault(&settings.Ads.Interstitial, "NEXT_PUBLIC_AD_ZONE_INTERSTITIAL")
+	applyAdSlotEnvDefault(&settings.Ads.Skyscraper, "NEXT_PUBLIC_AD_ZONE_SKYSCRAPER")
+	applyAdSlotEnvDefault(&settings.Ads.AboveFooter, "NEXT_PUBLIC_AD_ZONE_ABOVE_FOOTER")
+	applyAdSlotEnvDefault(&settings.Ads.BetweenContent, "NEXT_PUBLIC_AD_ZONE_BETWEEN_CONTENT")
 }
 
 func hasConfiguredAdSlot(settings *SiteSettings) bool {
@@ -317,7 +359,13 @@ func hasConfiguredAdSlot(settings *SiteSettings) bool {
 		strings.TrimSpace(settings.Ads.Native.ZoneID) != "" ||
 		strings.TrimSpace(settings.Ads.Popunder.ZoneID) != "" ||
 		strings.TrimSpace(settings.Ads.VideoBanner.ZoneID) != "" ||
-		strings.TrimSpace(settings.Ads.MobileBanner.ZoneID) != ""
+		strings.TrimSpace(settings.Ads.MobileBanner.ZoneID) != "" ||
+		strings.TrimSpace(settings.Ads.StickyMobile.ZoneID) != "" ||
+		strings.TrimSpace(settings.Ads.InPagePush.ZoneID) != "" ||
+		strings.TrimSpace(settings.Ads.Interstitial.ZoneID) != "" ||
+		strings.TrimSpace(settings.Ads.Skyscraper.ZoneID) != "" ||
+		strings.TrimSpace(settings.Ads.AboveFooter.ZoneID) != "" ||
+		strings.TrimSpace(settings.Ads.BetweenContent.ZoneID) != ""
 }
 
 func applyAdSlotEnvDefault(slot *AdSlotSettings, envKey string) {

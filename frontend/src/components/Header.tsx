@@ -9,6 +9,7 @@ import { Menu, X, ChevronRight, Flame, Search } from "lucide-react";
 import SearchBar from "./SearchBar";
 import { useSiteSettings } from "./SiteSettingsProvider";
 import { getDisplayThumbnailUrl } from "@/lib/media";
+import AdSlot from "@/components/ads/AdSlot";
 
 // Featured categories for hamburger menu
 const menuCategories = [
@@ -181,6 +182,11 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
                 </Link>
               ))}
             </div>
+          </div>
+
+          {/* Mobile Menu Ad */}
+          <div className="p-4 border-t border-border flex justify-center">
+            <AdSlot format="sidebar" lazy={false} />
           </div>
         </div>
       </div>

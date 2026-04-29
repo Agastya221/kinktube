@@ -48,7 +48,7 @@ export default function CategoryNav({ categories }: CategoryNavProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
+      <div className="category-scroll-container md:flex md:flex-wrap md:gap-2">
         <Link
           href="/"
           className={`category-pill ${!currentCategory ? "active" : ""}`}

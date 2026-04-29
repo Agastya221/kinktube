@@ -5,6 +5,7 @@ import VideoGrid from "@/components/VideoGrid";
 import Pagination from "@/components/Pagination";
 import SearchBar from "@/components/SearchBar";
 import { SortSelect } from "@/components/SortSelect";
+import { AdBanner, NativeAd } from "@/components/ads";
 import { getVideosServer, getPublicSiteSettingsServer } from "@/lib/api";
 import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
 import { fallbackPublicSiteSettings } from "@/lib/site-settings";
@@ -75,6 +76,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Top Ad Banner */}
+      <div className="mb-6 hidden md:block">
+        <AdBanner position="top" />
+      </div>
+
       <section className="mb-8">
         <h1 className="text-3xl sm:text-4xl font-bold mb-4">
           {query ? (
@@ -97,6 +103,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         )}
       </section>
 
+      <div className="my-5 flex justify-center md:hidden">
+        <AdBanner position="mobile" />
+      </div>
+
       {query ? (
         <>
           {videosData.videos.length > 0 && (
@@ -109,6 +119,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           )}
 
           <VideoGrid videos={videosData.videos} />
+
+          {videosData.videos.length > 12 ? (
+            <div className="my-8 flex justify-center">
+              <NativeAd className="max-w-sm" />
+            </div>
+          ) : null}
 
           {!videosData.videos.length ? null : (
             <Suspense fallback={null}>
@@ -143,6 +159,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           </div>
         </div>
       )}
+
+      {/* Bottom Ad Banner */}
+      <div className="mt-8 hidden md:block">
+        <AdBanner position="bottom" />
+      </div>
     </div>
   );
 }

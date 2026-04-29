@@ -5,7 +5,7 @@ import ChromeGate from "@/components/ChromeGate";
 import HeaderWrapper from "@/components/HeaderWrapper";
 import Footer from "@/components/Footer";
 import DisclaimerBanner from "@/components/DisclaimerBanner";
-import { PopunderAd } from "@/components/ads";
+import { PopunderAd, StickyMobileBanner, InPagePush, InterstitialAd, AboveFooterAd } from "@/components/ads";
 import Analytics from "@/components/Analytics";
 import { getPublicSiteSettingsServer } from "@/lib/api";
 import { fallbackPublicSiteSettings } from "@/lib/site-settings";
@@ -94,6 +94,14 @@ export default async function RootLayout({
           header={<HeaderWrapper />}
           footer={<Footer />}
           popunder={<PopunderAd />}
+          stickyMobile={<StickyMobileBanner />}
+          inPagePush={<InPagePush />}
+          interstitial={<InterstitialAd />}
+          aboveFooterAd={
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 hidden md:block">
+              <AboveFooterAd />
+            </div>
+          }
         >
           {children}
         </ChromeGate>

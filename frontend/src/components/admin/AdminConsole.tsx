@@ -36,7 +36,19 @@ const tabs = [
 ] as const;
 
 type Tab = typeof tabs[number];
-type AdSlotKey = "banner" | "sidebar" | "native" | "popunder" | "video_banner" | "mobile_banner";
+type AdSlotKey =
+  | "banner"
+  | "sidebar"
+  | "native"
+  | "popunder"
+  | "video_banner"
+  | "mobile_banner"
+  | "sticky_mobile"
+  | "in_page_push"
+  | "interstitial"
+  | "skyscraper"
+  | "above_footer"
+  | "between_content";
 
 function SectionCard({
   title,
@@ -678,9 +690,14 @@ export default function AdminConsole() {
                   <div className="rounded-2xl border border-border bg-background p-4">
                     <p className="text-xs uppercase tracking-[0.2em] text-foreground-muted">Ad Network</p>
                     <p className="mt-2 text-xl font-semibold capitalize">{settings.ads.network}</p>
-                    <p className="mt-2 text-sm text-foreground-muted">
-                      Banner: {settings.ads.banner.enabled ? "On" : "Off"} • Sidebar: {settings.ads.sidebar.enabled ? "On" : "Off"} • Native: {settings.ads.native.enabled ? "On" : "Off"}
-                    </p>
+                     <p className="mt-2 text-sm text-foreground-muted">
+                       Banner: {settings.ads.banner.enabled ? "On" : "Off"} &bull;
+                       Sidebar: {settings.ads.sidebar.enabled ? "On" : "Off"} &bull;
+                       Native: {settings.ads.native.enabled ? "On" : "Off"} &bull;
+                       Mobile: {settings.ads.mobile_banner.enabled ? "On" : "Off"} &bull;
+                       Sticky: {settings.ads.sticky_mobile.enabled ? "On" : "Off"} &bull;
+                       Push: {settings.ads.in_page_push.enabled ? "On" : "Off"}
+                     </p>
                   </div>
                 </div>
               </SectionCard>
@@ -736,51 +753,158 @@ export default function AdminConsole() {
           )}
 
           {activeTab === "ads" && (
-            <SectionCard title="Ads" description="Manage ad network and zone IDs without a rebuild.">
-              <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground-muted">
-                Admin values are the source of truth. Environment variables only fill blank ad settings as fallback.
-              </div>
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-foreground">Ad Network</span>
-                <select
-                  value={settings.ads.network}
-                  onChange={(event) => setNestedValue("ads", "network", event.target.value)}
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
-                >
-                  <option value="exoclick">ExoClick</option>
-                  <option value="trafficjunky">TrafficJunky</option>
-                  <option value="juicyads">JuicyAds</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </label>
-              <div className="grid gap-4 lg:grid-cols-2">
-                {([
-                  ["banner", "Banner"],
-                  ["sidebar", "Sidebar"],
-                  ["native", "Native"],
-                  ["popunder", "Popunder"],
-                  ["video_banner", "Video Player Ad"],
-                  ["mobile_banner", "Mobile Banner"],
-                ] as const).map(([key, label]) => {
-                  const slot = settings.ads[key];
-                  return (
-                    <div key={key} className="rounded-2xl border border-border bg-background p-4 space-y-3">
-                      <ToggleField label={`${label} Enabled`} checked={slot.enabled} onChange={(value) => setAdSlotValue(key, "enabled", value)} />
-                      <TextField label={`${label} Label`} value={slot.label} onChange={(value) => setAdSlotValue(key, "label", value)} />
-                      <TextField label={`${label} Zone ID`} value={slot.zone_id} onChange={(value) => setAdSlotValue(key, "zone_id", value)} />
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="space-y-6">
+              <SectionCard title="Ad Network" description="Select your primary ad network. Admin zone IDs take priority over environment variables.">
+                <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground-muted">
+                  Enter a zone ID to automatically enable that slot. Clear the zone ID to disable it. Hit &ldquo;Save All Settings&rdquo; at the top when done.
+                </div>
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-foreground">Ad Network</span>
+                  <select
+                    value={settings.ads.network}
+                    onChange={(event) => setNestedValue("ads", "network", event.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
+                  >
+                    <option value="exoclick">ExoClick</option>
+                    <option value="trafficjunky">TrafficJunky</option>
+                    <option value="juicyads">JuicyAds</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </label>
+              </SectionCard>
+
+              {/* ── Display Ads ── */}
+              <SectionCard title="Display Ads" description="Standard banner and sidebar placements for desktop browsers.">
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {([
+                    ["banner",      "Top / Bottom Banner",  "728×90 leaderboard shown above and below video grids on desktop."],
+                    ["sidebar",     "Sidebar (300×250)",     "Medium rectangle in the video page right sidebar."],
+                    ["skyscraper",  "Sidebar Skyscraper",    "160×600 tall banner shown below the sidebar rectangles."],
+                    ["above_footer","Above Footer Banner",   "728×90 leaderboard rendered globally just above the footer."],
+                    ["native",      "Native In-Feed",        "Blends with video grid cards. Injected at positions 4, 8, 16 of the grid."],
+                    ["between_content", "Between Content",  "300×250 shown between video info card and comments on the video page."],
+                    ["video_banner","Video Pre-Roll (VAST)", "VAST pre-roll shown inside the video player before playback starts."],
+                    ["popunder",    "Popunder",              "Opens in a background tab on the user's first click. High eCPM."],
+                  ] as const).map(([key, label, hint]) => {
+                    const slot = settings.ads[key];
+                    return (
+                      <div
+                        key={key}
+                        className={`rounded-2xl border bg-background p-4 space-y-3 transition-colors ${
+                          slot.enabled ? "border-accent/40" : "border-border"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{label}</p>
+                            <p className="text-xs text-foreground-muted mt-0.5">{hint}</p>
+                          </div>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                              slot.enabled
+                                ? "bg-accent/15 text-accent"
+                                : "bg-border text-foreground-muted"
+                            }`}
+                          >
+                            {slot.enabled ? "Active" : "Off"}
+                          </span>
+                        </div>
+                        <ToggleField label="Enabled" checked={slot.enabled} onChange={(value) => setAdSlotValue(key, "enabled", value)} />
+                        <TextField label="Zone ID" value={slot.zone_id} onChange={(value) => setAdSlotValue(key, "zone_id", value)} />
+                        <TextField label="Display Label" value={slot.label} onChange={(value) => setAdSlotValue(key, "label", value)} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </SectionCard>
+
+              {/* ── Mobile Ads ── */}
+              <SectionCard title="Mobile Ads" description="Placements optimised for mobile screens (max-width 767px).">
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {([
+                    ["mobile_banner",  "Mobile Banner (300×250)", "Mid-page 300×250 shown on mobile below the video player."],
+                    ["sticky_mobile",  "Sticky Bottom Banner",    "300×100 bar pinned to the bottom of the mobile viewport. Dismissible per session."],
+                  ] as const).map(([key, label, hint]) => {
+                    const slot = settings.ads[key];
+                    return (
+                      <div
+                        key={key}
+                        className={`rounded-2xl border bg-background p-4 space-y-3 transition-colors ${
+                          slot.enabled ? "border-accent/40" : "border-border"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{label}</p>
+                            <p className="text-xs text-foreground-muted mt-0.5">{hint}</p>
+                          </div>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                              slot.enabled
+                                ? "bg-accent/15 text-accent"
+                                : "bg-border text-foreground-muted"
+                            }`}
+                          >
+                            {slot.enabled ? "Active" : "Off"}
+                          </span>
+                        </div>
+                        <ToggleField label="Enabled" checked={slot.enabled} onChange={(value) => setAdSlotValue(key, "enabled", value)} />
+                        <TextField label="Zone ID" value={slot.zone_id} onChange={(value) => setAdSlotValue(key, "zone_id", value)} />
+                        <TextField label="Display Label" value={slot.label} onChange={(value) => setAdSlotValue(key, "label", value)} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </SectionCard>
+
+              {/* ── Advanced / Interstitial ── */}
+              <SectionCard title="Advanced Formats" description="High-impact formats. Use with care — frequency caps apply automatically.">
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {([
+                    ["in_page_push", "In-Page Push",       "Notification-style popup appears in the bottom-right corner after 15 seconds. Shown once per session."],
+                    ["interstitial", "Fullpage Interstitial", "Full-screen overlay shown on first video click. 5-second countdown before the user can close it. Shown once per session."],
+                  ] as const).map(([key, label, hint]) => {
+                    const slot = settings.ads[key];
+                    return (
+                      <div
+                        key={key}
+                        className={`rounded-2xl border bg-background p-4 space-y-3 transition-colors ${
+                          slot.enabled ? "border-accent/40" : "border-border"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{label}</p>
+                            <p className="text-xs text-foreground-muted mt-0.5">{hint}</p>
+                          </div>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                              slot.enabled
+                                ? "bg-accent/15 text-accent"
+                                : "bg-border text-foreground-muted"
+                            }`}
+                          >
+                            {slot.enabled ? "Active" : "Off"}
+                          </span>
+                        </div>
+                        <ToggleField label="Enabled" checked={slot.enabled} onChange={(value) => setAdSlotValue(key, "enabled", value)} />
+                        <TextField label="Zone ID" value={slot.zone_id} onChange={(value) => setAdSlotValue(key, "zone_id", value)} />
+                        <TextField label="Display Label" value={slot.label} onChange={(value) => setAdSlotValue(key, "label", value)} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </SectionCard>
+
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
+                className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
               >
-                {saving ? "Saving Ads..." : "Save Ads Settings"}
+                {saving ? "Saving…" : "Save Ad Settings"}
               </button>
-            </SectionCard>
+            </div>
           )}
 
           {activeTab === "seo" && (

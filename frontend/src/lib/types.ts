@@ -109,6 +109,12 @@ export interface AdSettings {
   popunder: AdSlotSettings;
   video_banner: AdSlotSettings;
   mobile_banner: AdSlotSettings;
+  sticky_mobile: AdSlotSettings;
+  in_page_push: AdSlotSettings;
+  interstitial: AdSlotSettings;
+  skyscraper: AdSlotSettings;
+  above_footer: AdSlotSettings;
+  between_content: AdSlotSettings;
 }
 
 export interface AffiliateSettings {

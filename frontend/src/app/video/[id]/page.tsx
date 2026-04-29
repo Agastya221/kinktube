@@ -7,7 +7,7 @@ import VideoPlayer from "@/components/VideoPlayer";
 import Comments from "@/components/Comments";
 import PaginatedRelatedVideos from "@/components/PaginatedRelatedVideos";
 import { AffiliateButtons } from "@/components/affiliate";
-import { AdBanner, SidebarAds } from "@/components/ads";
+import { AdBanner, SidebarAdsWithSkyscraper, BetweenContentAd } from "@/components/ads";
 import { getVideoWithAffiliatesServer, getRelatedVideosServer } from "@/lib/api";
 import { getBestDisplayThumbnailUrl } from "@/lib/media";
 import { formatViews, formatDuration, formatRelativeTime, getVideoPath } from "@/lib/types";
@@ -266,6 +266,11 @@ export default async function VideoPage({ params }: VideoPageProps) {
               )}
             </div>
 
+            {/* Between-Content Ad */}
+            <div className="flex justify-center">
+              <BetweenContentAd />
+            </div>
+
             {/* Comments Section */}
             <Comments videoId={video.id} />
           </div>
@@ -273,7 +278,7 @@ export default async function VideoPage({ params }: VideoPageProps) {
           {/* Sidebar */}
           <aside className="lg:col-span-1 space-y-6">
             <div className="hidden lg:block">
-              <SidebarAds count={2} />
+              <SidebarAdsWithSkyscraper count={2} />
             </div>
           </aside>
         </div>

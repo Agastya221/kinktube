@@ -170,3 +170,31 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Sticky mobile banner bottom padding — prevents content being hidden behind sticky ad */
+body.has-sticky-ad {
+  padding-bottom: 120px;
+}
+
+/* Category nav horizontal scroll on mobile */
+@media (max-width: 767px) {
+  .category-scroll-container {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    gap: 0.5rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .category-scroll-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-scroll-container .category-pill {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}

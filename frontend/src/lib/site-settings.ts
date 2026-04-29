@@ -113,6 +113,12 @@ export const fallbackPublicSiteSettings: PublicSiteSettings = {
     popunder: { enabled: false, zone_id: "", label: "Popunder" },
     video_banner: { enabled: false, zone_id: "", label: "Video Player Ad" },
     mobile_banner: { enabled: false, zone_id: "", label: "Mobile Banner" },
+    sticky_mobile: { enabled: false, zone_id: "", label: "Sticky Mobile Banner" },
+    in_page_push: { enabled: false, zone_id: "", label: "In-Page Push Notification" },
+    interstitial: { enabled: false, zone_id: "", label: "Fullpage Interstitial" },
+    skyscraper: { enabled: false, zone_id: "", label: "Sidebar Skyscraper" },
+    above_footer: { enabled: false, zone_id: "", label: "Above Footer Banner" },
+    between_content: { enabled: false, zone_id: "", label: "Between Content Ad" },
   },
   legal: {
     terms: { title: "Terms of Service", content: fallbackTermsContent },

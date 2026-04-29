@@ -5,7 +5,19 @@ import { useSiteSettings } from "@/components/SiteSettingsProvider";
 
 // Ad network configurations
 export type AdNetwork = "exoclick" | "trafficjunky" | "juicyads" | "custom";
-export type AdFormat = "banner" | "sidebar" | "native" | "popunder" | "video-banner" | "mobile-banner";
+export type AdFormat =
+  | "banner"
+  | "sidebar"
+  | "native"
+  | "popunder"
+  | "video-banner"
+  | "mobile-banner"
+  | "sticky-mobile"
+  | "in-page-push"
+  | "interstitial"
+  | "skyscraper"
+  | "above-footer"
+  | "between-content";
 
 interface AdConfig {
   network: AdNetwork;
@@ -20,6 +32,7 @@ interface AdSlotProps {
   format: AdFormat;
   className?: string;
   fallback?: React.ReactNode;
+  lazy?: boolean; // If true, only load when visible (default: true)
 }
 
 const getAdConfig = (
@@ -35,6 +48,12 @@ const getAdConfig = (
     "popunder": siteSettings.ads.popunder,
     "video-banner": siteSettings.ads.video_banner,
     "mobile-banner": siteSettings.ads.mobile_banner,
+    "sticky-mobile": siteSettings.ads.sticky_mobile,
+    "in-page-push": siteSettings.ads.in_page_push,
+    "interstitial": siteSettings.ads.interstitial,
+    "skyscraper": siteSettings.ads.skyscraper,
+    "above-footer": siteSettings.ads.above_footer,
+    "between-content": siteSettings.ads.between_content,
   }[format];
 
   const zoneId = slotConfig?.zone_id;
@@ -47,7 +66,13 @@ const getAdConfig = (
     "native": { width: 300, height: 250 },
     "popunder": { width: 0, height: 0 },
     "video-banner": { width: 308, height: 298 },
-    "mobile-banner": { width: 300, height: 50 },
+    "mobile-banner": { width: 300, height: 250 },
+    "sticky-mobile": { width: 300, height: 100 },
+    "in-page-push": { width: 0, height: 0 },
+    "interstitial": { width: 0, height: 0 },
+    "skyscraper": { width: 160, height: 600 },
+    "above-footer": { width: 728, height: 90 },
+    "between-content": { width: 300, height: 250 },
   };
 
   return {
@@ -129,7 +154,7 @@ function renderJuicyAds(parent: HTMLElement, config: AdConfig): boolean {
 function renderExoClick(parent: HTMLElement, config: AdConfig): boolean {
   const zoneId = config.zoneId.trim();
 
-  if (config.format === "popunder") {
+  if (config.format === "popunder" || config.format === "in-page-push" || config.format === "interstitial") {
     return false;
   }
 
@@ -181,23 +206,48 @@ const generateAdCode = (config: AdConfig): string => {
   }
 };
 
-export default function AdSlot({ format, className = "", fallback }: AdSlotProps) {
+export default function AdSlot({ format, className = "", fallback, lazy = true }: AdSlotProps) {
   const siteSettings = useSiteSettings();
   const config = useMemo(
     () => getAdConfig(format, siteSettings),
     [format, siteSettings]
   );
   const adRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [hasError, setHasError] = useState(false);
+  const [isVisible, setIsVisible] = useState(!lazy);
 
+  // IntersectionObserver for lazy loading
   useEffect(() => {
-    if (!config || !adRef.current) {
-      setHasError(true);
+    if (!lazy || !containerRef.current) {
       return;
     }
 
-    // Don't render popunders in the DOM directly
-    if (format === "popunder") {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(containerRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [lazy]);
+
+  useEffect(() => {
+    if (!config || !adRef.current || !isVisible) {
+      if (!config) setHasError(true);
+      return;
+    }
+
+    // Don't render popunders / in-page-push / interstitials in the DOM directly
+    if (format === "popunder" || format === "in-page-push" || format === "interstitial") {
       return;
     }
 
@@ -236,7 +286,7 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
     } catch {
       setHasError(true);
     }
-  }, [config, format, siteSettings]);
+  }, [config, format, siteSettings, isVisible]);
 
   // Responsive sizing classes based on format
   const sizeClasses: Record<AdFormat, string> = {
@@ -247,7 +297,15 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
     "native": "w-full max-w-[300px] min-h-[250px]",
     "popunder": "hidden",
     "video-banner": "w-[308px] max-w-[92vw] h-[298px] mx-auto",
-    "mobile-banner": "w-full max-w-[300px] h-[50px] mx-auto md:hidden",
+    "mobile-banner": "w-full max-w-[300px] min-h-[250px] mx-auto",
+    "sticky-mobile": "w-full max-w-[300px] h-[100px] mx-auto",
+    "in-page-push": "hidden",
+    "interstitial": "hidden",
+    "skyscraper": "w-[160px] h-[600px]",
+    "above-footer": siteSettings.ads.network === "juicyads"
+      ? "w-full max-w-[728px] h-[102px] mx-auto"
+      : "w-full max-w-[728px] h-[90px] mx-auto",
+    "between-content": "w-full max-w-[300px] min-h-[250px] mx-auto",
   };
 
   if (!config) {
@@ -260,13 +318,18 @@ export default function AdSlot({ format, className = "", fallback }: AdSlotProps
 
   return (
     <div
+      ref={containerRef}
       className={`sponsor-placement ${sizeClasses[format]} ${className}`}
       data-placement={format}
     >
-      <div
-        ref={adRef}
-        className="relative z-10 flex h-full w-full items-center justify-center"
-      />
+      {isVisible ? (
+        <div
+          ref={adRef}
+          className="relative z-10 flex h-full w-full items-center justify-center"
+        />
+      ) : (
+        <div className="h-full w-full" />
+      )}
     </div>
   );
 }
