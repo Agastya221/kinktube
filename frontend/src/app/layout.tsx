@@ -55,6 +55,11 @@ export async function generateMetadata(): Promise<Metadata> {
       title: settings.seo.twitter_title,
       description: settings.seo.twitter_description,
     },
+    icons: {
+      icon: "/logo.jpeg",
+      shortcut: "/logo.jpeg",
+      apple: "/logo.jpeg",
+    },
     other: {
       rating: "adult",
       RATING: "RTA-5042-1996-1400-1577-RTA",

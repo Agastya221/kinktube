@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { Suspense } from "react";
 import VideoGrid from "@/components/VideoGrid";
 import Pagination from "@/components/Pagination";
@@ -82,6 +83,16 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       </div>
 
       <section className="mb-8">
+        <div className="mb-6 flex justify-start">
+          <Image 
+            src="/logo.jpeg" 
+            alt="KinkTube Logo" 
+            width={240} 
+            height={240} 
+            className="h-16 md:h-20 w-auto object-contain"
+            priority
+          />
+        </div>
         <h1 className="text-3xl sm:text-4xl font-bold mb-4">
           {query ? (
             <>
