@@ -1,27 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import type { Video } from "@/lib/types";
+import { getVideoIdentifier } from "@/lib/types";
 import VideoGrid from "./VideoGrid";
 import { Loader2 } from "lucide-react";
 import { getRelatedVideos } from "@/lib/api";
-import { NativeAd } from "@/components/ads";
 
 interface PaginatedRelatedVideosProps {
   videoId: number;
   initialVideos: Video[];
 }
 
+/**
+ * Build a set of dedup keys for a video to catch duplicates
+ * that have different IDs but are the same content.
+ */
+function getVideoDedupKeys(video: Video): string[] {
+  const keys: string[] = [];
+
+  if (video.external_id) {
+    keys.push(`ext:${video.external_id}`);
+  }
+
+  if (video.source_url) {
+    keys.push(`src:${video.source_url.toLowerCase()}`);
+  }
+
+  if (video.embed_url) {
+    keys.push(`emb:${video.embed_url.toLowerCase()}`);
+  }
+
+  const title = video.title.toLowerCase().trim().replace(/\s+/g, " ");
+  if (title) {
+    keys.push(`td:${title}|${video.duration}`);
+    const thumb = (video.thumbnail_lg || video.thumbnail || "").toLowerCase();
+    if (thumb) {
+      keys.push(`tt:${title}|${thumb}`);
+    }
+  }
+
+  return keys;
+}
+
+function deduplicateVideos(videos: Video[]): Video[] {
+  const seen = new Set<string>();
+  const result: Video[] = [];
+
+  for (const video of videos) {
+    // Skip videos without thumbnails
+    if (!video.thumbnail && !video.thumbnail_lg) {
+      continue;
+    }
+
+    const keys = getVideoDedupKeys(video);
+    if (keys.some((key) => seen.has(key))) {
+      continue;
+    }
+
+    keys.forEach((key) => seen.add(key));
+    result.push(video);
+  }
+
+  return result;
+}
+
 export default function PaginatedRelatedVideos({
   videoId,
   initialVideos,
 }: PaginatedRelatedVideosProps) {
-  const [videos, setVideos] = useState<Video[]>(initialVideos);
+  const [videos, setVideos] = useState<Video[]>(() => deduplicateVideos(initialVideos));
   const [page, setPage] = useState(2);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(initialVideos.length >= 24);
 
-  const loadMore = async () => {
+  const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
     setLoading(true);
 
@@ -32,7 +85,10 @@ export default function PaginatedRelatedVideos({
       if (newVideos.length === 0) {
         setHasMore(false);
       } else {
-        setVideos((prev) => [...prev, ...newVideos]);
+        setVideos((prev) => {
+          const merged = [...prev, ...newVideos];
+          return deduplicateVideos(merged);
+        });
         setPage((p) => p + 1);
         if (newVideos.length < 24) {
           setHasMore(false);
@@ -43,7 +99,7 @@ export default function PaginatedRelatedVideos({
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading, hasMore, videoId, page]);
 
   if (videos.length === 0) return null;
 
@@ -55,13 +111,6 @@ export default function PaginatedRelatedVideos({
       </h2>
       
       <VideoGrid videos={videos} />
-
-      {/* Ad after related videos */}
-      {videos.length > 12 && (
-        <div className="my-8 flex justify-center">
-          <NativeAd className="max-w-sm" />
-        </div>
-      )}
 
       {hasMore && (
         <div className="mt-10 text-center">

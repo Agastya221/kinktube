@@ -6,8 +6,9 @@ import { Eye, Clock, Star, Tag, Calendar } from "lucide-react";
 import VideoPlayer from "@/components/VideoPlayer";
 import Comments from "@/components/Comments";
 import PaginatedRelatedVideos from "@/components/PaginatedRelatedVideos";
+import SidebarRelatedVideos from "@/components/SidebarRelatedVideos";
 import { AffiliateButtons } from "@/components/affiliate";
-import { AdBanner, SidebarAdsWithSkyscraper, BetweenContentAd } from "@/components/ads";
+import { AdBanner, BetweenContentAd } from "@/components/ads";
 import { getVideoWithAffiliatesServer, getRelatedVideosServer } from "@/lib/api";
 import { getBestDisplayThumbnailUrl } from "@/lib/media";
 import { formatViews, formatDuration, formatRelativeTime, getVideoPath } from "@/lib/types";
@@ -154,6 +155,7 @@ export default async function VideoPage({ params }: VideoPageProps) {
   }
 
   const { video, affiliate_links } = videoData;
+  const allRelatedVideos = relatedVideos.videos || [];
 
   return (
     <>
@@ -166,15 +168,15 @@ export default async function VideoPage({ params }: VideoPageProps) {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Top Ad Banner */}
-        <div className="mb-6 hidden md:block">
+        {/* Top Ad Banner - Desktop Only */}
+        <div className="mb-6 hidden md:flex justify-center">
           <AdBanner position="top" />
         </div>
 
-        {/* Main Content Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        {/* Main Content Layout: Video + Sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 lg:gap-8">
           {/* Main Video Section */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="min-w-0 space-y-6">
             {/* Video Player */}
             <div className="rounded-xl overflow-hidden shadow-2xl shadow-black/50">
               <VideoPlayer
@@ -183,6 +185,7 @@ export default async function VideoPage({ params }: VideoPageProps) {
               />
             </div>
 
+            {/* Mobile Ad Below Player */}
             <div className="flex justify-center py-3 md:hidden">
               <AdBanner position="mobile" />
             </div>
@@ -275,21 +278,19 @@ export default async function VideoPage({ params }: VideoPageProps) {
             <Comments videoId={video.id} />
           </div>
 
-          {/* Sidebar */}
-          <aside className="lg:col-span-1 space-y-6">
-            <div className="hidden lg:block">
-              <SidebarAdsWithSkyscraper count={2} />
-            </div>
+          {/* Desktop Sidebar — Related Videos + Native Ad */}
+          <aside className="hidden lg:block">
+            <SidebarRelatedVideos videos={allRelatedVideos} />
           </aside>
         </div>
 
-        {/* Related Videos */}
-        {relatedVideos.videos && relatedVideos.videos.length > 0 && (
-          <PaginatedRelatedVideos videoId={video.id} initialVideos={relatedVideos.videos} />
+        {/* Related Videos — Full Width Below */}
+        {allRelatedVideos.length > 0 && (
+          <PaginatedRelatedVideos videoId={video.id} initialVideos={allRelatedVideos} />
         )}
 
-        {/* Bottom Ad */}
-        <div className="mt-8 hidden md:block">
+        {/* Bottom Ad - Desktop Only */}
+        <div className="mt-8 hidden md:flex justify-center">
           <AdBanner position="bottom" />
         </div>
       </div>
