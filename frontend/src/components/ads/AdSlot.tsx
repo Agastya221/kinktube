@@ -61,7 +61,7 @@ const getAdConfig = (
 
   // Default dimensions per format
   const dimensions: Record<AdFormat, { width: number; height: number }> = {
-    "banner": { width: 728, height: network === "juicyads" ? 102 : 90 },
+    "banner": { width: 728, height: 90 },
     "sidebar": { width: 300, height: 250 },
     "native": { width: 300, height: 250 },
     "popunder": { width: 0, height: 0 },
@@ -290,21 +290,17 @@ export default function AdSlot({ format, className = "", fallback, lazy = true }
 
   // Responsive sizing classes based on format
   const sizeClasses: Record<AdFormat, string> = {
-    "banner": siteSettings.ads.network === "juicyads"
-      ? "w-full max-w-[728px] h-[102px] mx-auto"
-      : "w-full max-w-[728px] h-[90px] mx-auto",
+    "banner": "w-full max-w-[728px] h-[90px] mx-auto",
     "sidebar": "w-[300px] h-[250px]",
     "native": "w-full max-w-[300px] min-h-[250px]",
     "popunder": "hidden",
     "video-banner": "w-[308px] max-w-[92vw] h-[298px] mx-auto",
-    "mobile-banner": "w-full max-w-[300px] min-h-[250px] mx-auto",
+    "mobile-banner": "w-full max-w-[300px] h-[100px] mx-auto",
     "sticky-mobile": "w-full max-w-[300px] h-[100px] mx-auto",
     "in-page-push": "hidden",
     "interstitial": "hidden",
     "skyscraper": "w-[160px] h-[600px]",
-    "above-footer": siteSettings.ads.network === "juicyads"
-      ? "w-full max-w-[728px] h-[102px] mx-auto"
-      : "w-full max-w-[728px] h-[90px] mx-auto",
+    "above-footer": "w-full max-w-[728px] h-[90px] mx-auto",
     "between-content": "w-full max-w-[300px] min-h-[250px] mx-auto",
   };
 
