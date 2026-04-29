@@ -5,7 +5,7 @@ import VideoGrid from "@/components/VideoGrid";
 import Pagination from "@/components/Pagination";
 import SearchBar from "@/components/SearchBar";
 import { SortSelect } from "@/components/SortSelect";
-import { AdBanner, NativeAd } from "@/components/ads";
+import { AdBanner } from "@/components/ads";
 import { getVideosServer, getPublicSiteSettingsServer } from "@/lib/api";
 import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
 import { fallbackPublicSiteSettings } from "@/lib/site-settings";
@@ -118,13 +118,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             </section>
           )}
 
-          <VideoGrid videos={videosData.videos} />
-
-          {videosData.videos.length > 12 ? (
-            <div className="my-8 flex justify-center">
-              <NativeAd className="max-w-sm" />
-            </div>
-          ) : null}
+          <VideoGrid videos={videosData.videos} nativeAdAfter={8} />
 
           {!videosData.videos.length ? null : (
             <Suspense fallback={null}>

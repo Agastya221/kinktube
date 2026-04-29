@@ -717,7 +717,7 @@ func (db *PostgresDB) GetCategoryStats(ctx context.Context) (map[string]int64, e
 	query := `
 		SELECT unnest(categories) as category, COUNT(*) as count
 		FROM videos
-		WHERE is_english = TRUE
+		WHERE is_english = TRUE AND is_available = TRUE
 		GROUP BY category
 		ORDER BY count DESC
 	`
@@ -744,7 +744,7 @@ func (db *PostgresDB) GetCategoryStats(ctx context.Context) (map[string]int64, e
 // GetTotalVideoCount returns the total number of videos
 func (db *PostgresDB) GetTotalVideoCount(ctx context.Context) (int64, error) {
 	var count int64
-	err := db.pool.QueryRow(ctx, "SELECT COUNT(*) FROM videos WHERE is_english = TRUE").Scan(&count)
+	err := db.pool.QueryRow(ctx, "SELECT COUNT(*) FROM videos WHERE is_english = TRUE AND is_available = TRUE").Scan(&count)
 	return count, err
 }
 
@@ -813,6 +813,7 @@ func (db *PostgresDB) GetRelatedVideos(ctx context.Context, videoID int64, page,
 		FROM videos v, target t
 		WHERE v.id != $1
 		AND v.is_english = TRUE
+		AND v.is_available = TRUE
 		AND (
 			-- Must share primary category OR have same keywords
 			t.primary_category = ANY(v.categories)
