@@ -66,7 +66,7 @@ const getAdConfig = (
     "native": { width: 300, height: 250 },
     "popunder": { width: 0, height: 0 },
     "video-banner": { width: 308, height: 298 },
-    "mobile-banner": { width: 300, height: 250 },
+    "mobile-banner": { width: 300, height: 100 },
     "sticky-mobile": { width: 300, height: 100 },
     "in-page-push": { width: 0, height: 0 },
     "interstitial": { width: 0, height: 0 },

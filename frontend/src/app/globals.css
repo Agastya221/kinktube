@@ -73,9 +73,7 @@ body {
 
 /* Category pill styles */
 .category-pill {
-  @apply inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium
-         bg-background-tertiary text-foreground-muted border border-border
-         hover:border-accent hover:text-accent transition-colors duration-200;
+  @apply inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-background-tertiary text-foreground-muted border border-border hover:border-accent hover:text-accent transition-colors duration-200;
 }
 
 .category-pill.active {
@@ -94,9 +92,7 @@ body {
 
 /* Pagination styles */
 .pagination-btn {
-  @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200
-         bg-background-tertiary text-foreground-muted border border-border
-         hover:border-accent hover:text-accent;
+  @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 bg-background-tertiary text-foreground-muted border border-border hover:border-accent hover:text-accent;
 }
 
 .pagination-btn.active {
@@ -109,10 +105,7 @@ body {
 
 /* Search input */
 .search-input {
-  @apply w-full bg-background-secondary border border-border rounded-lg
-         px-4 py-2.5 text-foreground placeholder-foreground-muted
-         focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent
-         transition-all duration-200;
+  @apply w-full bg-background-secondary border border-border rounded-lg px-4 py-2.5 text-foreground placeholder-foreground-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all duration-200;
 }
 
 /* Loading skeleton */
@@ -169,32 +162,4 @@ body {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-}
-
-/* Sticky mobile banner bottom padding — prevents content being hidden behind sticky ad */
-body.has-sticky-ad {
-  padding-bottom: 120px;
-}
-
-/* Category nav horizontal scroll on mobile */
-@media (max-width: 767px) {
-  .category-scroll-container {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    gap: 0.5rem;
-    padding-bottom: 0.25rem;
-  }
-
-  .category-scroll-container::-webkit-scrollbar {
-    display: none;
-  }
-
-  .category-scroll-container .category-pill {
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
 }
