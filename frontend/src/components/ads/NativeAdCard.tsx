@@ -9,9 +9,9 @@ interface NativeAdCardProps {
 }
 
 /**
- * A native ad card styled to blend with video cards in the grid.
- * Uses the same aspect ratio and styling as VideoCard.
- * Loads an ExoClick native ad zone.
+ * A native ad card styled to completely blend with video cards in the grid.
+ * No "AD" badge or "Sponsored Content" label — the ExoClick native widget
+ * renders its own title/description which our Custom CSS styles to match VideoCard.
  */
 export default function NativeAdCard({ className = "" }: NativeAdCardProps) {
   const siteSettings = useSiteSettings();
@@ -71,23 +71,8 @@ export default function NativeAdCard({ className = "" }: NativeAdCardProps) {
 
   return (
     <div ref={containerRef} className={`native-ad-card ${className}`}>
-      <div className="bg-background-tertiary relative overflow-hidden rounded-lg">
-        {/* Native ad container styled like video thumbnail */}
-        <div className="relative overflow-hidden rounded-lg" style={{ aspectRatio: "16 / 9" }}>
-          <div
-            ref={adRef}
-            className="absolute inset-0 flex items-center justify-center"
-          />
-          {/* Sponsored badge */}
-          <span className="absolute top-2 left-2 bg-accent/90 text-white text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide z-10">
-            Ad
-          </span>
-        </div>
-      </div>
-      {/* Label below matching VideoCard info style */}
-      <div className="mt-2 space-y-1.5">
-        <p className="text-xs text-foreground-muted">Sponsored Content</p>
-      </div>
+      {/* Let ExoClick render the full widget — CSS handles all the styling */}
+      <div ref={adRef} className="native-ad-widget" />
     </div>
   );
 }

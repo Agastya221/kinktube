@@ -163,3 +163,13 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Native ad card — blends with video-grid items */
+.native-ad-card {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.native-ad-widget {
+  width: 100%;
+}
