@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from "react";
 import type { Video } from "@/lib/types";
-import { getVideoIdentifier } from "@/lib/types";
 import VideoGrid from "./VideoGrid";
 import { Loader2 } from "lucide-react";
 import { getRelatedVideos } from "@/lib/api";
