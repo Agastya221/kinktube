@@ -56,9 +56,13 @@ export async function generateMetadata(): Promise<Metadata> {
       description: settings.seo.twitter_description,
     },
     icons: {
-      icon: "/logo.jpeg",
-      shortcut: "/logo.jpeg",
-      apple: "/logo.jpeg",
+      icon: [
+        { url: "/favicon.ico", sizes: "48x48" },
+        { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+        { url: "/favicon.png", sizes: "180x180", type: "image/png" },
+      ],
+      shortcut: "/favicon.ico",
+      apple: "/apple-touch-icon.png",
     },
     other: {
       rating: "adult",
