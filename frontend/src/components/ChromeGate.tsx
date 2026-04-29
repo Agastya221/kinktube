@@ -45,7 +45,7 @@ export default function ChromeGate({
       <main className="flex-1">{children}</main>
       {aboveFooterAd}
       {footer}
-      {settings.content.enable_popunder_ads ? popunder : null}
+      {popunder}
       {stickyMobile}
       {inPagePush}
       {interstitial}

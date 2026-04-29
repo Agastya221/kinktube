@@ -12,6 +12,39 @@ interface VideoGridProps {
   nativeAdAfter?: number;
 }
 
+/**
+ * Deduplicate videos by external_id, then by title+duration fingerprint.
+ * Also filters out videos missing thumbnails and unavailable videos.
+ */
+function deduplicateVideos(videos: Video[]): Video[] {
+  const seen = new Set<string>();
+  const result: Video[] = [];
+
+  for (const video of videos) {
+    // Skip videos without thumbnails
+    if (!video.thumbnail && !video.thumbnail_lg) continue;
+
+    // Skip unavailable videos (frontend safety net)
+    if ('is_available' in video && (video as Video & { is_available?: boolean }).is_available === false) continue;
+
+    // Primary key: external_id
+    const extKey = video.external_id ? `ext:${video.external_id}` : null;
+    if (extKey && seen.has(extKey)) continue;
+
+    // Secondary key: title + duration fingerprint (catches dupes with different IDs)
+    const titleKey = video.title
+      ? `fp:${video.title.toLowerCase().trim()}|${video.duration || 0}`
+      : null;
+    if (titleKey && seen.has(titleKey)) continue;
+
+    if (extKey) seen.add(extKey);
+    if (titleKey) seen.add(titleKey);
+    result.push(video);
+  }
+
+  return result;
+}
+
 export default function VideoGrid({ videos, loading, nativeAdAfter = 8 }: VideoGridProps) {
   if (loading) {
     return (
@@ -29,8 +62,8 @@ export default function VideoGrid({ videos, loading, nativeAdAfter = 8 }: VideoG
     );
   }
 
-  // Filter out videos without thumbnails
-  const validVideos = videos?.filter((video) => video.thumbnail || video.thumbnail_lg) || [];
+  // Deduplicate + filter invalid/unavailable videos
+  const validVideos = deduplicateVideos(videos || []);
 
   if (validVideos.length === 0) {
     return (

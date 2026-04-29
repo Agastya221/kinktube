@@ -696,7 +696,8 @@ export default function AdminConsole() {
                        Native: {settings.ads.native.enabled ? "On" : "Off"} &bull;
                        Mobile: {settings.ads.mobile_banner.enabled ? "On" : "Off"} &bull;
                        Sticky: {settings.ads.sticky_mobile.enabled ? "On" : "Off"} &bull;
-                       Push: {settings.ads.in_page_push.enabled ? "On" : "Off"}
+                       Push: {settings.ads.in_page_push.enabled ? "On" : "Off"} &bull;
+                       Popunder: {settings.ads.popunder.enabled ? "On" : "Off"}
                      </p>
                   </div>
                 </div>
@@ -743,10 +744,9 @@ export default function AdminConsole() {
                 <TextField label="Videos Per Page" type="number" value={settings.content.videos_per_page} onChange={(value) => setNestedValue("content", "videos_per_page", Number(value))} />
                 <TextField label="Related Videos Count" type="number" value={settings.content.related_videos} onChange={(value) => setNestedValue("content", "related_videos", Number(value))} />
               </div>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2">
                 <ToggleField label="Show Disclaimer Banner" checked={settings.content.show_disclaimer} onChange={(value) => setNestedValue("content", "show_disclaimer", value)} />
                 <ToggleField label="Enable Age Gate" checked={settings.content.enable_age_gate} onChange={(value) => setNestedValue("content", "enable_age_gate", value)} />
-                <ToggleField label="Enable Popunder Ads" checked={settings.content.enable_popunder_ads} onChange={(value) => setNestedValue("content", "enable_popunder_ads", value)} />
               </div>
               <TextField label="Disclaimer Text" value={settings.content.disclaimer_text} onChange={(value) => setNestedValue("content", "disclaimer_text", value)} multiline />
             </SectionCard>
