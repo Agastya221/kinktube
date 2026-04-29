@@ -104,8 +104,9 @@ type EpornerThumb struct {
 	Src    string `json:"src"`
 }
 
-var bdsmRelevanceTerms = []string{
-	// Core terms
+// bdsmStrongTerms are unambiguously BDSM — a single match is sufficient evidence.
+var bdsmStrongTerms = []string{
+	// Core BDSM identity
 	"bdsm",
 	"bondage",
 	"femdom",
@@ -113,59 +114,66 @@ var bdsmRelevanceTerms = []string{
 	"dominatrix",
 	"mistress",
 	"domme",
-	"goddess",
-	"dominant",
-	"slave",
 	"slave training",
 	"submission",
 	"submissive",
 	"shibari",
-	"suspension",
+	"kinbaku",
 	"hogtie",
 	"hogtied",
-	"predicament",
-	"rope",
+	"predicament bondage",
 	"device bondage",
 	"medical bondage",
 	"vacbed",
 	"spreader bar",
+	// Impact play
 	"spanking",
 	"caning",
-	"crop",
 	"whipping",
-	"latex",
-	"rubber",
+	"corporal punishment",
+	// Fetish gear
+	"latex fetish",
+	"rubber fetish",
 	"catsuit",
-	"leather",
-	"gag",
+	"ball gag",
+	"mouth gag",
 	"handcuffs",
-	"blindfold",
+	"blindfold bondage",
+	// Body worship / control
 	"foot worship",
+	"boot worship",
 	"facesitting",
 	"smothering",
 	"strapon",
 	"pegging",
+	// CBT / genital control
 	"cbt",
 	"ball busting",
 	"cock torture",
 	"chastity",
 	"orgasm control",
+	"forced orgasm",
+	"ruined orgasm",
+	"tease denial",
+	// Sensation play
 	"wax play",
 	"electro play",
-	// Extreme/intense terms
-	"kinbaku",
+	"electro torture",
+	"violet wand",
+	// Extreme bondage
 	"mummification",
 	"mummified",
 	"armbinder",
 	"straitjacket",
 	"breath play",
 	"breath control",
-	"hood",
 	"sensory deprivation",
-	"forced orgasm",
-	"ruined orgasm",
-	"tease denial",
-	"edging",
+	"tight bondage",
+	"extreme bondage",
+	"inescapable bondage",
+	"suspension bondage",
+	// Roles & dynamics
+	"slave",
 	"human furniture",
 	"objectification",
 	"sissification",
@@ -173,27 +181,96 @@ var bdsmRelevanceTerms = []string{
 	"pony play",
 	"pet play",
 	"puppy play",
-	"boot worship",
-	"humiliation",
 	"public humiliation",
-	"degradation",
-	"corporal punishment",
-	"severe",
-	"tight bondage",
-	"extreme",
+	// Environments
 	"dungeon",
+}
+
+// bdsmWeakTerms are generic words that CAN indicate BDSM but also appear in vanilla
+// content. A video must contain at least 2 of these (or 1 strong + any weak) to qualify.
+var bdsmWeakTerms = []string{
+	"dominant",
+	"goddess",
+	"rope",
+	"crop",
+	"leather",
+	"latex",
+	"rubber",
+	"gag",
+	"blindfold",
+	"hood",
+	"collar",
+	"leash",
+	"edging",
+	"humiliation",
+	"degradation",
+	"predicament",
+	"suspension",
 	"torture",
 	"torment",
+	"encased",
+	"wrapped",
+	// These are the most problematic — too generic on their own
+	"extreme",
+	"severe",
 	"harsh",
 	"strict",
 	"cruel",
 	"brutal",
 	"intense",
 	"inescapable",
-	"encased",
-	"wrapped",
-	"dungeon",
+	"tied",
+	"restrained",
 }
+
+// vanillaBlocklist contains terms that indicate non-BDSM vanilla content.
+// If a video title/keywords contain any of these AND no strong BDSM term,
+// the video is rejected. This prevents "Extreme Step Sister" type content.
+var vanillaBlocklist = []string{
+	// Family roleplay (vanilla)
+	"step mom", "stepmom", "step-mom",
+	"step mother", "stepmother",
+	"step sister", "stepsister", "step-sister",
+	"step brother", "stepbrother", "step-brother",
+	"step dad", "stepdad", "step-dad",
+	"step daughter", "stepdaughter",
+	"step son", "stepson",
+	// Vanilla genres
+	"massage",
+	"casting couch", "casting",
+	"audition",
+	"interview porn",
+	"yoga",
+	"gym",
+	"shower spy",
+	"college party",
+	"spring break",
+	"beach",
+	"pool party",
+	"pickup", "pick up",
+	"bangbus", "bang bus",
+	"reality kings",
+	"brazzers",
+	"fake taxi",
+	"fake agent",
+	"fake hospital",
+	"blacked",
+	"tushy",
+	// Misleading niche terms
+	"innocent",
+	"barely legal",
+	"nerdy",
+	"next door",
+	"girl next door",
+	// Link spam
+	"onlyfans.com",
+	"linktr.ee",
+	"fansly.com",
+}
+
+// bdsmRelevanceTerms is the combined list used by IsStrongBDSMMatch and IsBDSMRelatedQuery.
+// It includes both strong and weak terms for backward compatibility.
+var bdsmRelevanceTerms = append(append([]string{}, bdsmStrongTerms...), bdsmWeakTerms...)
 
 // bdsmEnhancementTerms - niche terms that need "bdsm" appended for quality results
 var bdsmEnhancementTerms = []string{
@@ -425,8 +502,31 @@ func (c *EpornerClient) VideoExists(ctx context.Context, externalID string) bool
 	return false
 }
 
+// containsAnyStrongBDSM returns true if the text contains at least one strong BDSM term.
+func containsAnyStrongBDSM(text string) bool {
+	for _, term := range bdsmStrongTerms {
+		if strings.Contains(text, term) {
+			return true
+		}
+	}
+	return false
+}
+
+// isVanillaBlocked returns true if the text matches a vanilla blocklist entry.
+func isVanillaBlocked(text string) bool {
+	for _, term := range vanillaBlocklist {
+		if strings.Contains(text, term) {
+			return true
+		}
+	}
+	return false
+}
 
 // IsRelevantBDSMVideo filters out generic porn results that slip into broad searches.
+// Uses a 3-layer check:
+//  1. Must be English text
+//  2. Reject if vanilla blocklist matches AND no strong BDSM term present
+//  3. Require either 1 strong BDSM term OR 2+ weak BDSM term matches
 func IsRelevantBDSMVideo(ev *EpornerVideo) bool {
 	if !models.IsLikelyEnglishText(ev.Title, ev.Keywords) {
 		return false
@@ -434,9 +534,28 @@ func IsRelevantBDSMVideo(ev *EpornerVideo) bool {
 
 	text := strings.ToLower(ev.Title + " " + ev.Keywords)
 
-	for _, term := range bdsmRelevanceTerms {
+	// Check for strong BDSM terms first (most videos should match here)
+	hasStrong := containsAnyStrongBDSM(text)
+
+	// If the video matches vanilla blocklist terms and has no strong BDSM term, reject.
+	// e.g. "Extreme Step Sister Gangbang" — has "extreme" (weak) but "step sister" (blocked).
+	if isVanillaBlocked(text) && !hasStrong {
+		return false
+	}
+
+	// A single strong term is sufficient
+	if hasStrong {
+		return true
+	}
+
+	// For weak terms only, require at least 2 matches (compound evidence)
+	weakMatches := 0
+	for _, term := range bdsmWeakTerms {
 		if strings.Contains(text, term) {
-			return true
+			weakMatches++
+			if weakMatches >= 2 {
+				return true
+			}
 		}
 	}
 
@@ -594,8 +713,10 @@ var categoryMap = map[string]string{
 	"catsuit":            "latex",
 	"heavy rubber":       "latex",
 	"leather":            "leather",
-	"foot":               "foot-fetish",
-	"feet":               "foot-fetish",
+	"foot worship":       "foot-fetish",
+	"foot fetish":        "foot-fetish",
+	"foot slave":         "foot-fetish",
+	"feet worship":       "foot-fetish",
 	"boot worship":       "foot-fetish",
 	"facesitting":        "facesitting",
 	"face sitting":       "facesitting",
@@ -606,7 +727,7 @@ var categoryMap = map[string]string{
 	"cbt":                "cbt",
 	"ball busting":       "cbt",
 	"cock torture":       "cbt",
-	"device":             "device-bondage",
+	"device bondage":     "device-bondage",
 	"spreader bar":       "device-bondage",
 	"medical bondage":    "medical-bondage",
 	"vacbed":             "vacbed",
@@ -620,16 +741,17 @@ var categoryMap = map[string]string{
 	"predicament":         "predicament",
 	"predicament bondage": "predicament",
 	"sensory deprivation": "sensory-deprivation",
-	"hood":                "sensory-deprivation",
-	"isolation":           "sensory-deprivation",
+	"leather hood":        "sensory-deprivation",
+	"bondage hood":        "sensory-deprivation",
+	"isolation bondage":   "sensory-deprivation",
 	"extreme bondage":     "extreme-bondage",
 	"tight bondage":       "extreme-bondage",
 	"inescapable":         "extreme-bondage",
 	"straitjacket":        "extreme-bondage",
 	"armbinder":           "extreme-bondage",
-	"severe":              "severe-discipline",
-	"harsh":               "severe-discipline",
-	"brutal":              "severe-discipline",
+	"severe discipline":   "severe-discipline",
+	"harsh punishment":    "severe-discipline",
+	"brutal punishment":   "severe-discipline",
 	"corporal punishment": "severe-discipline",
 	"judicial":            "severe-discipline",
 	"pony play":           "pet-play",
@@ -638,8 +760,8 @@ var categoryMap = map[string]string{
 	"kitten play":         "pet-play",
 	"human pet":           "pet-play",
 	"keyholder":           "chastity",
-	"denial":              "chastity",
-	"clinical":            "medical-bondage",
+	"orgasm denial":       "chastity",
+	"clinical bondage":    "medical-bondage",
 }
 
 // extractCategoriesWithKeyword extracts categories from keywords AND the import search term

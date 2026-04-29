@@ -50,3 +50,76 @@ func TestMatchesTopicAndBDSMRejectsNonEnglishMetadata(t *testing.T) {
 		t.Fatal("expected non-english metadata to be rejected")
 	}
 }
+
+func TestIsRelevantBDSMVideo_StrongTermAlone(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+		kw    string
+		want  bool
+	}{
+		{"bondage in title", "Girl in tight bondage scene", "kinky", true},
+		{"femdom in keywords", "Domination session", "femdom mistress", true},
+		{"shibari in title", "Shibari rope art", "art", true},
+		{"slave in keywords", "Training session", "slave training bdsm", true},
+		{"dungeon in title", "Dungeon session with leather", "whipping", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ev := &EpornerVideo{Title: tt.title, Keywords: tt.kw}
+			if got := IsRelevantBDSMVideo(ev); got != tt.want {
+				t.Fatalf("IsRelevantBDSMVideo(%q / %q) = %v, want %v", tt.title, tt.kw, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsRelevantBDSMVideo_WeakTermsRequireTwo(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+		kw    string
+		want  bool
+	}{
+		{"single weak 'extreme' — reject", "Extreme anal compilation", "anal hardcore", false},
+		{"single weak 'brutal' — reject", "Brutal gangbang scene", "gangbang", false},
+		{"single weak 'intense' — reject", "Intense threesome action", "threesome", false},
+		{"two weak terms — accept", "Extreme rope torture scene", "kinky", true},
+		{"weak 'leather' + 'collar' — accept", "Leather collar worn by sub", "fashion fetish", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ev := &EpornerVideo{Title: tt.title, Keywords: tt.kw}
+			if got := IsRelevantBDSMVideo(ev); got != tt.want {
+				t.Fatalf("IsRelevantBDSMVideo(%q / %q) = %v, want %v", tt.title, tt.kw, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsRelevantBDSMVideo_VanillaBlocklist(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+		kw    string
+		want  bool
+	}{
+		{"step sister + weak 'extreme' — blocked", "Extreme step sister seduction", "hardcore", false},
+		{"massage + weak 'intense' — blocked", "Intense massage leads to more", "oily", false},
+		{"casting + weak 'harsh' — blocked", "Harsh casting couch audition", "interview", false},
+		{"step mom BUT strong 'bondage' — allowed", "Step mom bondage punishment", "bondage bdsm", true},
+		{"fake taxi + no bdsm — blocked", "Fake taxi driver picks up girl", "taxi", false},
+		{"yoga + weak 'rope' — blocked", "Yoga girl tied with rope", "flexible", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ev := &EpornerVideo{Title: tt.title, Keywords: tt.kw}
+			if got := IsRelevantBDSMVideo(ev); got != tt.want {
+				t.Fatalf("IsRelevantBDSMVideo(%q / %q) = %v, want %v", tt.title, tt.kw, got, tt.want)
+			}
+		})
+	}
+}
