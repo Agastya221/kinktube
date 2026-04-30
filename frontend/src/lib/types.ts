@@ -118,6 +118,7 @@ export interface AdSettings {
 }
 
 export interface AffiliateSettings {
+  enabled: boolean;
   kinkydollars_id: string;
   clubdomcash_id: string;
   femdomempire_id: string;

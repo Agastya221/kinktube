@@ -1245,8 +1245,12 @@ export default function AdminConsole() {
           )}
 
           {activeTab === "affiliates" && (
-            <SectionCard title="Affiliate IDs" description="Manage affiliate tracking IDs without touching env files again.">
-              <div className="grid gap-4 md:grid-cols-2">
+            <SectionCard title="Affiliate Buttons" description="Control affiliate link buttons shown on video pages. Toggle off to hide all affiliate buttons site-wide.">
+              <div className="rounded-2xl border border-border bg-background px-4 py-3 mb-2 text-sm text-foreground-muted">
+                When disabled, no affiliate buttons will appear on any video page. Enable this once you have your affiliate IDs ready.
+              </div>
+              <ToggleField label="Enable Affiliate Buttons" checked={settings.affiliates.enabled ?? false} onChange={(value) => setNestedValue("affiliates", "enabled", value)} />
+              <div className={`grid gap-4 md:grid-cols-2 mt-4 transition-opacity ${settings.affiliates.enabled ? "opacity-100" : "opacity-40 pointer-events-none"}`}>
                 <TextField label="KinkyDollars ID" value={settings.affiliates.kinkydollars_id} onChange={(value) => setNestedValue("affiliates", "kinkydollars_id", value)} />
                 <TextField label="ClubDomCash ID" value={settings.affiliates.clubdomcash_id} onChange={(value) => setNestedValue("affiliates", "clubdomcash_id", value)} />
                 <TextField label="Femdom Empire ID" value={settings.affiliates.femdomempire_id} onChange={(value) => setNestedValue("affiliates", "femdomempire_id", value)} />

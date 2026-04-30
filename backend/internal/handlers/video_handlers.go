@@ -938,6 +938,15 @@ func (h *Handler) HealthCheck(c *fiber.Ctx) error {
 // GetAffiliateLinks handles GET /api/videos/:id/affiliates
 // Returns matched affiliate links based on video tags and keywords
 func (h *Handler) GetAffiliateLinks(c *fiber.Ctx) error {
+	// Check if affiliates are enabled in site settings
+	h.siteSettingsMu.RLock()
+	affiliatesEnabled := h.siteSettings != nil && h.siteSettings.Affiliates.Enabled
+	h.siteSettingsMu.RUnlock()
+
+	if !affiliatesEnabled {
+		return c.JSON(fiber.Map{"links": []interface{}{}})
+	}
+
 	video, err := h.resolveVideoIdentifier(c.Context(), c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -979,8 +988,15 @@ func (h *Handler) GetVideoWithAffiliates(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get affiliate links
-	links := h.affiliate.GetAffiliateLinks(video.Tags, video.Keywords, 2)
+	// Check if affiliates are enabled; return empty list when disabled
+	h.siteSettingsMu.RLock()
+	affiliatesEnabled := h.siteSettings != nil && h.siteSettings.Affiliates.Enabled
+	h.siteSettingsMu.RUnlock()
+
+	var links []services.AffiliateLink
+	if affiliatesEnabled {
+		links = h.affiliate.GetAffiliateLinks(video.Tags, video.Keywords, 2)
+	}
 
 	return c.JSON(fiber.Map{
 		"video":           video,

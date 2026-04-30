@@ -88,6 +88,7 @@ type AdSettings struct {
 }
 
 type AffiliateSettings struct {
+	Enabled         bool   `json:"enabled"`
 	KinkyDollarsID  string `json:"kinkydollars_id"`
 	ClubDomCashID   string `json:"clubdomcash_id"`
 	FemdomEmpireID  string `json:"femdomempire_id"`
