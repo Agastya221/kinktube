@@ -1346,14 +1346,37 @@ export default function AdminConsole() {
           )}
 
           {activeTab === "import" && (
-            <SectionCard title="Import Settings" description="Control importer depth and runtime behavior.">
-              <ToggleField label="Enable Scheduled Importing" checked={settings.import.import_enabled} onChange={(value) => setNestedValue("import", "import_enabled", value)} />
-              <div className="grid gap-4 md:grid-cols-3">
-                <TextField label="Import Max Pages" type="number" value={settings.import.import_max_pages} onChange={(value) => setNestedValue("import", "import_max_pages", Number(value))} />
-                <TextField label="Light Import Max Pages" type="number" value={settings.import.light_import_max_pages} onChange={(value) => setNestedValue("import", "light_import_max_pages", Number(value))} />
-                <TextField label="Light Import Keywords" type="number" value={settings.import.light_import_keywords} onChange={(value) => setNestedValue("import", "light_import_keywords", Number(value))} />
-              </div>
-            </SectionCard>
+            <div className="space-y-6">
+              <SectionCard title="Import Settings" description="Control importer depth and runtime behavior.">
+                <ToggleField label="Enable Scheduled Importing" checked={settings.import.import_enabled} onChange={(value) => setNestedValue("import", "import_enabled", value)} />
+                <div className="grid gap-4 md:grid-cols-3 mt-4">
+                  <TextField label="Import Max Pages" type="number" value={settings.import.import_max_pages} onChange={(value) => setNestedValue("import", "import_max_pages", Number(value))} />
+                  <TextField label="Light Import Max Pages" type="number" value={settings.import.light_import_max_pages} onChange={(value) => setNestedValue("import", "light_import_max_pages", Number(value))} />
+                  <TextField label="Light Import Keywords" type="number" value={settings.import.light_import_keywords} onChange={(value) => setNestedValue("import", "light_import_keywords", Number(value))} />
+                </div>
+              </SectionCard>
+              
+              <SectionCard title="Database Cleanup" description="Re-run the BDSM content filter over all existing videos in the database. Use this to purge old off-topic content after updating filter rules.">
+                <div className="rounded-2xl border border-border bg-background px-4 py-3 mb-4 text-sm text-foreground-muted">
+                  This runs silently in the background and may take a few minutes depending on database size. Non-BDSM videos will be marked unavailable.
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const { triggerAdminDBCleanup } = await import("@/lib/api");
+                      const res = await triggerAdminDBCleanup();
+                      setNotice(res.message);
+                    } catch (e: unknown) {
+                      setNotice(e instanceof Error ? e.message : "Failed to trigger DB cleanup");
+                    }
+                  }}
+                  className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500 transition-colors"
+                >
+                  Run BDSM Filter Cleanup
+                </button>
+              </SectionCard>
+            </div>
           )}
         </div>
       </div>

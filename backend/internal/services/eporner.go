@@ -223,53 +223,54 @@ var bdsmWeakTerms = []string{
 	"restrained",
 }
 
-// vanillaBlocklist contains terms that indicate non-BDSM vanilla content.
-// If a video title/keywords contain any of these AND no strong BDSM term,
-// the video is rejected. This prevents "Extreme Step Sister" type content.
-var vanillaBlocklist = []string{
-	// Family roleplay (vanilla)
-	"step mom", "stepmom", "step-mom",
+// vanillaHardBlock — ALWAYS reject, even if BDSM terms present.
+// Family roleplay is off-brand for a BDSM site regardless of context.
+var vanillaHardBlock = []string{
+	"step mom", "stepmom", "step-mom", "stepmoms",
 	"step mother", "stepmother",
-	"step sister", "stepsister", "step-sister",
-	"step brother", "stepbrother", "step-brother",
-	"step dad", "stepdad", "step-dad",
-	"step daughter", "stepdaughter",
-	"step son", "stepson",
-	// Vanilla genres
-	"massage",
-	"casting couch", "casting",
-	"audition",
-	"interview porn",
-	"yoga",
-	"gym",
-	"shower spy",
-	"college party",
-	"spring break",
-	"beach",
-	"pool party",
-	"pickup", "pick up",
-	"bangbus", "bang bus",
-	"reality kings",
-	"brazzers",
-	"fake taxi",
-	"fake agent",
-	"fake hospital",
-	"blacked",
-	"tushy",
-	// Misleading niche terms
-	"innocent",
-	"barely legal",
-	"nerdy",
-	"next door",
-	"girl next door",
+	"step sister", "stepsister", "step-sister", "stepsisters",
+	"step brother", "stepbrother", "step-brother", "stepbrothers",
+	"step dad", "stepdad", "step-dad", "stepdads",
+	"step daughter", "stepdaughter", "stepdaughters",
+	"step son", "stepson", "stepsons",
+	"step family", "stepfamily",
+	// Known vanilla studios
+	"brazzers", "reality kings", "bangbus", "bang bus",
+	"fake taxi", "fake agent", "fake hospital",
+	"blacked", "tushy", "vixen",
+	"nubiles", "mofos", "digital playground",
 	// Link spam
-	"onlyfans.com",
-	"linktr.ee",
-	"fansly.com",
+	"onlyfans.com", "linktr.ee", "fansly.com",
+}
+
+// vanillaSoftBlock — reject unless the TITLE itself has a strong BDSM term.
+var vanillaSoftBlock = []string{
+	"yoga", "gym", "massage", "massaged",
+	"casting couch", "casting", "audition",
+	"interview porn",
+	"shower spy",
+	"college party", "spring break", "pool party", "beach",
+	"pickup", "pick up",
+	"barely legal", "girl next door", "next door",
+	"innocent", "nerdy",
+}
+
+// vanillaBodyIndicators — vanilla porn descriptors. If ≥2 match AND title
+// has zero strong BDSM terms, reject. Prevents "Latina Bounces Booty" type.
+var vanillaBodyIndicators = []string{
+	"bounces", "bouncing",
+	"rides cock", "rides dick", "rides his",
+	"lucky stud", "lucky guy",
+	"oiled up", "oiled booty", "oiled ass",
+	"twerking", "twerk",
+	"pov blowjob", "pov bj",
+	"girlsinmycity", "fuckthis",
+	"booty shake", "booty bounce",
+	"thick latina", "big booty latina",
+	"yoga pants",
 }
 
 // bdsmRelevanceTerms is the combined list used by IsStrongBDSMMatch and IsBDSMRelatedQuery.
-// It includes both strong and weak terms for backward compatibility.
 var bdsmRelevanceTerms = append(append([]string{}, bdsmStrongTerms...), bdsmWeakTerms...)
 
 // bdsmEnhancementTerms - niche terms that need "bdsm" appended for quality results
@@ -512,9 +513,20 @@ func containsAnyStrongBDSM(text string) bool {
 	return false
 }
 
-// isVanillaBlocked returns true if the text matches a vanilla blocklist entry.
-func isVanillaBlocked(text string) bool {
-	for _, term := range vanillaBlocklist {
+// countWeakBDSM returns the number of distinct weak BDSM terms found in text.
+func countWeakBDSM(text string) int {
+	count := 0
+	for _, term := range bdsmWeakTerms {
+		if strings.Contains(text, term) {
+			count++
+		}
+	}
+	return count
+}
+
+// isHardBlocked returns true if the text matches a hard-block vanilla term.
+func isHardBlocked(text string) bool {
+	for _, term := range vanillaHardBlock {
 		if strings.Contains(text, term) {
 			return true
 		}
@@ -522,44 +534,75 @@ func isVanillaBlocked(text string) bool {
 	return false
 }
 
+// isSoftBlocked returns true if the text matches a soft-block vanilla term.
+func isSoftBlocked(text string) bool {
+	for _, term := range vanillaSoftBlock {
+		if strings.Contains(text, term) {
+			return true
+		}
+	}
+	return false
+}
+
+// countBodyIndicators returns the number of vanilla body indicator matches.
+func countBodyIndicators(text string) int {
+	count := 0
+	for _, term := range vanillaBodyIndicators {
+		if strings.Contains(text, term) {
+			count++
+		}
+	}
+	return count
+}
+
 // IsRelevantBDSMVideo filters out generic porn results that slip into broad searches.
-// Uses a 3-layer check:
+// Uses a 4-layer check with title vs. keywords separation:
 //  1. Must be English text
-//  2. Reject if vanilla blocklist matches AND no strong BDSM term present
-//  3. Require either 1 strong BDSM term OR 2+ weak BDSM term matches
+//  2. Hard vanilla block — always reject (family roleplay, vanilla studios)
+//  3. Title must independently show BDSM evidence (prevents keyword stuffing)
+//  4. Soft vanilla / body indicators — reject if title lacks strong BDSM proof
 func IsRelevantBDSMVideo(ev *EpornerVideo) bool {
 	if !models.IsLikelyEnglishText(ev.Title, ev.Keywords) {
 		return false
 	}
 
-	text := strings.ToLower(ev.Title + " " + ev.Keywords)
+	titleLower := strings.ToLower(ev.Title)
+	kwLower := strings.ToLower(ev.Keywords)
+	combined := titleLower + " " + kwLower
 
-	// Check for strong BDSM terms first (most videos should match here)
-	hasStrong := containsAnyStrongBDSM(text)
-
-	// If the video matches vanilla blocklist terms and has no strong BDSM term, reject.
-	// e.g. "Extreme Step Sister Gangbang" — has "extreme" (weak) but "step sister" (blocked).
-	if isVanillaBlocked(text) && !hasStrong {
+	// ── Layer 1: Hard vanilla block — ALWAYS reject ──
+	if isHardBlocked(combined) {
 		return false
 	}
 
-	// A single strong term is sufficient
-	if hasStrong {
-		return true
+	// ── Layer 2: Title must show BDSM evidence ──
+	// This prevents Eporner keyword-stuffing from bypassing the filter.
+	titleHasStrong := containsAnyStrongBDSM(titleLower)
+	titleWeakCount := countWeakBDSM(titleLower)
+
+	// The title itself must have BDSM indicators:
+	//   - ≥1 strong term in title, OR
+	//   - ≥2 weak terms in title, OR
+	//   - 1 weak term in title + ≥1 strong term in keywords (compound evidence)
+	titlePassesBDSM := titleHasStrong ||
+		titleWeakCount >= 2 ||
+		(titleWeakCount >= 1 && containsAnyStrongBDSM(kwLower))
+
+	if !titlePassesBDSM {
+		return false
 	}
 
-	// For weak terms only, require at least 2 matches (compound evidence)
-	weakMatches := 0
-	for _, term := range bdsmWeakTerms {
-		if strings.Contains(text, term) {
-			weakMatches++
-			if weakMatches >= 2 {
-				return true
-			}
-		}
+	// ── Layer 3: Soft vanilla block — reject unless title has strong BDSM ──
+	if isSoftBlocked(combined) && !titleHasStrong {
+		return false
 	}
 
-	return false
+	// ── Layer 4: Vanilla body indicators — reject if ≥2 and no strong title ──
+	if countBodyIndicators(combined) >= 2 && !titleHasStrong {
+		return false
+	}
+
+	return true
 }
 
 // MatchesQueryIntent ensures niche searches stay on-topic after enhancement.

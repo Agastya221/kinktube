@@ -359,3 +359,10 @@ export async function resetSEOBackfill(timeframe: "today" | "all"): Promise<{ ok
     body: JSON.stringify({ timeframe }),
   });
 }
+
+export async function triggerAdminDBCleanup(): Promise<{ message: string; status: string }> {
+  return fetchAdminAPI<{ message: string; status: string }>("/api/admin/cleanup", {
+    method: "POST",
+  });
+}
+
