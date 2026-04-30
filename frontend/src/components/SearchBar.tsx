@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Loader2, TrendingUp } from "lucide-react";
 import { getVideos } from "@/lib/api";
+import { getVideoPath } from "@/lib/types";
 
 interface SearchBarProps {
   placeholder?: string;
@@ -129,7 +130,7 @@ export default function SearchBar({
           id: `video-${v.external_id || v.id}`,
           title: v.title,
           type: "result" as const,
-          href: `/video/${encodeURIComponent(v.external_id || String(v.id))}`,
+          href: getVideoPath({ id: v.id, external_id: v.external_id || "", title: v.title }),
         }));
         results.push(...videoResults);
       }

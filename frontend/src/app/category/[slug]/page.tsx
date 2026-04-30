@@ -10,6 +10,9 @@ import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
 import { defaultCategories } from "@/lib/default-categories";
 import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
+// ISR: serve from edge cache, regenerate every 60 seconds
+export const revalidate = 60;
+
 interface CategoryPageProps {
   params: Promise<{
     slug: string;
@@ -166,9 +169,10 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
 };
 
 
-// Generate metadata for SEO
-export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
+  const search = await searchParams;
+  const page = parseInt(search?.page || "1", 10);
 
   // Format category name
   const categoryName = slug
@@ -181,12 +185,22 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     description: `Browse the best ${categoryName} videos. High quality BDSM and fetish content curated for enthusiasts.`,
   };
 
+  const title = page > 1 ? `${meta.title} - Page ${page}` : meta.title;
+
+  // Apply noindex to deep pagination to save crawl budget
+  if (page > 5) {
+    return {
+      title,
+      robots: { index: false, follow: true },
+    };
+  }
+
   return {
-    title: meta.title,
+    title,
     description: meta.description,
     keywords: [slug, categoryName, "BDSM", "fetish", "videos", "free"].join(", "),
     openGraph: {
-      title: `${meta.title} | KinkTube`,
+      title: `${title} | KinkTube`,
       description: meta.description,
     },
     alternates: {
@@ -239,8 +253,20 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const meta = categoryMeta[slug];
   const currentCategory = categories.categories.find((category) => category.slug === slug);
 
+  const h1Parts = meta ? meta.title.split(" - ") : [`${categoryName} Videos`];
+  const h1Primary = h1Parts[0];
+  const h1Secondary = h1Parts.length > 1 ? ` - ${h1Parts[1]}` : "";
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-6">
+      {/* Pagination SEO */}
+      {page > 1 && (
+        <link rel="prev" href={page === 2 ? `/category/${slug}` : `/category/${slug}?page=${page - 1}`} />
+      )}
+      {videosData.has_more || page < videosData.total_pages ? (
+        <link rel="next" href={`/category/${slug}?page=${page + 1}`} />
+      ) : null}
+
       {/* Top Ad Banner */}
       <div className="mb-6 hidden md:block">
         <AdBanner position="top" />
@@ -249,7 +275,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       {/* Header - Hidden on mobile for content-first */}
       <section className="hidden md:block mb-8">
         <h1 className="text-3xl sm:text-4xl font-bold mb-2">
-          <span className="text-accent">{categoryName}</span> Videos
+          <span className="text-accent">{h1Primary}</span>
+          <span className="text-foreground-muted/80 font-medium text-2xl sm:text-3xl">{h1Secondary}</span>
         </h1>
         {meta && (
           <div className="space-y-2 max-w-2xl">
@@ -317,12 +344,36 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       {/* SEO Content for Category - Hidden on mobile */}
       {meta && (
         <section className="hidden md:block mt-12 border-t border-border pt-8">
-          <h2 className="text-lg font-semibold mb-4">About {categoryName} Videos</h2>
-          <p className="text-foreground-muted text-sm max-w-3xl">
-            {meta.description} Our collection features the highest quality {categoryName.toLowerCase()} content
-            from premium studios and independent creators. All videos are free to watch and
-            new content is added daily.
-          </p>
+          <h2 className="text-xl font-semibold mb-4">Watch {h1Primary} &amp; Discover More</h2>
+          <details className="group [&_summary::-webkit-details-marker]:hidden">
+            <summary className="cursor-pointer text-foreground-muted text-sm font-medium hover:text-accent transition-colors flex items-center gap-2 outline-none">
+              <span className="group-open:hidden">Read more about {categoryName.toLowerCase()}...</span>
+              <span className="hidden group-open:block">Show less</span>
+              <svg
+                className="w-4 h-4 transition-transform group-open:rotate-180"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </summary>
+            
+            <div className="mt-4 text-foreground-muted text-sm space-y-3 max-w-4xl leading-relaxed">
+              <p>
+                {meta.description} Welcome to the most comprehensive library of <strong>{categoryName.toLowerCase()} videos</strong> available anywhere online. 
+                Our platform specializes in extreme, niche, and underground fetish content that caters specifically to the hardcore BDSM community.
+              </p>
+              <p>
+                Whether you are exploring this kink for the first time or you are an experienced practitioner looking for the best {h1Primary.toLowerCase()}, 
+                our curated catalog ensures you get exactly what you&apos;re searching for. We constantly update our {categoryName.toLowerCase()} category with fresh scenes 
+                from premium studios and verified independent creators to ensure high-quality, authentic power exchange and fetish play.
+              </p>
+              <p>
+                Every video is fully tagged, sorted, and optimized for seamless streaming. Explore the finest {categoryName.toLowerCase()} content completely free.
+              </p>
+            </div>
+          </details>
         </section>
       )}
     </div>

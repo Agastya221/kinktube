@@ -28,6 +28,10 @@ export async function generateMetadata({ searchParams }: SearchPageProps): Promi
     description: query
       ? `Search results for "${query}" - BDSM and fetish videos`
       : "Search our collection of BDSM and fetish videos",
+    robots: {
+      index: false,
+      follow: true,
+    },
   };
 }
 
@@ -77,6 +81,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Pagination SEO */}
+      {query && page > 1 && (
+        <link rel="prev" href={page === 2 ? `/search?q=${query}` : `/search?q=${query}&page=${page - 1}`} />
+      )}
+      {query && (videosData.has_more || page < videosData.total_pages) ? (
+        <link rel="next" href={`/search?q=${query}&page=${page + 1}`} />
+      ) : null}
+
       {/* Top Ad Banner */}
       <div className="mb-6 hidden md:block">
         <AdBanner position="top" />
@@ -155,7 +167,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             {["extreme bondage", "brutal femdom", "predicament", "mummification", "severe discipline", "tight bondage", "torture"].map((term) => (
               <Link
                 key={term}
-                href={`/search?q=${term}`}
+                href={`/tag/${term.replace(/ /g, '-')}`}
                 className="px-4 py-2 bg-background-tertiary text-foreground-muted rounded-full hover:bg-accent hover:text-white transition-colors"
               >
                 {term}

@@ -168,7 +168,7 @@ export default function SearchResultsBrowser({ pageSize }: SearchResultsBrowserP
             {popularSearches.map((term) => (
               <Link
                 key={term}
-                href={`/search?q=${term}`}
+                href={`/tag/${term.replace(/ /g, '-')}`}
                 className="px-4 py-2 bg-background-tertiary text-foreground-muted rounded-full hover:bg-accent hover:text-white transition-colors"
               >
                 {term}

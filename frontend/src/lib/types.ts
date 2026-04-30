@@ -310,8 +310,32 @@ export function getVideoIdentifier(video: Pick<Video, "external_id" | "id">): st
   return video.external_id || video.id.toString();
 }
 
-export function getVideoPath(video: Pick<Video, "external_id" | "id">): string {
-  return `/video/${encodeURIComponent(getVideoIdentifier(video))}`;
+/**
+ * Converts a string into a URL-friendly slug.
+ * Strips non-alphanumeric characters, collapses dashes, and truncates.
+ */
+export function slugify(text: string, maxLength = 80): string {
+  return text
+    .toLowerCase()
+    .replace(/['']/g, "")           // Remove apostrophes
+    .replace(/[^a-z0-9]+/g, "-")    // Replace non-alphanum with dashes
+    .replace(/(^-|-$)+/g, "")       // Trim leading/trailing dashes
+    .slice(0, maxLength)             // Cap length for URL readability
+    .replace(/-$/, "");              // Remove trailing dash after truncation
+}
+
+/**
+ * Generates an SEO-friendly video URL path.
+ * Format: /video/{id}/{title-slug}
+ * Example: /video/abc123/hardcore-femdom-bondage-scene
+ *
+ * The [id] segment is the lookup key (external_id or numeric id).
+ * The [slug] segment is purely for SEO — ignored by the backend.
+ */
+export function getVideoPath(video: Pick<Video, "external_id" | "id"> & { title?: string }): string {
+  const id = encodeURIComponent(getVideoIdentifier(video));
+  const slug = video.title ? slugify(video.title) : "video";
+  return `/video/${id}/${slug}`;
 }
 
 // Format view count to human readable

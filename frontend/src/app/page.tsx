@@ -1,3 +1,4 @@
+import { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import VideoGrid from "@/components/VideoGrid";
@@ -10,11 +11,28 @@ import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
 import { defaultCategories } from "@/lib/default-categories";
 import { fallbackPublicSiteSettings } from "@/lib/site-settings";
 
+// ISR: serve from edge cache, regenerate every 60 seconds
+export const revalidate = 60;
+
 interface HomePageProps {
   searchParams: Promise<{
     page?: string;
     sort?: string;
   }>;
+}
+
+export async function generateMetadata({ searchParams }: HomePageProps): Promise<Metadata> {
+  const params = await searchParams;
+  const page = parseInt(params.page || "1", 10);
+
+  // Deep pagination pages get noindex to save crawl budget
+  if (page > 5) {
+    return {
+      robots: { index: false, follow: true },
+    };
+  }
+
+  return {};
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
@@ -55,6 +73,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-6">
+      {/* Pagination SEO: rel prev/next for search engines */}
+      {page > 1 && (
+        <link rel="prev" href={page === 2 ? "/" : `/?page=${page - 1}`} />
+      )}
+      {videosData.has_more || page < videosData.total_pages ? (
+        <link rel="next" href={`/?page=${page + 1}`} />
+      ) : null}
+
       {/* Top Ad Banner */}
       <div className="mb-6 hidden md:block">
         <AdBanner position="top" />
