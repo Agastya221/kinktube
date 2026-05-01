@@ -94,6 +94,21 @@ export default async function RootLayout({
           httpEquiv="Accept-CH"
           content="Sec-CH-UA, Sec-CH-UA-Mobile, Sec-CH-UA-Platform, Sec-CH-UA-Arch, Sec-CH-UA-Model"
         />
+        {/* Google Analytics (GA4) */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-P4CFF7KKH9"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-P4CFF7KKH9');
+            `,
+          }}
+        />
       </head>
       <body>
         <ChromeGate
