@@ -29,17 +29,17 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
   bdsm: {
     title: "BDSM Videos - Bondage, Domination & Fetish Porn",
     description:
-      "Watch thousands of free BDSM videos featuring bondage, domination, submission, sadism and masochism. Premium BDSM content curated for true fetish enthusiasts, updated daily.",
+      "Explore the ultimate collection of free BDSM videos, featuring high-quality bondage, domination, submission, sadism, and masochism scenes. Our library is curated for true fetish enthusiasts, offering everything from light power exchange to hardcore dungeon sessions. Updated daily with the best BDSM content from top studios and independent creators.",
   },
   femdom: {
     title: "Femdom Videos - Female Domination & Dominatrix Porn",
     description:
-      "Free femdom porn featuring powerful mistresses, strict dominatrices, and extreme female domination scenes. Watch dominant women take full control in the best femdom videos online.",
+      "Watch powerful mistresses and strict dominatrices take full control in our massive library of free femdom videos. From psychological humiliation and financial domination to intense physical discipline and strap-on play, experience the best in female-led BDSM. Whether you crave a cruel mistress or a nurturing domme, our femdom category delivers high-quality scenes for every submissive desire.",
   },
   bondage: {
     title: "Bondage Videos - Rope Bondage, Restraints & Tie-Up Porn",
     description:
-      "Free bondage videos featuring rope bondage, handcuffs, spreader bars, and all forms of restraint play. Browse hundreds of tie-up and inescapable bondage scenes updated daily.",
+      "Experience the art of restraint with our extensive collection of free bondage videos. Featuring intricate rope bondage, heavy metal restraints, handcuffs, and inescapable tie-up scenes, our content focuses on the thrill of being bound. Discover everything from beginner-friendly restraints to extreme predicament bondage and suspension, all available in high definition.",
   },
   dominatrix: {
     title: "Dominatrix Videos - Professional Domme & Dungeon Scenes",
@@ -76,7 +76,7 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
   shibari: {
     title: "Shibari Videos - Japanese Rope Bondage & Kinbaku Art",
     description:
-      "Watch free shibari and kinbaku videos featuring intricate Japanese rope bondage, artistic suspension ties, and beautiful rope art. The finest shibari content curated for rope bondage enthusiasts.",
+      "Immerse yourself in the beautiful art of Shibari and Kinbaku. Our free Shibari videos showcase the perfect blend of aesthetic rope art and intense BDSM suspension. Watch master riggers create complex patterns and inescapable ties that focus on both physical restraint and psychological connection. The finest Japanese rope bondage collection updated daily for connoisseurs.",
   },
   "device-bondage": {
     title: "Device Bondage Videos - Machines & Mechanical Restraints",
@@ -112,7 +112,7 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
   latex: {
     title: "Latex Fetish Videos - Rubber Catsuits & Latex BDSM Porn",
     description:
-      "Free latex fetish videos featuring rubber catsuits, shiny latex outfits, and latex BDSM scenes. Watch the best latex and heavy rubber fetish content with dominant mistresses in full latex.",
+      "Shiny, tight, and inescapable — our free latex fetish videos feature the best in rubber and PVC BDSM play. Watch dominant mistresses in full-body latex catsuits, vacuum bed sessions, and heavy rubber enclosure scenes. From polished medical latex to rough rubber discipline, we celebrate the unique sensations of latex kink in every video.",
   },
   leather: {
     title: "Leather Fetish Videos - Leather BDSM Gear & Outfits",

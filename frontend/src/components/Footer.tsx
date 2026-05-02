@@ -25,47 +25,63 @@ export default function Footer() {
 
           {/* Categories */}
           <div>
-            <h3 className="font-semibold text-foreground mb-3">Categories</h3>
+            <h3 className="font-semibold text-foreground mb-3">Top Categories</h3>
+            <div className="grid grid-cols-2 gap-x-4">
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/category/femdom" className="text-foreground-muted hover:text-accent transition-colors">Femdom</Link>
+                </li>
+                <li>
+                  <Link href="/category/bondage" className="text-foreground-muted hover:text-accent transition-colors">Bondage</Link>
+                </li>
+                <li>
+                  <Link href="/category/shibari" className="text-foreground-muted hover:text-accent transition-colors">Shibari</Link>
+                </li>
+                <li>
+                  <Link href="/category/slave" className="text-foreground-muted hover:text-accent transition-colors">Slave</Link>
+                </li>
+                <li>
+                  <Link href="/category/latex" className="text-foreground-muted hover:text-accent transition-colors">Latex</Link>
+                </li>
+              </ul>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/category/strapon" className="text-foreground-muted hover:text-accent transition-colors">Strapon</Link>
+                </li>
+                <li>
+                  <Link href="/category/spanking" className="text-foreground-muted hover:text-accent transition-colors">Spanking</Link>
+                </li>
+                <li>
+                  <Link href="/category/medical-bondage" className="text-foreground-muted hover:text-accent transition-colors">Medical</Link>
+                </li>
+                <li>
+                  <Link href="/category/vacbed" className="text-foreground-muted hover:text-accent transition-colors">Vacbed</Link>
+                </li>
+                <li>
+                  <Link href="/category/cbt" className="text-foreground-muted hover:text-accent transition-colors">CBT</Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* BDSM Styles */}
+          <div>
+            <h3 className="font-semibold text-foreground mb-3">Niche Fetish</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link
-                  href="/category/femdom"
-                  className="text-foreground-muted hover:text-accent transition-colors"
-                >
-                  Femdom
-                </Link>
+                <Link href="/category/mummification" className="text-foreground-muted hover:text-accent transition-colors">Mummification</Link>
               </li>
               <li>
-                <Link
-                  href="/category/bondage"
-                  className="text-foreground-muted hover:text-accent transition-colors"
-                >
-                  Bondage
-                </Link>
+                <Link href="/category/pet-play" className="text-foreground-muted hover:text-accent transition-colors">Pet Play</Link>
               </li>
               <li>
-                <Link
-                  href="/category/medical-bondage"
-                  className="text-foreground-muted hover:text-accent transition-colors"
-                >
-                  Medical Bondage
-                </Link>
+                <Link href="/category/chastity" className="text-foreground-muted hover:text-accent transition-colors">Chastity</Link>
               </li>
               <li>
-                <Link
-                  href="/category/vacbed"
-                  className="text-foreground-muted hover:text-accent transition-colors"
-                >
-                  Vacbed
-                </Link>
+                <Link href="/category/sensory-deprivation" className="text-foreground-muted hover:text-accent transition-colors">Sensory Deprivation</Link>
               </li>
               <li>
-                <Link
-                  href="/category/strapon"
-                  className="text-foreground-muted hover:text-accent transition-colors"
-                >
-                  Strapon
-                </Link>
+                <Link href="/category/extreme-bondage" className="text-foreground-muted hover:text-accent transition-colors">Extreme Bondage</Link>
               </li>
             </ul>
           </div>

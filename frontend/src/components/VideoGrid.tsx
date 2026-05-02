@@ -84,7 +84,7 @@ export default function VideoGrid({ videos, loading, nativeAdAfter = 8 }: VideoG
       <VideoCard
         key={getVideoIdentifier(validVideos[i])}
         video={validVideos[i]}
-        priority={i < 2}
+        priority={i < 4}
       />
     );
 

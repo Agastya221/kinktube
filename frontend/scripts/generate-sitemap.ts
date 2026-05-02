@@ -66,6 +66,11 @@ interface Video {
   id: number;
   external_id: string;
   title: string;
+  description?: string;
+  thumbnail: string;
+  thumbnail_lg: string;
+  duration: number;
+  embed_url: string;
   last_updated_at: string;
   added_at: string;
 }
@@ -208,19 +213,50 @@ function writeXml(filename: string, content: string): void {
 // ---------------------------------------------------------------------------
 
 function buildUrlsetXml(
-  urls: Array<{ loc: string; lastmod?: string; changefreq?: string; priority?: number }>
+  urls: Array<{ 
+    loc: string; 
+    lastmod?: string; 
+    changefreq?: string; 
+    priority?: number;
+    video?: {
+      thumbnail_loc: string;
+      title: string;
+      description: string;
+      player_loc: string;
+      duration: number;
+      publication_date: string;
+    }
+  }>
 ): string {
+  const isVideoSitemap = urls.some(u => u.video);
+  const xmlns = isVideoSitemap 
+    ? 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"'
+    : 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"';
+
   const entries = urls
     .map((u) => {
       const parts = [`    <loc>${escapeXml(u.loc)}</loc>`];
       if (u.lastmod) parts.push(`    <lastmod>${u.lastmod}</lastmod>`);
       if (u.changefreq) parts.push(`    <changefreq>${u.changefreq}</changefreq>`);
       if (u.priority !== undefined) parts.push(`    <priority>${u.priority.toFixed(1)}</priority>`);
+      
+      if (u.video) {
+        parts.push(`    <video:video>`);
+        parts.push(`      <video:thumbnail_loc>${escapeXml(u.video.thumbnail_loc)}</video:thumbnail_loc>`);
+        parts.push(`      <video:title>${escapeXml(u.video.title)}</video:title>`);
+        parts.push(`      <video:description>${escapeXml(u.video.description || u.video.title)}</video:description>`);
+        parts.push(`      <video:player_loc>${escapeXml(u.video.player_loc)}</video:player_loc>`);
+        parts.push(`      <video:duration>${u.video.duration}</video:duration>`);
+        parts.push(`      <video:publication_date>${u.video.publication_date}</video:publication_date>`);
+        parts.push(`      <video:family_friendly>no</video:family_friendly>`);
+        parts.push(`    </video:video>`);
+      }
+      
       return `  <url>\n${parts.join("\n")}\n  </url>`;
     })
     .join("\n");
 
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset ${xmlns}>\n${entries}\n</urlset>\n`;
 }
 
 function buildSitemapIndexXml(
@@ -350,11 +386,21 @@ async function main() {
         const id = v.external_id || v.id;
         const slug = v.title ? slugify(v.title) : "video";
         const lastmod = v.last_updated_at || v.added_at;
+        const pubDate = v.added_at || v.last_updated_at;
+
         return {
           loc: `${SITE_URL}/video/${id}/${slug}`,
           lastmod: lastmod ? new Date(lastmod).toISOString() : now,
           changefreq: "weekly" as const,
           priority: 0.7,
+          video: {
+            thumbnail_loc: v.thumbnail_lg || v.thumbnail,
+            title: v.title,
+            description: v.description || `Watch ${v.title} on KinkTube. Free adult BDSM and kink videos updated daily.`,
+            player_loc: v.embed_url,
+            duration: v.duration,
+            publication_date: pubDate ? new Date(pubDate).toISOString() : now,
+          }
         };
       });
 
