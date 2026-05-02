@@ -11,6 +11,11 @@ backend/.gocache
 frontend/public/sitemap-videos-*.xml.gz
 frontend/public/*.xml.gz
 frontend/public/sitemap-manifest.json
+# Generated static sitemaps (created at build time by scripts/generate-sitemap.ts)
+frontend/public/sitemap.xml
+frontend/public/sitemap-static.xml
+frontend/public/sitemap-categories.xml
+frontend/public/sitemap-videos-*.xml
 
 # Environment files
 .env
