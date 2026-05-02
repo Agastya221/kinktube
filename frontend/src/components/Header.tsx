@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, MouseEvent, startTransition } from "react";
+import { useState, useEffect, MouseEvent, startTransition, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Menu, X, ChevronRight, Flame, Search } from "lucide-react";
@@ -252,7 +252,9 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
 
             {/* Search Bar - Desktop only */}
             <div className="hidden md:block flex-1 max-w-xl ml-auto">
-              <SearchBar placeholder="Search videos..." className="w-full" />
+              <Suspense fallback={<div className="h-10 w-full animate-pulse rounded-lg bg-background-tertiary" />}>
+                <SearchBar placeholder="Search videos..." className="w-full" />
+              </Suspense>
             </div>
 
             {/* Mobile Search Button - links to search page */}

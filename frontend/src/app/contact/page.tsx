@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Metadata } from "next";
 
 import ContactForm from "@/components/ContactForm";
@@ -17,10 +18,12 @@ export default function ContactPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <h1 className="text-3xl font-bold mb-4">Contact</h1>
-      <p className="text-foreground-muted leading-relaxed">
+      <p className="text-foreground-muted leading-relaxed mb-6">
         Use this form for content removal requests, DMCA notices, privacy requests, and general site messages.
       </p>
-      <ContactForm defaultType="content_removal" />
+      <Suspense fallback={<div className="text-foreground-muted">Loading contact form...</div>}>
+        <ContactForm defaultType="content_removal" />
+      </Suspense>
     </div>
   );
 }
