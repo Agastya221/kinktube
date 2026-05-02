@@ -173,3 +173,16 @@ body {
 .native-ad-widget {
   width: 100%;
 }
+
+/* Age verification anti-FOUC rules */
+html.age-verified .kinktube-age-blur {
+  filter: none !important;
+  pointer-events: auto !important;
+  user-select: auto !important;
+  height: auto !important;
+  overflow: auto !important;
+}
+
+html.age-verified .kinktube-age-modal {
+  display: none !important;
+}

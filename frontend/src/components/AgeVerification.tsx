@@ -60,12 +60,12 @@ export default function AgeVerification({ children }: AgeVerificationProps) {
   return (
     <>
       {/* The main site content, blurred and unclickable so search engines can read it */}
-      <div className="blur-md pointer-events-none select-none h-screen overflow-hidden" aria-hidden="true">
+      <div className="kinktube-age-blur blur-md pointer-events-none select-none h-screen overflow-hidden" aria-hidden="true">
         {children}
       </div>
 
       {/* The Age Verification Modal */}
-      <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="kinktube-age-modal fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
         <div className="max-w-lg w-full bg-background-secondary border border-border rounded-2xl p-6 sm:p-8 shadow-2xl my-auto">
           {/* Warning Icon */}
           <div className="flex justify-center mb-6">

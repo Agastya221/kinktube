@@ -85,8 +85,25 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
+        {/* Anti-FOUC script for Age Verification */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var stored = localStorage.getItem('kinktube_age_verified');
+                if (stored) {
+                  var data = JSON.parse(stored);
+                  var isExpired = Date.now() - data.timestamp > 30 * 24 * 60 * 60 * 1000;
+                  if (!isExpired && data.verified) {
+                    document.documentElement.classList.add('age-verified');
+                  }
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
         {/* RTA Label for adult content filtering */}
         <meta name="rating" content="adult" />
         <meta name="RATING" content="RTA-5042-1996-1400-1577-RTA" />
