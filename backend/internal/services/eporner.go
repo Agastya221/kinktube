@@ -498,6 +498,11 @@ func (c *EpornerClient) VideoExists(ctx context.Context, externalID string) (boo
 		return false, fmt.Errorf("read response body: %w", err)
 	}
 
+	// Empty body = Eporner dropped the connection (soft rate-limit), treat as inconclusive
+	if len(body) == 0 {
+		return false, fmt.Errorf("empty response body for video %s (likely rate-limited)", externalID)
+	}
+
 	// Eporner returns {"id":"...","title":"...",...} for valid videos
 	// and {"error":"..."} for invalid ones
 	var payload map[string]interface{}

@@ -847,13 +847,16 @@ func (i *Importer) CleanDeadVideos(ctx context.Context) {
 	log.Println("Starting dead video cleanup scan...")
 
 	const batchSize = 50
-	const delayBetweenChecks = 300 * time.Millisecond
-	const delayBetweenBatches = 3 * time.Second
+	const delayBetweenChecks = 1 * time.Second     // 1s between each API call to be gentle
+	const delayBetweenBatches = 5 * time.Second     // 5s pause between batches
+	const backoffPause = 60 * time.Second           // 60s pause when rate-limited
+	const consecutiveErrorThreshold = 5             // trigger backoff after 5 errors in a row
 
 	var lastSeenID int64
 	totalMarked := 0
 	totalChecked := 0
 	totalSkipped := 0
+	consecutiveErrors := 0
 
 	for {
 		select {
@@ -891,11 +894,26 @@ func (i *Importer) CleanDeadVideos(ctx context.Context) {
 			if apiErr != nil {
 				// Network/rate-limit error — skip this video, do NOT mark unavailable
 				totalSkipped++
+				consecutiveErrors++
 				if totalSkipped <= 10 {
 					log.Printf("CleanDeadVideos: skipping video id=%d (API error: %v)", row.ID, apiErr)
 				}
+
+				// If we're getting hammered with errors, back off significantly
+				if consecutiveErrors >= consecutiveErrorThreshold {
+					log.Printf("CleanDeadVideos: %d consecutive API errors, backing off for %v...", consecutiveErrors, backoffPause)
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(backoffPause):
+					}
+					consecutiveErrors = 0 // reset after cooldown
+				}
 				continue
 			}
+
+			// Successful API call — reset the error streak
+			consecutiveErrors = 0
 
 			if !exists {
 				log.Printf("CleanDeadVideos: marking video id=%d external=%q as unavailable", row.ID, row.ExternalID)
