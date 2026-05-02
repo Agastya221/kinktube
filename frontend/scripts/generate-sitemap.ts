@@ -229,7 +229,7 @@ function buildUrlsetXml(
   }>
 ): string {
   const isVideoSitemap = urls.some(u => u.video);
-  const xmlns = isVideoSitemap 
+  const xmlns = isVideoSitemap
     ? 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"'
     : 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"';
 
@@ -239,7 +239,7 @@ function buildUrlsetXml(
       if (u.lastmod) parts.push(`    <lastmod>${u.lastmod}</lastmod>`);
       if (u.changefreq) parts.push(`    <changefreq>${u.changefreq}</changefreq>`);
       if (u.priority !== undefined) parts.push(`    <priority>${u.priority.toFixed(1)}</priority>`);
-      
+
       if (u.video) {
         parts.push(`    <video:video>`);
         parts.push(`      <video:thumbnail_loc>${escapeXml(u.video.thumbnail_loc)}</video:thumbnail_loc>`);
@@ -251,7 +251,7 @@ function buildUrlsetXml(
         parts.push(`      <video:family_friendly>no</video:family_friendly>`);
         parts.push(`    </video:video>`);
       }
-      
+
       return `  <url>\n${parts.join("\n")}\n  </url>`;
     })
     .join("\n");
@@ -269,9 +269,10 @@ function buildSitemapIndexXml(
     )
     .join("\n");
 
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</sitemapindex>\n`;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</sitemapindex>\n`;
+  console.log(`  ℹ Sitemap index generated with XML declaration: ${xml.startsWith("<?xml")}`);
+  return xml;
 }
-
 // ---------------------------------------------------------------------------
 // Data fetching
 // ---------------------------------------------------------------------------
