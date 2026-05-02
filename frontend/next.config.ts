@@ -59,6 +59,20 @@ const nextConfig: NextConfig = {
     // Enable partial prerendering for faster page loads
     optimizePackageImports: ["lucide-react"],
   },
+
+  async headers() {
+    return [
+      {
+        source: "/sitemap:path*.xml",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600, s-maxage=7200, stale-while-revalidate=86400",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
