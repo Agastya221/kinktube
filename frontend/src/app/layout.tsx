@@ -109,6 +109,26 @@ export default async function RootLayout({
             `,
           }}
         />
+        {/* Schema.org WebSite & Organization (Logo snippet) */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "name": "KinkTube",
+              "url": "https://kinktube.fun",
+              "publisher": {
+                "@type": "Organization",
+                "name": "KinkTube",
+                "logo": {
+                  "@type": "ImageObject",
+                  "url": "https://kinktube.fun/logo.jpeg"
+                }
+              }
+            })
+          }}
+        />
       </head>
       <body>
         <ChromeGate

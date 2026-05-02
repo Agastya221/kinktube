@@ -51,22 +51,22 @@ export default function AgeVerification({ children }: AgeVerificationProps) {
     window.location.href = "https://www.google.com";
   };
 
-  // Show nothing while checking localStorage
-  if (isLoading) {
-    return null;
-  }
-
   // Show children if verified
-  if (isVerified) {
+  if (!isLoading && isVerified) {
     return <>{children}</>;
   }
 
-  // Show age verification modal
+  // Show age verification modal over the blurred content
   return (
     <>
-      {/* Blur the background */}
-      <div className="fixed inset-0 bg-background z-50 flex items-center justify-center p-4">
-        <div className="max-w-lg w-full bg-background-secondary border border-border rounded-2xl p-6 sm:p-8 shadow-2xl">
+      {/* The main site content, blurred and unclickable so search engines can read it */}
+      <div className="blur-md pointer-events-none select-none h-screen overflow-hidden" aria-hidden="true">
+        {children}
+      </div>
+
+      {/* The Age Verification Modal */}
+      <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="max-w-lg w-full bg-background-secondary border border-border rounded-2xl p-6 sm:p-8 shadow-2xl my-auto">
           {/* Warning Icon */}
           <div className="flex justify-center mb-6">
             <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center">

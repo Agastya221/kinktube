@@ -68,9 +68,9 @@ export const fallbackPublicSiteSettings: PublicSiteSettings = {
     logo_primary: "Kink",
     logo_secondary: "Tube",
     site_tagline: "The underground destination for extreme BDSM, hardcore femdom, intense bondage, and severe fetish content.",
-    hero_accent: "Extreme",
-    hero_title: "BDSM & Hardcore Fetish",
-    hero_description: "Dive into intense femdom, predicament bondage, severe discipline, mummification, and hardcore fetish scenes. Curated for serious kink enthusiasts. Not your average tube site.",
+    hero_accent: "Free",
+    hero_title: "BDSM Porn Videos & Fetish Tube",
+    hero_description: "Watch thousands of free BDSM porn videos featuring hardcore femdom, predicament bondage, severe discipline, and extreme fetish scenes. Curated for serious kink enthusiasts.",
     footer_description: "The premier destination for BDSM, kink, and fetish video content. All videos are embedded from external sources.",
     copyright_label: "KinkTube",
   },
@@ -88,14 +88,34 @@ export const fallbackPublicSiteSettings: PublicSiteSettings = {
   },
   seo: {
     site_url: process.env.SITE_URL || "https://yourdomain.com",
-    default_title: "KinkTube - Extreme BDSM & Hardcore Fetish Videos",
+    default_title: "Free BDSM Porn Videos & Tube | Bondage, Femdom, Kink & Hardcore Fetish",
     title_template: "%s | KinkTube",
-    default_description: "The underground destination for extreme BDSM, hardcore femdom, intense bondage, and severe fetish content.",
-    default_keywords: ["extreme BDSM", "hardcore femdom", "bondage", "fetish", "kink"],
-    open_graph_title: "KinkTube - Extreme BDSM & Hardcore Fetish Videos",
-    open_graph_description: "The underground destination for extreme BDSM, hardcore femdom, intense bondage, and severe fetish content.",
-    twitter_title: "KinkTube - Extreme BDSM & Hardcore Fetish Videos",
-    twitter_description: "The underground destination for extreme BDSM, hardcore femdom, intense bondage, and severe fetish content.",
+    default_description: "Watch free BDSM porn videos, hardcore bondage, femdom domination, whipping, slave training and extreme kink content. Daily updated BDSM tube with thousands of fetish videos.",
+    default_keywords: [
+      // Core High-Volume
+      "bdsm", "bdsm porn", "bdsm videos", "bdsm tube", "free bdsm videos",
+      "hardcore bdsm", "extreme bdsm", "bdsm sites", "kink porn", "fetish porn",
+
+      // Main Categories
+      "bondage", "bondage porn", "bondage videos", "rope bondage", "shibari",
+      "femdom", "femdom porn", "femdom videos", "femdom tube", "cruel femdom",
+      "maledom", "slave training", "whipping porn", "public disgrace",
+      "humiliation porn", "pussy torture", "tit torture", "cbt", "ballbusting",
+
+      // Strong Long-Tail
+      "extreme bondage punishment", "femdom slave training", "strapon pegging femdom",
+      "facesitting femdom", "public bdsm videos", "helpless bound girl",
+      "outdoor bondage", "electric torture bdsm", "verbal humiliation",
+      "leather bdsm", "latex bdsm", "pet play bdsm",
+
+      // Supporting Terms
+      "kink tube", "fetish tube", "rough bdsm", "hardcore fetish",
+      "bdsm domination", "bdsm humiliation", "anal bdsm", "fisting bdsm"
+    ],
+    open_graph_title: "Free BDSM Porn Videos & Tube | Bondage, Femdom, Kink & Hardcore Fetish",
+    open_graph_description: "Watch free BDSM porn videos, hardcore bondage, femdom domination, whipping, slave training and extreme kink content. Daily updated BDSM tube with thousands of fetish videos.",
+    twitter_title: "Free BDSM Porn Videos & Tube | Bondage, Femdom, Kink & Hardcore Fetish",
+    twitter_description: "Watch free BDSM porn videos, hardcore bondage, femdom domination, whipping, slave training and extreme kink content. Daily updated BDSM tube with thousands of fetish videos.",
   },
   content: {
     videos_per_page: 24,

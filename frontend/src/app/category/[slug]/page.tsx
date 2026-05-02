@@ -181,11 +181,11 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
     .join(" ");
 
   const meta = categoryMeta[slug] || {
-    title: `${categoryName} Videos`,
-    description: `Browse the best ${categoryName} videos. High quality BDSM and fetish content curated for enthusiasts.`,
+    description: `Browse the best ${categoryName} porn videos. High quality BDSM and fetish tube content curated for enthusiasts.`,
   };
 
-  const title = page > 1 ? `${meta.title} - Page ${page}` : meta.title;
+  const baseTitle = `Free ${categoryName} Porn Videos - BDSM Tube`;
+  const title = page > 1 ? `${baseTitle} - Page ${page}` : baseTitle;
 
   // Apply noindex to deep pagination to save crawl budget
   if (page > 5) {
@@ -253,7 +253,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const meta = categoryMeta[slug];
   const currentCategory = categories.categories.find((category) => category.slug === slug);
 
-  const h1Parts = meta ? meta.title.split(" - ") : [`${categoryName} Videos`];
+  const baseTitle = `Free ${categoryName} Porn Videos - BDSM Tube`;
+  const h1Parts = baseTitle.split(" - ");
   const h1Primary = h1Parts[0];
   const h1Secondary = h1Parts.length > 1 ? ` - ${h1Parts[1]}` : "";
 

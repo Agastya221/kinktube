@@ -143,7 +143,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       {/* SEO Content - Hidden on mobile */}
       <section className="hidden md:block mt-12 border-t border-border pt-8">
-        <h2 className="text-lg font-semibold mb-4">Free BDSM &amp; Fetish Videos — KinkTube</h2>
+        <h2 className="text-lg font-semibold mb-4">Free BDSM Porn Videos &amp; Hardcore Fetish Tube — KinkTube</h2>
         <div className="text-foreground-muted text-sm space-y-3 max-w-3xl">
           <p>
             KinkTube is the underground destination for serious BDSM and kink enthusiasts. We

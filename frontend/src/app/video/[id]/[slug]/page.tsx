@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
 
-    const seoTitle = `${video.title} - Free ${categoryLabel} BDSM Video`;
+    const seoTitle = `${video.title} - Free BDSM Porn Video | Extreme Bondage & Fetish`;
 
     const topTags = video.tags.slice(0, 4).join(", ");
     const seoDescription = video.description
@@ -134,7 +134,7 @@ function generateStructuredData(video: {
     "@context": "https://schema.org",
     "@type": "VideoObject",
     name: video.title,
-    description: video.description || `Free adult ${primaryCategory} video on KinkTube. ${video.title}.`,
+    description: video.description || `Free adult ${primaryCategory} porn video on KinkTube. ${video.title}.`,
     thumbnailUrl: getBestDisplayThumbnailUrl(video),
     duration: `PT${Math.floor(video.duration / 60)}M${video.duration % 60}S`,
     embedUrl: video.embed_url,
