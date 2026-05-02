@@ -409,6 +409,7 @@ func (db *PostgresDB) UpsertVideo(ctx context.Context, video *models.Video) (boo
 			keywords = EXCLUDED.keywords,
 			published_at = EXCLUDED.published_at,
 			is_english = EXCLUDED.is_english,
+			is_available = TRUE,
 			language_checked = TRUE,
 			last_updated_at = NOW()
 		RETURNING id, added_at, (xmax = 0) AS inserted
@@ -885,20 +886,18 @@ type VideoIDPair struct {
 	ExternalID string
 }
 
-// ListVideosForValidation returns a paginated list of (id, external_id) for all
+// ListVideosForValidation returns the next batch of (id, external_id) for all
 // currently-available videos so the cleanup scanner can verify them against Eporner.
-func (db *PostgresDB) ListVideosForValidation(ctx context.Context, page, pageSize int) ([]VideoIDPair, error) {
-	if page < 1 {
-		page = 1
+// Uses keyset pagination (WHERE id > afterID) so deletions during the scan never
+// cause rows to be skipped.
+func (db *PostgresDB) ListVideosForValidation(ctx context.Context, afterID int64, batchSize int) ([]VideoIDPair, error) {
+	if batchSize < 1 || batchSize > 200 {
+		batchSize = 50
 	}
-	if pageSize < 1 || pageSize > 200 {
-		pageSize = 50
-	}
-	offset := (page - 1) * pageSize
 
 	rows, err := db.pool.Query(ctx,
-		`SELECT id, external_id FROM videos WHERE is_available = TRUE ORDER BY id LIMIT $1 OFFSET $2`,
-		pageSize, offset,
+		`SELECT id, external_id FROM videos WHERE is_available = TRUE AND id > $1 ORDER BY id LIMIT $2`,
+		afterID, batchSize,
 	)
 	if err != nil {
 		return nil, err

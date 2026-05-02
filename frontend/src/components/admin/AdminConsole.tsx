@@ -18,8 +18,12 @@ import {
   triggerAdminImport,
   updateAdminContactMessageStatus,
   updateAdminSettings,
+  getDeadVideoCleanupStatus,
+  startDeadVideoCleanup,
+  stopDeadVideoCleanup,
 } from "@/lib/api";
 import type { AdminImportStatusResponse, AdminSEOGenerateResponse, AdminSessionResponse, AISEOStatusResponse, AISEOLog, CategoriesResponse, ContactSubmission, SiteSettings, StatsResponse } from "@/lib/types";
+import type { DeadVideoCleanupStatus } from "@/lib/api";
 
 const tabs = [
   "overview",
@@ -195,6 +199,11 @@ export default function AdminConsole() {
   const [aiSeoActionMsg, setAiSeoActionMsg] = useState<string | null>(null);
   const [aiSeoExpanded, setAiSeoExpanded] = useState<number | null>(null);
 
+  // Dead video cleanup state
+  const [dvCleanup, setDvCleanup] = useState<DeadVideoCleanupStatus | null>(null);
+  const [dvCleanupLoading, setDvCleanupLoading] = useState(false);
+  const [dvCleanupMsg, setDvCleanupMsg] = useState<string | null>(null);
+
   const isAuthenticated = !!session?.authenticated;
 
   async function loadAdminData() {
@@ -251,6 +260,20 @@ export default function AdminConsole() {
     const interval = setInterval(() => {
       loadAiSeoData();
     }, 10000);
+    return () => clearInterval(interval);
+  }, [activeTab, isAuthenticated]);
+
+  // Poll dead video cleanup status when on import tab
+  useEffect(() => {
+    if (activeTab !== "import" || !isAuthenticated) return;
+    const loadStatus = async () => {
+      try {
+        const status = await getDeadVideoCleanupStatus();
+        setDvCleanup(status);
+      } catch { /* ignore */ }
+    };
+    loadStatus();
+    const interval = setInterval(loadStatus, 5000);
     return () => clearInterval(interval);
   }, [activeTab, isAuthenticated]);
 
@@ -1375,6 +1398,77 @@ export default function AdminConsole() {
                 >
                   Run BDSM Filter Cleanup
                 </button>
+              </SectionCard>
+
+              <SectionCard title="Dead Video Cleanup" description="Scan all videos against Eporner API to remove unavailable/deleted videos. Runs automatically daily at 08:00 UTC. Auto-stops after 2 hours.">
+                <div className="rounded-2xl border border-border bg-background px-4 py-3 mb-4 text-sm text-foreground-muted">
+                  This validates every video in the database against the Eporner API. Videos that no longer exist on Eporner are marked unavailable and hidden from the feed. Network errors are safely skipped to prevent false deletions.
+                </div>
+
+                {/* Status indicator */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`h-3 w-3 rounded-full ${dvCleanup?.running ? "bg-green-500 animate-pulse" : "bg-foreground-muted/30"}`} />
+                  <span className="text-sm font-medium text-foreground">
+                    {dvCleanup?.running ? "Running" : "Idle"}
+                  </span>
+                  {dvCleanup?.running && dvCleanup?.elapsed && (
+                    <span className="text-xs text-foreground-muted">({dvCleanup.elapsed})</span>
+                  )}
+                  {dvCleanup?.started_at && !dvCleanup.running && (
+                    <span className="text-xs text-foreground-muted">
+                      Last run: {new Date(dvCleanup.started_at).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+
+                {dvCleanupMsg && (
+                  <div className="rounded-xl border border-border bg-background px-3 py-2 mb-4 text-sm text-foreground-muted">
+                    {dvCleanupMsg}
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    disabled={dvCleanupLoading || dvCleanup?.running === true}
+                    onClick={async () => {
+                      setDvCleanupLoading(true);
+                      setDvCleanupMsg(null);
+                      try {
+                        const res = await startDeadVideoCleanup();
+                        setDvCleanupMsg(res.message);
+                        setDvCleanup((prev) => ({ ...prev, running: true } as DeadVideoCleanupStatus));
+                      } catch (e: unknown) {
+                        setDvCleanupMsg((e as Error).message || "Failed to start");
+                      } finally {
+                        setDvCleanupLoading(false);
+                      }
+                    }}
+                    className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {dvCleanup?.running ? "⏳ Running…" : "▶ Start Dead Video Cleanup"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={dvCleanupLoading || dvCleanup?.running !== true}
+                    onClick={async () => {
+                      setDvCleanupLoading(true);
+                      setDvCleanupMsg(null);
+                      try {
+                        const res = await stopDeadVideoCleanup();
+                        setDvCleanupMsg(res.message);
+                        setDvCleanup((prev) => ({ ...prev, running: false } as DeadVideoCleanupStatus));
+                      } catch (e: unknown) {
+                        setDvCleanupMsg((e as Error).message || "Failed to stop");
+                      } finally {
+                        setDvCleanupLoading(false);
+                      }
+                    }}
+                    className="rounded-xl border border-red-600 px-4 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-600 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    ⏹ Stop Cleanup
+                  </button>
+                </div>
               </SectionCard>
             </div>
           )}

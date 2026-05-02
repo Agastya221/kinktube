@@ -447,10 +447,16 @@ func (c *EpornerClient) SearchVideosWithOptions(ctx context.Context, query strin
 
 // VideoExists checks whether a video ID is still available on Eporner.
 // Uses the /api/v2/video/get/ endpoint which is fast (single record).
-// Returns false if the video is deleted, private, or the API returns an error.
-func (c *EpornerClient) VideoExists(ctx context.Context, externalID string) bool {
+//
+// Returns:
+//   - (true,  nil)   — video definitely exists
+//   - (false, nil)   — video is definitively deleted/private (API returned an error payload or 404)
+//   - (false, error) — could not determine status (network error, timeout, rate-limit, etc.)
+//
+// Callers MUST check the error: only mark a video unavailable when err == nil && exists == false.
+func (c *EpornerClient) VideoExists(ctx context.Context, externalID string) (bool, error) {
 	if externalID == "" {
-		return false
+		return false, nil // empty ID is always invalid
 	}
 
 	params := url.Values{}
@@ -461,46 +467,57 @@ func (c *EpornerClient) VideoExists(ctx context.Context, externalID string) bool
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("User-Agent", "KinkTube/1.0")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("http request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
+	// 404 = definitively gone
+	if resp.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+
+	// Rate-limited or server error = inconclusive, do NOT treat as "deleted"
+	if resp.StatusCode == http.StatusTooManyRequests ||
+		resp.StatusCode >= http.StatusInternalServerError {
+		return false, fmt.Errorf("API returned status %d for video %s", resp.StatusCode, externalID)
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return false
+		return false, fmt.Errorf("unexpected status %d for video %s", resp.StatusCode, externalID)
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
 	if err != nil {
-		return false
+		return false, fmt.Errorf("read response body: %w", err)
 	}
 
 	// Eporner returns {"id":"...","title":"...",...} for valid videos
 	// and {"error":"..."} for invalid ones
 	var payload map[string]interface{}
 	if err := json.Unmarshal(body, &payload); err != nil {
-		return false
+		return false, fmt.Errorf("parse JSON: %w", err)
 	}
 
-	// If there's an "error" key the video doesn't exist
+	// If there's an "error" key the video doesn't exist — this IS definitive
 	if _, hasErr := payload["error"]; hasErr {
-		return false
+		return false, nil
 	}
 
 	// Must have an id field matching what we asked for
 	if idVal, ok := payload["id"]; ok {
 		if idStr, ok := idVal.(string); ok && idStr != "" {
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 // containsAnyStrongBDSM returns true if the text contains at least one strong BDSM term.

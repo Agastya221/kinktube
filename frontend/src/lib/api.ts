@@ -366,3 +366,26 @@ export async function triggerAdminDBCleanup(): Promise<{ message: string; status
   });
 }
 
+// Dead Video Cleanup (Eporner availability scan)
+export interface DeadVideoCleanupStatus {
+  running: boolean;
+  started_at?: string;
+  elapsed?: string;
+}
+
+export async function getDeadVideoCleanupStatus(): Promise<DeadVideoCleanupStatus> {
+  return fetchAdminAPI<DeadVideoCleanupStatus>("/api/admin/dead-video-cleanup");
+}
+
+export async function startDeadVideoCleanup(): Promise<{ ok: boolean; message: string }> {
+  return fetchAdminAPI<{ ok: boolean; message: string }>("/api/admin/dead-video-cleanup/start", {
+    method: "POST",
+  });
+}
+
+export async function stopDeadVideoCleanup(): Promise<{ ok: boolean; message: string }> {
+  return fetchAdminAPI<{ ok: boolean; message: string }>("/api/admin/dead-video-cleanup/stop", {
+    method: "POST",
+  });
+}
+

@@ -29,6 +29,12 @@ type Importer struct {
 	seoBackfillMu      sync.Mutex
 	mu                 sync.Mutex
 
+	// Dead-video cleanup state
+	cleanupRunning   atomic.Bool
+	cleanupCancel    context.CancelFunc
+	cleanupMu        sync.Mutex
+	cleanupStartedAt time.Time
+
 	// Daily token budget tracking (for free-tier compliance)
 	tokenMu          sync.Mutex
 	dailyTokensUsed  int64
@@ -781,31 +787,86 @@ func (i *Importer) RunLight(ctx context.Context) *ImportStats {
 	return stats
 }
 
+// StartDeadVideoCleanup starts the cleanup in a background goroutine with a 2-hour timeout.
+// Returns an error if a cleanup is already running.
+func (i *Importer) StartDeadVideoCleanup() error {
+	i.cleanupMu.Lock()
+	defer i.cleanupMu.Unlock()
+
+	if i.cleanupRunning.Load() {
+		return fmt.Errorf("dead video cleanup is already running")
+	}
+
+	// 2-hour safety timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Hour)
+	i.cleanupCancel = cancel
+	i.cleanupStartedAt = time.Now()
+
+	go func() {
+		defer cancel()
+		i.CleanDeadVideos(ctx)
+	}()
+
+	return nil
+}
+
+// StopDeadVideoCleanup cancels any running cleanup.
+func (i *Importer) StopDeadVideoCleanup() {
+	i.cleanupMu.Lock()
+	defer i.cleanupMu.Unlock()
+
+	if i.cleanupCancel != nil {
+		i.cleanupCancel()
+		i.cleanupCancel = nil
+	}
+}
+
+// IsCleanupRunning returns whether the cleanup scan is active.
+func (i *Importer) IsCleanupRunning() bool {
+	return i.cleanupRunning.Load()
+}
+
+// CleanupStartedAt returns when the current/last cleanup started.
+func (i *Importer) CleanupStartedAt() time.Time {
+	i.cleanupMu.Lock()
+	defer i.cleanupMu.Unlock()
+	return i.cleanupStartedAt
+}
+
 // CleanDeadVideos validates every video in the DB against the Eporner API
 // and marks unavailable ones so they disappear from all listings.
-// Runs in batches with delays to avoid rate-limiting. Safe to run daily.
+// Uses keyset pagination (WHERE id > lastSeenID) to guarantee zero skips.
+// Safe to call from cron or admin UI — guarded by an atomic lock.
 func (i *Importer) CleanDeadVideos(ctx context.Context) {
+	if !i.cleanupRunning.CompareAndSwap(false, true) {
+		log.Println("CleanDeadVideos: already running, skipping")
+		return
+	}
+	defer i.cleanupRunning.Store(false)
+
 	log.Println("Starting dead video cleanup scan...")
 
 	const batchSize = 50
 	const delayBetweenChecks = 300 * time.Millisecond
 	const delayBetweenBatches = 3 * time.Second
 
-	// Fetch all external IDs in chunks via DB pagination
-	page := 1
+	var lastSeenID int64
 	totalMarked := 0
+	totalChecked := 0
+	totalSkipped := 0
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Printf("Dead video cleanup cancelled after marking %d videos", totalMarked)
+			log.Printf("Dead video cleanup cancelled/timed-out after checking %d, marking %d, skipping %d",
+				totalChecked, totalMarked, totalSkipped)
 			return
 		default:
 		}
 
-		rows, err := i.db.ListVideosForValidation(ctx, page, batchSize)
+		rows, err := i.db.ListVideosForValidation(ctx, lastSeenID, batchSize)
 		if err != nil {
-			log.Printf("CleanDeadVideos: failed to list videos page %d: %v", page, err)
+			log.Printf("CleanDeadVideos: failed to list videos after id=%d: %v", lastSeenID, err)
 			break
 		}
 		if len(rows) == 0 {
@@ -819,9 +880,22 @@ func (i *Importer) CleanDeadVideos(ctx context.Context) {
 			default:
 			}
 
+			// Always advance the cursor so we never re-check the same row
+			lastSeenID = row.ID
+			totalChecked++
+
 			checkCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-			exists := i.eporner.VideoExists(checkCtx, row.ExternalID)
+			exists, apiErr := i.eporner.VideoExists(checkCtx, row.ExternalID)
 			cancel()
+
+			if apiErr != nil {
+				// Network/rate-limit error — skip this video, do NOT mark unavailable
+				totalSkipped++
+				if totalSkipped <= 10 {
+					log.Printf("CleanDeadVideos: skipping video id=%d (API error: %v)", row.ID, apiErr)
+				}
+				continue
+			}
 
 			if !exists {
 				log.Printf("CleanDeadVideos: marking video id=%d external=%q as unavailable", row.ID, row.ExternalID)
@@ -838,11 +912,11 @@ func (i *Importer) CleanDeadVideos(ctx context.Context) {
 		if len(rows) < batchSize {
 			break
 		}
-		page++
 		time.Sleep(delayBetweenBatches)
 	}
 
-	log.Printf("Dead video cleanup complete: %d videos marked unavailable", totalMarked)
+	log.Printf("Dead video cleanup complete: checked %d, marked %d unavailable, skipped %d (API errors)",
+		totalChecked, totalMarked, totalSkipped)
 
 	if totalMarked > 0 {
 		if err := i.invalidateCache(ctx); err != nil {
