@@ -103,6 +103,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             height={240} 
             className="h-16 md:h-20 w-auto object-contain"
             priority
+            unoptimized
           />
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold mb-4">
