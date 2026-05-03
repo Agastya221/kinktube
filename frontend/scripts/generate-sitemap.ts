@@ -203,8 +203,9 @@ async function runWithConcurrency<T>(
 
 function writeXml(filename: string, content: string): void {
   const filepath = path.join(PUBLIC_DIR, filename);
-  fs.writeFileSync(filepath, content, "utf-8");
-  const sizeKB = (Buffer.byteLength(content, "utf-8") / 1024).toFixed(1);
+  const trimmedContent = content.trim();
+  fs.writeFileSync(filepath, trimmedContent, "utf-8");
+  const sizeKB = (Buffer.byteLength(trimmedContent, "utf-8") / 1024).toFixed(1);
   console.log(`  ✓ ${filename} (${sizeKB} KB)`);
 }
 

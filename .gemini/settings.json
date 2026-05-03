@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "cloudflare-api": {
+      "httpUrl": "https://mcp.cloudflare.com/mcp",
+      "authProviderType": "dynamic_discovery",
+      "oauth": {
+        "enabled": true,
+        "tokenParamName": "token"
+      }
+    }
+  }
+}
