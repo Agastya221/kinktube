@@ -34,8 +34,8 @@ import * as path from "path";
 const API_BASE_URL = (
   process.env.API_URL ||
   process.env.INTERNAL_API_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8080"
+  (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL !== "http://localhost:8080" ? process.env.NEXT_PUBLIC_API_URL : null) ||
+  "https://kinktube.fun"
 ).replace(/\/+$/, "");
 
 const SITE_URL = (
