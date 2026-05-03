@@ -31,12 +31,19 @@ import * as path from "path";
 // Configuration
 // ---------------------------------------------------------------------------
 
-const API_BASE_URL = (
-  process.env.API_URL ||
-  process.env.INTERNAL_API_URL ||
-  (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL !== "http://localhost:8080" ? process.env.NEXT_PUBLIC_API_URL : null) ||
-  "https://kinktube.fun"
+const isRailway = process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_PROJECT_ID;
+
+let API_BASE_URL = (
+  isRailway ? "https://kinktube.fun" : (
+    process.env.API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:8080"
+  )
 ).replace(/\/+$/, "");
+
+if (API_BASE_URL.includes(".railway.internal")) {
+  API_BASE_URL = "https://kinktube.fun";
+}
 
 const SITE_URL = (
   process.env.SITE_URL ||
