@@ -19,6 +19,13 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/"],
       },
     ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    // List sitemap index + all child sitemaps explicitly so Google
+    // discovers every sub-sitemap without having to parse the index first.
+    sitemap: [
+      `${SITE_URL}/sitemap.xml`,
+      `${SITE_URL}/sitemap-static.xml`,
+      `${SITE_URL}/sitemap-categories.xml`,
+      `${SITE_URL}/sitemap-videos-1.xml`,
+    ],
   };
 }

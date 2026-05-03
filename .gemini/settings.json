@@ -7,6 +7,13 @@
         "enabled": true,
         "tokenParamName": "token"
       }
+    },
+    "gsc-insights": {
+      "command": "C:\\Users\\agast\\.local\\bin\\uvx.exe",
+      "args": ["mcp-search-console"],
+      "env": {
+        "GSC_OAUTH_CLIENT_SECRETS_FILE": "C:\\Users\\agast\\gsc-client-secrets.json"
+      }
     }
   }
 }

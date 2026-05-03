@@ -87,10 +87,10 @@ export const fallbackPublicSiteSettings: PublicSiteSettings = {
     border_hover: "#3f3f46",
   },
   seo: {
-    site_url: process.env.SITE_URL || "https://yourdomain.com",
-    default_title: "Free BDSM Porn Videos & Tube | Bondage, Femdom, Kink & Hardcore Fetish",
+    site_url: process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://kinktube.fun",
+    default_title: "KinkTube – Free BDSM Porn Tube | Bondage, Femdom & Kink Videos",
     title_template: "%s | KinkTube",
-    default_description: "Watch free BDSM porn videos, hardcore bondage, femdom domination, whipping, slave training and extreme kink content. Daily updated BDSM tube with thousands of fetish videos.",
+    default_description: "KinkTube is the #1 free BDSM porn tube. Watch thousands of bondage, femdom, slave training, whipping and extreme kink videos. Daily updated BDSM tube — no signup needed.",
     default_keywords: [
       // Core High-Volume
       "bdsm", "bdsm porn", "bdsm videos", "bdsm tube", "free bdsm videos",
@@ -112,10 +112,10 @@ export const fallbackPublicSiteSettings: PublicSiteSettings = {
       "kink tube", "fetish tube", "rough bdsm", "hardcore fetish",
       "bdsm domination", "bdsm humiliation", "anal bdsm", "fisting bdsm"
     ],
-    open_graph_title: "Free BDSM Porn Videos & Tube | Bondage, Femdom, Kink & Hardcore Fetish",
-    open_graph_description: "Watch free BDSM porn videos, hardcore bondage, femdom domination, whipping, slave training and extreme kink content. Daily updated BDSM tube with thousands of fetish videos.",
-    twitter_title: "Free BDSM Porn Videos & Tube | Bondage, Femdom, Kink & Hardcore Fetish",
-    twitter_description: "Watch free BDSM porn videos, hardcore bondage, femdom domination, whipping, slave training and extreme kink content. Daily updated BDSM tube with thousands of fetish videos.",
+    open_graph_title: "KinkTube – Free BDSM Porn Tube | Bondage, Femdom & Kink Videos",
+    open_graph_description: "KinkTube is the #1 free BDSM porn tube. Watch thousands of bondage, femdom, slave training, whipping and extreme kink videos. Daily updated — no signup needed.",
+    twitter_title: "KinkTube – Free BDSM Porn Tube | Bondage, Femdom & Kink Videos",
+    twitter_description: "KinkTube is the #1 free BDSM porn tube. Watch thousands of bondage, femdom, slave training, whipping and extreme kink videos. Daily updated — no signup needed.",
   },
   content: {
     videos_per_page: 24,

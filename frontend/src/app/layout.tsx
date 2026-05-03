@@ -134,7 +134,17 @@ export default async function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebSite",
               "name": "KinkTube",
+              "alternateName": ["KinkTube BDSM Tube", "KinkTube Porn"],
               "url": "https://kinktube.fun",
+              "description": "KinkTube is a free BDSM porn tube featuring bondage, femdom, slave training, whipping and extreme kink videos updated daily.",
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": {
+                  "@type": "EntryPoint",
+                  "urlTemplate": "https://kinktube.fun/search?q={search_term_string}"
+                },
+                "query-input": "required name=search_term_string"
+              },
               "publisher": {
                 "@type": "Organization",
                 "name": "KinkTube",
