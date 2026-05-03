@@ -34,15 +34,13 @@ import * as path from "path";
 const isRailway = process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_PROJECT_ID;
 
 let API_BASE_URL = (
-  isRailway ? "https://kinktube.fun" : (
-    process.env.API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:8080"
-  )
+  process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("localhost") 
+    ? process.env.NEXT_PUBLIC_API_URL
+    : (isRailway ? "https://kinktube-production.up.railway.app" : "http://localhost:8080")
 ).replace(/\/+$/, "");
 
 if (API_BASE_URL.includes(".railway.internal")) {
-  API_BASE_URL = "https://kinktube.fun";
+  API_BASE_URL = "https://kinktube-production.up.railway.app";
 }
 
 const SITE_URL = (
