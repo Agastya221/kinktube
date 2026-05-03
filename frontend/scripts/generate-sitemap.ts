@@ -283,8 +283,7 @@ async function fetchTotalVideos(): Promise<number> {
     const stats = await fetchJson<StatsResponse>("/api/stats");
     return stats.total_videos || 0;
   } catch (err) {
-    console.warn("  ⚠ Could not fetch /api/stats, falling back to 0:", (err as Error).message);
-    return 0;
+    throw new Error(`Could not fetch /api/stats: ${(err as Error).message}`);
   }
 }
 
@@ -293,7 +292,7 @@ async function fetchCategories(): Promise<Category[]> {
     const data = await fetchJson<CategoriesResponse>("/api/categories");
     if (data.categories?.length) return data.categories;
   } catch (err) {
-    console.warn("  ⚠ Could not fetch /api/categories, using defaults:", (err as Error).message);
+    throw new Error(`Could not fetch /api/categories: ${(err as Error).message}`);
   }
   return DEFAULT_CATEGORIES;
 }
