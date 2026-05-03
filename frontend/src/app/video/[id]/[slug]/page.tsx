@@ -133,45 +133,59 @@ function generateStructuredData(video: {
   const videoObject = {
     "@context": "https://schema.org",
     "@type": "VideoObject",
-    name: video.title,
-    description: video.description || `Free adult ${primaryCategory} porn video on KinkTube. ${video.title}.`,
-    thumbnailUrl: getBestDisplayThumbnailUrl(video),
-    duration: `PT${Math.floor(video.duration / 60)}M${video.duration % 60}S`,
-    embedUrl: video.embed_url,
-    uploadDate: new Date(video.added_at).toISOString(),
-    interactionStatistic: {
+    "name": video.title,
+    "description": video.description || `Free adult ${primaryCategory} porn video on KinkTube. ${video.title}.`,
+    "thumbnailUrl": [
+      getBestDisplayThumbnailUrl(video),
+      video.thumbnail_lg,
+      video.thumbnail,
+    ].filter(Boolean),
+    "duration": `PT${Math.floor(video.duration / 60)}M${video.duration % 60}S`,
+    "embedUrl": video.embed_url,
+    "uploadDate": new Date(video.added_at).toISOString(),
+    "interactionStatistic": {
       "@type": "InteractionCounter",
-      interactionType: "https://schema.org/WatchAction",
-      userInteractionCount: video.views,
+      "interactionType": "https://schema.org/WatchAction",
+      "userInteractionCount": video.views,
     },
-    isFamilyFriendly: false,
-    contentRating: "Adult",
+    "publisher": {
+      "@type": "Organization",
+      "name": "KinkTube",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://kinktube.fun/logo.jpeg"
+      }
+    },
+    "isFamilyFriendly": false,
+    "contentRating": "Adult Only",
+    "genre": primaryCategory,
+    "inLanguage": "en",
   };
 
   const breadcrumb = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: [
+    "itemListElement": [
       {
         "@type": "ListItem",
-        position: 1,
-        name: "Home",
-        item: SITE_URL,
+        "position": 1,
+        "name": "Home",
+        "item": SITE_URL,
       },
       ...(video.categories?.[0]
         ? [
             {
               "@type": "ListItem",
-              position: 2,
-              name: primaryCategory,
-              item: `${SITE_URL}/category/${video.categories[0]}`,
+              "position": 2,
+              "name": primaryCategory,
+              "item": `${SITE_URL}/category/${video.categories[0]}`,
             },
           ]
         : []),
       {
         "@type": "ListItem",
-        position: video.categories?.[0] ? 3 : 2,
-        name: video.title,
+        "position": video.categories?.[0] ? 3 : 2,
+        "name": video.title,
       },
     ],
   };
@@ -200,12 +214,13 @@ export default async function VideoSlugPage({ params }: VideoPageProps) {
   return (
     <>
       {/* JSON-LD Structured Data: VideoObject + BreadcrumbList */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(generateStructuredData(video)),
-        }}
-      />
+      {generateStructuredData(video).map((schema, i) => (
+        <script
+          key={i}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        />
+      ))}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Top Ad Banner - Desktop Only */}

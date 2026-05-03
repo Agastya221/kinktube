@@ -1,4 +1,6 @@
 import { MetadataRoute } from "next";
+import * as fs from "fs";
+import * as path from "path";
 
 const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ||
@@ -6,26 +8,55 @@ const SITE_URL = (
   "https://kinktube.fun"
 ).replace(/\/+$/, "");
 
+/**
+ * Reads the generated sitemap.xml index at runtime and extracts all child
+ * sitemap URLs. Falls back to a hardcoded baseline if the file isn't present
+ * (e.g. during local dev before the build script has run).
+ */
+function getSitemapUrls(): string[] {
+  const baseline = [
+    `${SITE_URL}/sitemap.xml`,
+    `${SITE_URL}/sitemap-static.xml`,
+    `${SITE_URL}/sitemap-categories.xml`,
+  ];
+
+  try {
+    const indexPath = path.join(process.cwd(), "public", "sitemap.xml");
+    if (!fs.existsSync(indexPath)) return baseline;
+
+    const xml = fs.readFileSync(indexPath, "utf-8");
+    // Extract every <loc> inside <sitemap> tags
+    const matches = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)];
+    if (!matches.length) return baseline;
+
+    // Always include the index itself first, then child sitemaps
+    const children = matches
+      .map((m) => m[1].trim())
+      .filter((loc) => loc.startsWith("http"));
+
+    return [`${SITE_URL}/sitemap.xml`, ...children];
+  } catch {
+    return baseline;
+  }
+}
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/api/", "/admin/", "/portal/", "/search?"],
+        disallow: ["/api/", "/admin/", "/portal/", "/search"],
       },
       {
         userAgent: ["GPTBot", "ChatGPT-User", "CCBot", "anthropic-ai"],
         disallow: ["/"],
       },
     ],
-    // List sitemap index + all child sitemaps explicitly so Google
-    // discovers every sub-sitemap without having to parse the index first.
-    sitemap: [
-      `${SITE_URL}/sitemap.xml`,
-      `${SITE_URL}/sitemap-static.xml`,
-      `${SITE_URL}/sitemap-categories.xml`,
-      `${SITE_URL}/sitemap-videos-1.xml`,
-    ],
+    // Dynamically mirrors whatever sitemaps the build script generated.
+    // Googlebot reads robots.txt on every crawl, so it always sees the
+    // full list immediately without waiting for the index to be processed.
+    sitemap: getSitemapUrls(),
   };
 }
+

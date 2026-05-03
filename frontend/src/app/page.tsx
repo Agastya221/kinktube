@@ -25,14 +25,19 @@ export async function generateMetadata({ searchParams }: HomePageProps): Promise
   const params = await searchParams;
   const page = parseInt(params.page || "1", 10);
 
+  const canonical = page > 1 ? `/?page=${page}` : "/";
+
   // Deep pagination pages get noindex to save crawl budget
   if (page > 5) {
     return {
+      alternates: { canonical },
       robots: { index: false, follow: true },
     };
   }
 
-  return {};
+  return {
+    alternates: { canonical },
+  };
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
