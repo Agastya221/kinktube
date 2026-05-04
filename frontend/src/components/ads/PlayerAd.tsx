@@ -10,6 +10,7 @@ interface PlayerAdProps {
 }
 
 const PREROLL_SECONDS = 8;
+const SKIP_SECONDS = 5;
 
 interface VastCreative {
   mediaUrl: string;
@@ -74,6 +75,8 @@ function ExoClickVastPreroll({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [creative, setCreative] = useState<VastCreative | null>(null);
   const [loading, setLoading] = useState(true);
+  const [skipSecondsLeft, setSkipSecondsLeft] = useState(SKIP_SECONDS);
+  const [canSkip, setCanSkip] = useState(false);
   const completedRef = useRef(false);
   const vastUrl = useMemo(() => buildExoClickVastUrl(zoneId), [zoneId]);
 
@@ -121,6 +124,19 @@ function ExoClickVastPreroll({
     };
   }, [completeOnce, vastUrl]);
 
+  // Only start the skip countdown once the ad has loaded and is playing.
+  // creative being set means the video is ready — loading is false at this point.
+  useEffect(() => {
+    if (!creative || loading) return;
+    if (skipSecondsLeft <= 0) {
+      setCanSkip(true);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setSkipSecondsLeft((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [creative, loading, skipSecondsLeft]);
 
   const openClickThrough = () => {
     if (creative?.clickThrough) {
@@ -156,7 +172,17 @@ function ExoClickVastPreroll({
         )}
       </div>
 
-
+      {/* Skip button — only visible once ad has loaded and countdown is done */}
+      {creative && !loading ? (
+        <button
+          type="button"
+          onClick={canSkip ? completeOnce : undefined}
+          disabled={!canSkip}
+          className="absolute bottom-3 right-3 rounded-full border border-white/20 bg-black/80 px-4 py-2 text-xs font-semibold text-white transition-colors enabled:hover:bg-white/15 disabled:cursor-not-allowed disabled:text-white/50"
+        >
+          {canSkip ? "Skip Ad ›" : `Skip in ${skipSecondsLeft}s`}
+        </button>
+      ) : null}
     </div>
   );
 }
