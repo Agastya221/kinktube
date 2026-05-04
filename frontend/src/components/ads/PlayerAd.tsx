@@ -7,7 +7,7 @@ interface PlayerAdProps {
   onComplete: () => void;
 }
 
-const SKIP_SECONDS = 5;
+const SKIP_SECONDS = 10;
 const MAX_RETRIES = 1;
 
 interface VastCreative {
