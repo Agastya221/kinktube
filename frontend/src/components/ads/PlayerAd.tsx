@@ -10,7 +10,6 @@ interface PlayerAdProps {
 }
 
 const PREROLL_SECONDS = 8;
-const EXOCLICK_SKIP_SECONDS = 5;
 
 interface VastCreative {
   mediaUrl: string;
@@ -75,7 +74,6 @@ function ExoClickVastPreroll({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [creative, setCreative] = useState<VastCreative | null>(null);
   const [loading, setLoading] = useState(true);
-  const [canSkip, setCanSkip] = useState(false);
   const completedRef = useRef(false);
   const vastUrl = useMemo(() => buildExoClickVastUrl(zoneId), [zoneId]);
 
@@ -123,10 +121,6 @@ function ExoClickVastPreroll({
     };
   }, [completeOnce, vastUrl]);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => setCanSkip(true), EXOCLICK_SKIP_SECONDS * 1000);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   const openClickThrough = () => {
     if (creative?.clickThrough) {
@@ -162,16 +156,7 @@ function ExoClickVastPreroll({
         )}
       </div>
 
-      {creative ? (
-        <button
-          type="button"
-          onClick={canSkip ? completeOnce : undefined}
-          disabled={!canSkip}
-          className="absolute bottom-3 right-3 rounded-full border border-white/20 bg-black/80 px-4 py-2 text-xs font-semibold text-white transition-colors enabled:hover:bg-white/15 disabled:cursor-not-allowed disabled:text-white/50"
-        >
-          {canSkip ? "Skip Ad" : `Skip in ${EXOCLICK_SKIP_SECONDS}`}
-        </button>
-      ) : null}
+
     </div>
   );
 }
