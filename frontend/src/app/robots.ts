@@ -48,15 +48,16 @@ export default function robots(): MetadataRoute.Robots {
         allow: "/",
         disallow: ["/api/", "/admin/", "/portal/", "/search"],
       },
-      {
-        userAgent: ["GPTBot", "ChatGPT-User", "CCBot", "anthropic-ai"],
-        disallow: ["/"],
-      },
+      // Each AI bot needs its own rule block — grouping them in a single
+      // userAgent array generates stacked User-Agent lines without paired
+      // Disallow directives, which many parsers misinterpret.
+      { userAgent: "GPTBot", disallow: "/" },
+      { userAgent: "ChatGPT-User", disallow: "/" },
+      { userAgent: "CCBot", disallow: "/" },
+      { userAgent: "anthropic-ai", disallow: "/" },
     ],
-    // Dynamically mirrors whatever sitemaps the build script generated.
-    // Googlebot reads robots.txt on every crawl, so it always sees the
-    // full list immediately without waiting for the index to be processed.
+    // Only list the sitemap index — Google follows <loc> child entries
+    // automatically, so listing all 13 sub-sitemaps here is redundant.
     sitemap: getSitemapUrls(),
   };
 }
-
