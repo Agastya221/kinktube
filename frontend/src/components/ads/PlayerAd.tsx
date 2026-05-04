@@ -1,16 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import AdSlot from "./AdSlot";
-import { useSiteSettings } from "@/components/SiteSettingsProvider";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface PlayerAdProps {
+  zoneId: string;
   onComplete: () => void;
 }
 
-const PREROLL_SECONDS = 8;
 const SKIP_SECONDS = 5;
+const MAX_RETRIES = 1;
 
 interface VastCreative {
   mediaUrl: string;
@@ -20,11 +18,15 @@ interface VastCreative {
 
 function buildExoClickVastUrl(value: string): string {
   const trimmed = value.trim();
-  if (/^https?:\/\//i.test(trimmed)) {
-    return trimmed;
+  let baseUrl = trimmed;
+  if (!/^https?:\/\//i.test(trimmed)) {
+    baseUrl = `https://s.magsrv.com/v1/vast.php?idzone=${encodeURIComponent(trimmed)}`;
   }
-
-  return `https://s.magsrv.com/v1/vast.php?idzone=${encodeURIComponent(trimmed)}`;
+  
+  // Cache busting
+  const url = new URL(baseUrl);
+  url.searchParams.set("cb", `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`);
+  return url.toString();
 }
 
 function textFromElement(parent: Element | Document, selector: string): string {
@@ -65,32 +67,44 @@ function trackPixels(urls: string[]) {
   });
 }
 
-function ExoClickVastPreroll({
-  zoneId,
-  onComplete,
-}: {
-  zoneId: string;
-  onComplete: () => void;
-}) {
+export default function PlayerAd({ zoneId, onComplete }: PlayerAdProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [creative, setCreative] = useState<VastCreative | null>(null);
   const [loading, setLoading] = useState(true);
   const [skipSecondsLeft, setSkipSecondsLeft] = useState(SKIP_SECONDS);
   const [canSkip, setCanSkip] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const completedRef = useRef(false);
-  const vastUrl = useMemo(() => buildExoClickVastUrl(zoneId), [zoneId]);
 
   const completeOnce = useCallback(() => {
     if (completedRef.current) {
       return;
     }
-
     completedRef.current = true;
+    
+    // Explicitly clean up video element before unmounting
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.removeAttribute("src");
+      videoRef.current.load();
+    }
+    
     onComplete();
   }, [onComplete]);
 
+  const handleFetchError = useCallback(() => {
+    if (retryCount < MAX_RETRIES) {
+      setRetryCount((prev) => prev + 1);
+    } else {
+      completeOnce(); // Failed all retries, skip to video
+    }
+  }, [retryCount, completeOnce]);
+
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+
+    const vastUrl = buildExoClickVastUrl(zoneId);
 
     fetch(vastUrl, { cache: "no-store", credentials: "omit" })
       .then((response) => {
@@ -108,9 +122,10 @@ function ExoClickVastPreroll({
         setCreative(nextCreative);
         trackPixels(nextCreative.impressions);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn("VAST fetch error:", err);
         if (!cancelled) {
-          completeOnce();
+          handleFetchError();
         }
       })
       .finally(() => {
@@ -122,10 +137,9 @@ function ExoClickVastPreroll({
     return () => {
       cancelled = true;
     };
-  }, [completeOnce, vastUrl]);
+  }, [zoneId, retryCount, handleFetchError]);
 
   // Only start the skip countdown once the ad has loaded and is playing.
-  // creative being set means the video is ready — loading is false at this point.
   useEffect(() => {
     if (!creative || loading) return;
     if (skipSecondsLeft <= 0) {
@@ -149,13 +163,11 @@ function ExoClickVastPreroll({
       <div className="relative flex h-full w-full items-center justify-center">
         {loading ? (
           <div className="text-sm text-white/60">Loading ad...</div>
-        ) : !creative ? (
-          null
-        ) : (
+        ) : !creative ? null : (
           <button
             type="button"
             onClick={openClickThrough}
-            className="flex h-full w-full items-center justify-center bg-black"
+            className="flex h-full w-full items-center justify-center bg-black cursor-pointer"
             aria-label="Open advertiser"
           >
             <video
@@ -165,7 +177,7 @@ function ExoClickVastPreroll({
               muted
               playsInline
               onEnded={completeOnce}
-              onError={completeOnce}
+              onError={handleFetchError}
               className="h-full w-full object-contain"
             />
           </button>
@@ -183,68 +195,6 @@ function ExoClickVastPreroll({
           {canSkip ? "Skip Ad ›" : `Skip in ${skipSecondsLeft}s`}
         </button>
       ) : null}
-    </div>
-  );
-}
-
-export default function PlayerAd({ onComplete }: PlayerAdProps) {
-  const siteSettings = useSiteSettings();
-  const [secondsLeft, setSecondsLeft] = useState(PREROLL_SECONDS);
-  const videoAdEnabled =
-    siteSettings.ads.video_banner.enabled &&
-    siteSettings.ads.video_banner.zone_id.trim() !== "";
-
-  useEffect(() => {
-    if (!videoAdEnabled) {
-      onComplete();
-    }
-  }, [onComplete, videoAdEnabled]);
-
-  useEffect(() => {
-    if (!videoAdEnabled || secondsLeft <= 0) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setSecondsLeft((current) => Math.max(0, current - 1));
-    }, 1000);
-
-    return () => window.clearTimeout(timer);
-  }, [secondsLeft, videoAdEnabled]);
-
-  if (!videoAdEnabled) {
-    return null;
-  }
-
-  if (siteSettings.ads.network === "exoclick") {
-    return (
-      <ExoClickVastPreroll
-        zoneId={siteSettings.ads.video_banner.zone_id}
-        onComplete={onComplete}
-      />
-    );
-  }
-
-  return (
-    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black px-3 sm:px-6">
-      <div className="flex w-full max-w-2xl flex-col items-center justify-center rounded-xl border border-white/10 bg-zinc-950 px-3 py-4 shadow-2xl sm:px-6 sm:py-6">
-        <div className="mb-3 hidden text-xs font-medium uppercase tracking-[0.18em] text-white/50 sm:block">
-          Advertisement
-        </div>
-        <div className="w-[308px] max-w-[92vw] overflow-hidden rounded-md bg-black">
-          <AdSlot format="video-banner" />
-        </div>
-      </div>
-      <div className="mt-3 flex h-9 items-center justify-center">
-        <button
-          type="button"
-          onClick={secondsLeft === 0 ? onComplete : undefined}
-          disabled={secondsLeft > 0}
-          className="rounded-full border border-border bg-background/90 px-4 py-2 text-xs font-semibold text-foreground transition-colors enabled:hover:border-accent enabled:hover:text-accent disabled:cursor-not-allowed disabled:text-foreground-muted"
-        >
-          {secondsLeft > 0 ? `Continue in ${secondsLeft}` : "Continue to Video"}
-        </button>
-      </div>
     </div>
   );
 }
