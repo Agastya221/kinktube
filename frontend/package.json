@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "generate:sitemap": "npx tsx scripts/generate-sitemap.ts",
+    "submit:indexnow": "npx tsx scripts/submit-indexnow.ts",
+    "indexnow": "npm run generate:sitemap && npm run submit:indexnow",
     "prebuild": "npx tsx scripts/generate-sitemap.ts",
     "build": "next build",
     "start": "next start",
