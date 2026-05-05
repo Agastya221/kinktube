@@ -20,7 +20,8 @@
  *   npm run generate:sitemap
  *
  * Environment:
- *   API_URL / NEXT_PUBLIC_API_URL  — Backend base URL (default: http://localhost:8080)
+ *   SITEMAP_API_URL / API_URL / NEXT_PUBLIC_API_URL
+ *                                   — Backend base URL (default: http://localhost:8080)
  *   SITE_URL / NEXT_PUBLIC_SITE_URL — Canonical site URL (default: https://kinktube.fun)
  */
 
@@ -32,16 +33,42 @@ import * as path from "path";
 // ---------------------------------------------------------------------------
 
 const isRailway = process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_PROJECT_ID;
+const RAILWAY_PUBLIC_API_URL = "https://kinktube-production.up.railway.app";
 
-let API_BASE_URL = (
-  process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("localhost") 
-    ? process.env.NEXT_PUBLIC_API_URL
-    : (isRailway ? "https://kinktube-production.up.railway.app" : "http://localhost:8080")
-).replace(/\/+$/, "");
+function normalizeApiUrl(rawUrl?: string): string | null {
+  const url = rawUrl?.trim();
+  if (!url) return null;
 
-if (API_BASE_URL.includes(".railway.internal")) {
-  API_BASE_URL = "https://kinktube-production.up.railway.app";
+  if (url.includes(".railway.internal")) {
+    return RAILWAY_PUBLIC_API_URL;
+  }
+
+  if (isRailway && /localhost|127\.0\.0\.1/.test(url)) {
+    return null;
+  }
+
+  return url.replace(/\/+$/, "");
 }
+
+function getApiBaseUrl(): string {
+  const candidates = [
+    process.env.SITEMAP_API_URL,
+    process.env.API_URL,
+    process.env.INTERNAL_API_URL,
+    process.env.NEXT_PUBLIC_API_URL,
+    isRailway ? RAILWAY_PUBLIC_API_URL : undefined,
+    "http://localhost:8080",
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeApiUrl(candidate);
+    if (normalized) return normalized;
+  }
+
+  return "http://localhost:8080";
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 const SITE_URL = (
   process.env.SITE_URL ||
@@ -54,8 +81,8 @@ const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
 /** Max URLs per individual sitemap file (Google limit: 50,000; we use 10k for safety). */
 const URLS_PER_SITEMAP = 10_000;
 
-/** How many videos to fetch per API call. */
-const API_PAGE_SIZE = 500;
+/** How many videos to fetch per API call. The public /api/videos endpoint caps this at 100. */
+const API_PAGE_SIZE = 100;
 
 /** How many API requests to run concurrently. */
 const CONCURRENCY = 5;
@@ -214,6 +241,19 @@ function writeXml(filename: string, content: string): void {
   console.log(`  ✓ ${filename} (${sizeKB} KB)`);
 }
 
+function cleanGeneratedSitemaps(): void {
+  if (!fs.existsSync(PUBLIC_DIR)) return;
+
+  const generatedSitemapPattern =
+    /^sitemap(?:-(?:static|categories|videos-\d+))?\.xml$/;
+
+  for (const filename of fs.readdirSync(PUBLIC_DIR)) {
+    if (generatedSitemapPattern.test(filename)) {
+      fs.unlinkSync(path.join(PUBLIC_DIR, filename));
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Sitemap builders
 // ---------------------------------------------------------------------------
@@ -312,20 +352,27 @@ async function fetchAllVideos(totalVideos: number): Promise<Video[]> {
 
   for (let page = 1; page <= totalApiPages; page++) {
     tasks.push(async () => {
-      try {
-        const data = await fetchJson<VideoListResponse>(
-          `/api/videos?page=${page}&per_page=${API_PAGE_SIZE}&sort=latest`
-        );
-        return data.videos || [];
-      } catch (err) {
-        console.warn(`  ⚠ Failed to fetch videos page ${page}:`, (err as Error).message);
-        return [];
-      }
+      const data = await fetchJson<VideoListResponse>(
+        `/api/videos?page=${page}&per_page=${API_PAGE_SIZE}&sort=latest`
+      );
+      return data.videos || [];
     });
   }
 
   const batches = await runWithConcurrency(tasks, CONCURRENCY);
-  return batches.flat();
+  const videos = batches.flat();
+
+  if (totalVideos > 0) {
+    const coverage = videos.length / totalVideos;
+    if (coverage < 0.9) {
+      throw new Error(
+        `Generated sitemap only fetched ${videos.length}/${totalVideos} videos ` +
+          `(${(coverage * 100).toFixed(1)}%). Refusing to ship an incomplete sitemap.`
+      );
+    }
+  }
+
+  return videos;
 }
 
 // ---------------------------------------------------------------------------
@@ -348,6 +395,7 @@ async function main() {
   if (!fs.existsSync(PUBLIC_DIR)) {
     fs.mkdirSync(PUBLIC_DIR, { recursive: true });
   }
+  cleanGeneratedSitemaps();
 
   // ── 1. Static pages sitemap ────────────────────────────────────────────
   console.log("[1/4] Generating sitemap-static.xml...");
