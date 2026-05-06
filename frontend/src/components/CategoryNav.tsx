@@ -21,6 +21,8 @@ export default function CategoryNav({ categories }: CategoryNavProps) {
 
   // Organized by type for better UX
   const featuredSlugs = [
+    // Primary pillar
+    "bdsm",
     // Bondage types together
     "bondage",
     "extreme-bondage",

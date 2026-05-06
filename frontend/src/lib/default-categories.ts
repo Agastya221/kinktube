@@ -1,6 +1,7 @@
 import type { Category } from "@/lib/types";
 
 export const defaultCategories: Category[] = [
+  { slug: "bdsm", name: "BDSM", video_count: 0 },
   { slug: "femdom", name: "Femdom", video_count: 0 },
   { slug: "bondage", name: "Bondage", video_count: 0 },
   { slug: "shibari", name: "Shibari", video_count: 0 },

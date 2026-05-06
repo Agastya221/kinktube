@@ -24,11 +24,12 @@ interface HomePageProps {
 export async function generateMetadata({ searchParams }: HomePageProps): Promise<Metadata> {
   const params = await searchParams;
   const page = parseInt(params.page || "1", 10);
+  const hasSort = Boolean(params.sort);
 
-  const canonical = page > 1 ? `/?page=${page}` : "/";
+  const canonical = hasSort ? "/" : page > 1 ? `/?page=${page}` : "/";
+  const shouldNoindex = hasSort || page > 5;
 
-  // Deep pagination pages get noindex to save crawl budget
-  if (page > 5) {
+  if (shouldNoindex) {
     return {
       alternates: { canonical },
       robots: { index: false, follow: true },
@@ -91,17 +92,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <AdBanner position="top" />
       </div>
 
-      {/* Hero Section - Hidden on mobile for content-first experience */}
-      <section className="hidden md:block mb-8">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">
+      <section className="mb-4 md:mb-8">
+        <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold mb-3 leading-tight">
           <span className="text-accent">{siteSettings.branding.hero_accent}</span>{" "}
           {siteSettings.branding.hero_title}
         </h1>
-        <p className="text-foreground-muted text-lg max-w-2xl">
+        <p className="text-foreground-muted text-sm sm:text-lg max-w-2xl leading-relaxed">
           {siteSettings.branding.hero_description}
         </p>
         {stats.total_videos > 0 && (
-          <p className="mt-4 text-sm font-medium uppercase tracking-[0.18em] text-accent/80">
+          <p className="mt-3 md:mt-4 text-xs sm:text-sm font-medium uppercase tracking-[0.14em] sm:tracking-[0.18em] text-accent/80">
             {stats.total_videos.toLocaleString()} indexed videos and growing
           </p>
         )}
@@ -146,10 +146,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <AdBanner position="bottom" />
       </div>
 
-      {/* SEO Content - Hidden on mobile */}
-      <section className="hidden md:block mt-12 border-t border-border pt-8">
-        <h2 className="text-lg font-semibold mb-4">Free BDSM Porn Videos &amp; Hardcore Fetish Tube — KinkTube</h2>
-        <div className="text-foreground-muted text-sm space-y-3 max-w-3xl">
+      <section className="mt-10 md:mt-12 border-t border-border pt-6 md:pt-8">
+        <h2 className="text-lg font-semibold mb-4">Free BDSM Porn Videos &amp; Hardcore Fetish Tube - KinkTube</h2>
+        <div className="text-foreground-muted text-sm space-y-3 max-w-3xl leading-relaxed">
           <p>
             KinkTube is the underground destination for serious BDSM and kink enthusiasts. We
             specialize in extreme bondage, hardcore femdom, intense discipline, mummification,
@@ -157,14 +156,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             tube sites bury deep in their libraries.
           </p>
           <p>
-            Whether you&apos;re seeking strict dominatrices, tight rope bondage, severe corporal
-            punishment, sensory deprivation, brutal whipping, or slave training scenes — you&apos;ll
+            Whether you&apos;re seeking <Link href="/category/bdsm" className="text-accent hover:underline">free BDSM porn videos</Link>, strict dominatrices, tight rope bondage, severe corporal
+            punishment, sensory deprivation, brutal whipping, or slave training scenes, you&apos;ll
             find the most intense free BDSM videos here. Our library is curated specifically for the
             hardcore kink community and updated daily with new bondage, femdom, latex, and fetish
             content across 30+ specialist categories.
           </p>
           <p>
             Browse by category:{" "}
+            <Link href="/category/bdsm" className="text-accent hover:underline">BDSM Tube</Link>,{" "}
             <Link href="/category/femdom" className="text-accent hover:underline">Femdom</Link>,{" "}
             <Link href="/category/bondage" className="text-accent hover:underline">Bondage</Link>,{" "}
             <Link href="/category/shibari" className="text-accent hover:underline">Shibari</Link>,{" "}

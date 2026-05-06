@@ -29,6 +29,9 @@ export default function Footer() {
             <div className="grid grid-cols-2 gap-x-4">
               <ul className="space-y-2 text-sm">
                 <li>
+                  <Link href="/category/bdsm" className="text-foreground-muted hover:text-accent transition-colors">BDSM</Link>
+                </li>
+                <li>
                   <Link href="/category/femdom" className="text-foreground-muted hover:text-accent transition-colors">Femdom</Link>
                 </li>
                 <li>

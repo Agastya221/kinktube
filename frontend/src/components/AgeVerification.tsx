@@ -59,13 +59,18 @@ export default function AgeVerification({ children }: AgeVerificationProps) {
   // Show age verification modal over the blurred content
   return (
     <>
-      {/* The main site content, blurred and unclickable so search engines can read it */}
-      <div className="kinktube-age-blur blur-md pointer-events-none select-none h-screen overflow-hidden" aria-hidden="true">
+      {/* The main site content stays in the DOM so crawlers can read it behind the modal. */}
+      <div className="kinktube-age-blur blur-md pointer-events-none select-none h-screen overflow-hidden">
         {children}
       </div>
 
       {/* The Age Verification Modal */}
-      <div className="kinktube-age-modal fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div
+        className="kinktube-age-modal fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="age-verification-title"
+      >
         <div className="max-w-lg w-full bg-background-secondary border border-border rounded-2xl p-6 sm:p-8 shadow-2xl my-auto">
           {/* Warning Icon */}
           <div className="flex justify-center mb-6">
@@ -75,7 +80,7 @@ export default function AgeVerification({ children }: AgeVerificationProps) {
           </div>
 
           {/* Title */}
-          <h1 className="text-2xl sm:text-3xl font-bold text-center text-foreground mb-4">
+          <h1 id="age-verification-title" className="text-2xl sm:text-3xl font-bold text-center text-foreground mb-4">
             Age Verification Required
           </h1>
 

@@ -13,6 +13,7 @@ import AdSlot from "@/components/ads/AdSlot";
 
 // Featured categories for hamburger menu
 const menuCategories = [
+  { slug: "bdsm", name: "BDSM Tube" },
   { slug: "extreme-bondage", name: "Extreme Bondage" },
   { slug: "femdom", name: "Femdom" },
   { slug: "bondage", name: "Bondage" },
@@ -223,6 +224,12 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
                 className="text-foreground-muted hover:text-foreground transition-colors text-sm"
               >
                 Home
+              </Link>
+              <Link
+                href="/category/bdsm"
+                className="text-foreground-muted hover:text-foreground transition-colors text-sm"
+              >
+                BDSM
               </Link>
               <Link
                 href="/category/femdom"

@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
+import Link from "next/link";
 import VideoGrid from "@/components/VideoGrid";
 import CategoryNav from "@/components/CategoryNav";
 import Pagination from "@/components/Pagination";
@@ -9,9 +10,16 @@ import { getVideosServer, getCategoriesServer, getPublicSiteSettingsServer } fro
 import { VIDEO_LIST_PAGE_SIZE } from "@/lib/constants";
 import { defaultCategories } from "@/lib/default-categories";
 import { fallbackPublicSiteSettings } from "@/lib/site-settings";
+import { getVideoPath, type Video } from "@/lib/types";
 
 // ISR: serve from edge cache, regenerate every 60 seconds
 export const revalidate = 60;
+
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.SITE_URL ||
+  "https://kinktube.fun"
+).replace(/\/+$/, "");
 
 interface CategoryPageProps {
   params: Promise<{
@@ -23,7 +31,7 @@ interface CategoryPageProps {
   }>;
 }
 
-// Category metadata for SEO — covers every category slug in the backend
+// Category metadata for SEO - covers every category slug in the backend
 const categoryMeta: Record<string, { title: string; description: string }> = {
   // ── Core dynamics ────────────────────────────────────────────────────────────
   bdsm: {
@@ -168,43 +176,126 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
   },
 };
 
+const bdsmPillarLinks = [
+  { href: "/category/bondage", label: "Bondage" },
+  { href: "/category/femdom", label: "Femdom" },
+  { href: "/category/dominatrix", label: "Dominatrix" },
+  { href: "/category/submission", label: "Submission" },
+  { href: "/category/slave", label: "Slave Training" },
+  { href: "/category/extreme-bondage", label: "Extreme Bondage" },
+  { href: "/category/spanking", label: "Spanking" },
+];
+
+function formatCategoryName(slug: string): string {
+  return slug
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function getCategoryMeta(slug: string, categoryName: string) {
+  return categoryMeta[slug] || {
+    title: `${categoryName} Videos - Free BDSM Porn & Fetish Tube`,
+    description: `Browse the best ${categoryName} porn videos. High quality BDSM and fetish tube content curated for enthusiasts.`,
+  };
+}
+
+function getCategoryBaseTitle(categoryName: string): string {
+  return `Free ${categoryName} Porn Videos - BDSM Tube`;
+}
+
+function getCanonicalPath(slug: string, page: number, hasSort: boolean): string {
+  if (hasSort) return `/category/${slug}`;
+  return page > 1 ? `/category/${slug}?page=${page}` : `/category/${slug}`;
+}
+
+function generateCategoryStructuredData({
+  slug,
+  categoryName,
+  title,
+  description,
+  videos,
+}: {
+  slug: string;
+  categoryName: string;
+  title: string;
+  description: string;
+  videos: Video[];
+}) {
+  const categoryUrl = `${SITE_URL}/category/${slug}`;
+
+  const breadcrumb = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": SITE_URL,
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": categoryName,
+        "item": categoryUrl,
+      },
+    ],
+  };
+
+  const collectionPage = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${categoryUrl}#collection`,
+    "url": categoryUrl,
+    "name": title,
+    "description": description,
+    "isFamilyFriendly": false,
+    "contentRating": "Adult Only",
+    "inLanguage": "en",
+    "about": ["BDSM", categoryName, "fetish videos", "adult videos"],
+  };
+
+  const itemList = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": `${categoryName} videos on KinkTube`,
+    "itemListOrder": "https://schema.org/ItemListOrderDescending",
+    "numberOfItems": videos.length,
+    "itemListElement": videos.map((video, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "url": `${SITE_URL}${getVideoPath(video)}`,
+      "name": video.title,
+    })),
+  };
+
+  return [breadcrumb, collectionPage, itemList];
+}
 
 export async function generateMetadata({ params, searchParams }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
   const search = await searchParams;
   const page = parseInt(search?.page || "1", 10);
-
-  // Format category name
-  const categoryName = slug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-
-  const meta = categoryMeta[slug] || {
-    description: `Browse the best ${categoryName} porn videos. High quality BDSM and fetish tube content curated for enthusiasts.`,
-  };
-
-  const baseTitle = `Free ${categoryName} Porn Videos - BDSM Tube`;
+  const hasSort = Boolean(search?.sort);
+  const categoryName = formatCategoryName(slug);
+  const meta = getCategoryMeta(slug, categoryName);
+  const baseTitle = getCategoryBaseTitle(categoryName);
   const title = page > 1 ? `${baseTitle} - Page ${page}` : baseTitle;
-
-  // Apply noindex to deep pagination to save crawl budget
-  if (page > 5) {
-    return {
-      title,
-      robots: { index: false, follow: true },
-    };
-  }
+  const canonical = getCanonicalPath(slug, page, hasSort);
+  const shouldNoindex = hasSort || page > 5;
 
   return {
     title,
     description: meta.description,
     keywords: [slug, categoryName, "BDSM", "fetish", "videos", "free"].join(", "),
+    robots: shouldNoindex ? { index: false, follow: true } : { index: true, follow: true },
     openGraph: {
       title: `${title} | KinkTube`,
       description: meta.description,
     },
     alternates: {
-      canonical: `/category/${slug}`,
+      canonical,
     },
   };
 }
@@ -217,11 +308,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const siteSettings = await getPublicSiteSettingsServer().catch(() => fallbackPublicSiteSettings);
   const videosPerPage = siteSettings.content.videos_per_page || VIDEO_LIST_PAGE_SIZE;
 
-  // Format category name for display
-  const categoryName = slug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const categoryName = formatCategoryName(slug);
 
   // Fetch data server-side
   let videosData;
@@ -250,16 +337,32 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     categories = { categories: defaultCategories };
   }
 
-  const meta = categoryMeta[slug];
+  const meta = getCategoryMeta(slug, categoryName);
   const currentCategory = categories.categories.find((category) => category.slug === slug);
 
-  const baseTitle = `Free ${categoryName} Porn Videos - BDSM Tube`;
+  const baseTitle = getCategoryBaseTitle(categoryName);
   const h1Parts = baseTitle.split(" - ");
   const h1Primary = h1Parts[0];
   const h1Secondary = h1Parts.length > 1 ? ` - ${h1Parts[1]}` : "";
+  const structuredData = generateCategoryStructuredData({
+    slug,
+    categoryName,
+    title: baseTitle,
+    description: meta.description,
+    videos: videosData.videos,
+  });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-6">
+    <>
+      {structuredData.map((schema, index) => (
+        <script
+          key={index}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        />
+      ))}
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-6">
       {/* Pagination SEO */}
       {page > 1 && (
         <link rel="prev" href={page === 2 ? `/category/${slug}` : `/category/${slug}?page=${page - 1}`} />
@@ -273,29 +376,19 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         <AdBanner position="top" />
       </div>
 
-      {/* Header - Hidden on mobile for content-first */}
-      <section className="hidden md:block mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-2">
+      <section className="mb-4 md:mb-8">
+        <h1 className="text-xl sm:text-3xl md:text-4xl font-bold mb-2 leading-tight">
           <span className="text-accent">{h1Primary}</span>
-          <span className="text-foreground-muted/80 font-medium text-2xl sm:text-3xl">{h1Secondary}</span>
+          <span className="text-foreground-muted/80 font-medium text-lg sm:text-2xl md:text-3xl">{h1Secondary}</span>
         </h1>
-        {meta && (
-          <div className="space-y-2 max-w-2xl">
-            <p className="text-foreground-muted">{meta.description}</p>
-            {currentCategory && currentCategory.video_count > 0 && (
-              <p className="text-sm font-medium uppercase tracking-[0.14em] text-accent/80">
-                {currentCategory.video_count.toLocaleString()} indexed videos in this category
-              </p>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* Mobile Header - Compact */}
-      <section className="md:hidden mb-3">
-        <h1 className="text-xl font-bold">
-          <span className="text-accent">{categoryName}</span>
-        </h1>
+        <div className="space-y-2 max-w-3xl">
+          <p className="text-sm sm:text-base text-foreground-muted leading-relaxed">{meta.description}</p>
+          {currentCategory && currentCategory.video_count > 0 && (
+            <p className="text-xs sm:text-sm font-medium uppercase tracking-[0.14em] text-accent/80">
+              {currentCategory.video_count.toLocaleString()} indexed videos in this category
+            </p>
+          )}
+        </div>
       </section>
 
       {/* Category Navigation */}
@@ -342,41 +435,77 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         <AdBanner position="bottom" />
       </div>
 
-      {/* SEO Content for Category - Hidden on mobile */}
-      {meta && (
-        <section className="hidden md:block mt-12 border-t border-border pt-8">
-          <h2 className="text-xl font-semibold mb-4">Watch {h1Primary} &amp; Discover More</h2>
-          <details className="group [&_summary::-webkit-details-marker]:hidden">
-            <summary className="cursor-pointer text-foreground-muted text-sm font-medium hover:text-accent transition-colors flex items-center gap-2 outline-none">
-              <span className="group-open:hidden">Read more about {categoryName.toLowerCase()}...</span>
-              <span className="hidden group-open:block">Show less</span>
-              <svg
-                className="w-4 h-4 transition-transform group-open:rotate-180"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </summary>
-            
-            <div className="mt-4 text-foreground-muted text-sm space-y-3 max-w-4xl leading-relaxed">
+        <section className="mt-10 md:mt-12 border-t border-border pt-6 md:pt-8">
+          {slug === "bdsm" ? (
+            <div className="max-w-4xl text-foreground-muted text-sm sm:text-base leading-relaxed space-y-6">
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-3">
+                  What you&apos;ll find in this BDSM tube category
+                </h2>
+                <p>
+                  This BDSM tube category is the main hub for free BDSM videos on KinkTube. It brings
+                  together bondage, domination, submission, discipline, dungeon scenes, fetish gear,
+                  power exchange, and harder kink clips in one canonical place. If a searcher is
+                  looking for BDSM porn, BDSM videos, or a broad BDSM tube page rather than one narrow
+                  sub-genre, this is the page that should answer that intent.
+                </p>
+                <p className="mt-3">
+                  The goal is simple: make the page useful before the grid starts and useful after the
+                  grid ends. Visitors can browse the newest clips, sort by views or rating, then move
+                  into tighter categories when they know what style they want. Google gets the same
+                  clear structure: one central BDSM category supported by specialist pages.
+                </p>
+              </div>
+
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-3">
+                  Popular BDSM video types
+                </h2>
+                <p>
+                  The collection covers restraint-focused scenes, female-led domination, obedient
+                  submissive training, strict punishment, impact play, leather and latex fetish
+                  aesthetics, and intense bondage variations. Some viewers want quick free BDSM porn
+                  clips, while others want a deeper BDSM video catalog with related tags, category
+                  links, thumbnails, durations, and fresh updates. This page is built for both paths.
+                </p>
+                <p className="mt-3">
+                  Use the related categories below when you want a tighter focus. Bondage is best for
+                  rope, restraints, and tie-up scenes. Femdom and Dominatrix focus on female control.
+                  Submission and Slave Training cover obedience dynamics. Extreme Bondage and Spanking
+                  help users move into more specific BDSM kink styles without leaving the site.
+                </p>
+              </div>
+
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-3">
+                  Related BDSM categories
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {bdsmPillarLinks.map((link) => (
+                    <Link key={link.href} href={link.href} className="category-pill">
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-4xl text-foreground-muted text-sm sm:text-base leading-relaxed space-y-3">
+              <h2 className="text-lg sm:text-xl font-semibold text-foreground">
+                Watch {h1Primary} &amp; Discover More
+              </h2>
               <p>
-                {meta.description} Welcome to the most comprehensive library of <strong>{categoryName.toLowerCase()} videos</strong> available anywhere online. 
-                Our platform specializes in extreme, niche, and underground fetish content that caters specifically to the hardcore BDSM community.
+                {meta.description} Welcome to a focused library of <strong>{categoryName.toLowerCase()} videos</strong>{" "}
+                inside the wider KinkTube BDSM catalog.
               </p>
               <p>
-                Whether you are exploring this kink for the first time or you are an experienced practitioner looking for the best {h1Primary.toLowerCase()}, 
-                our curated catalog ensures you get exactly what you&apos;re searching for. We constantly update our {categoryName.toLowerCase()} category with fresh scenes 
-                from premium studios and verified independent creators to ensure high-quality, authentic power exchange and fetish play.
-              </p>
-              <p>
-                Every video is fully tagged, sorted, and optimized for seamless streaming. Explore the finest {categoryName.toLowerCase()} content completely free.
+                Every category page is connected to related BDSM, bondage, femdom, fetish, and kink
+                videos so visitors can move from broad discovery into the exact style they want.
               </p>
             </div>
-          </details>
+          )}
         </section>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
