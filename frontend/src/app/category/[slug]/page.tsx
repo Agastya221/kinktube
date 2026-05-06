@@ -186,10 +186,15 @@ const bdsmPillarLinks = [
   { href: "/category/spanking", label: "Spanking" },
 ];
 
+const categoryNameOverrides: Record<string, string> = {
+  bdsm: "BDSM",
+  cbt: "CBT",
+};
+
 function formatCategoryName(slug: string): string {
   return slug
     .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => categoryNameOverrides[word] || word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 }
 
