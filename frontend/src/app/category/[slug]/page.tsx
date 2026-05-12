@@ -120,7 +120,7 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
   latex: {
     title: "Latex Fetish Videos - Rubber Catsuits & Latex BDSM Porn",
     description:
-      "Shiny, tight, and inescapable — our free latex fetish videos feature the best in rubber and PVC BDSM play. Watch dominant mistresses in full-body latex catsuits, vacuum bed sessions, and heavy rubber enclosure scenes. From polished medical latex to rough rubber discipline, we celebrate the unique sensations of latex kink in every video.",
+      "Shiny, tight, and inescapable our free latex fetish videos feature the best in rubber and PVC BDSM play. Watch dominant mistresses in full-body latex catsuits, vacuum bed sessions, and heavy rubber enclosure scenes. From polished medical latex to rough rubber discipline, we celebrate the unique sensations of latex kink in every video.",
   },
   leather: {
     title: "Leather Fetish Videos - Leather BDSM Gear & Outfits",
