@@ -28,46 +28,16 @@
 import * as fs from "fs";
 import * as path from "path";
 
-function loadEnvFile(filepath: string): void {
-  if (!fs.existsSync(filepath)) return;
-
-  const lines = fs.readFileSync(filepath, "utf-8").split(/\r?\n/);
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-
-    const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
-    if (!match) continue;
-
-    const [, key, rawValue] = match;
-    if (process.env[key] !== undefined) continue;
-
-    process.env[key] = rawValue.trim().replace(/^(['"])(.*)\1$/, "$2");
-  }
-}
-
-loadEnvFile(path.resolve(__dirname, "..", "..", ".env"));
-loadEnvFile(path.resolve(__dirname, "..", ".env"));
-
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 
 const isRailway = process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_PROJECT_ID;
-const LEGACY_RAILWAY_PUBLIC_API_URL = "https://kinktube-production.up.railway.app";
-const RAILWAY_PUBLIC_API_URL = (
-  process.env.SITEMAP_API_URL ||
-  "https://kinktube-production-8e78.up.railway.app"
-).replace(/\/+$/, "");
+const RAILWAY_PUBLIC_API_URL = process.env.SITEMAP_API_URL;
 
 function normalizeApiUrl(rawUrl?: string): string | null {
   const url = rawUrl?.trim();
   if (!url) return null;
-
-  if (url.replace(/\/+$/, "") === LEGACY_RAILWAY_PUBLIC_API_URL) {
-    return RAILWAY_PUBLIC_API_URL;
-  }
 
   if (url.includes(".railway.internal")) {
     return RAILWAY_PUBLIC_API_URL;
@@ -115,18 +85,10 @@ const URLS_PER_SITEMAP = 10_000;
 const API_PAGE_SIZE = 100;
 
 /** How many API requests to run concurrently. */
-const CONCURRENCY = Number.parseInt(process.env.SITEMAP_CONCURRENCY || "2", 10);
+const CONCURRENCY = 5;
 
 /** Timeout per fetch request (ms). */
 const FETCH_TIMEOUT_MS = 30_000;
-
-/** Retry transient API failures such as Railway/backend rate limiting. */
-const FETCH_RETRIES = Number.parseInt(process.env.SITEMAP_FETCH_RETRIES || "6", 10);
-const FETCH_RETRY_BASE_DELAY_MS = Number.parseInt(
-  process.env.SITEMAP_FETCH_RETRY_BASE_DELAY_MS || "1000",
-  10
-);
-const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
 
 // ---------------------------------------------------------------------------
 // Types (minimal — no import from src/ to keep the script standalone)
@@ -172,7 +134,6 @@ interface CategoriesResponse {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { slug: "bdsm", name: "BDSM", video_count: 0 },
   { slug: "femdom", name: "Femdom", video_count: 0 },
   { slug: "bondage", name: "Bondage", video_count: 0 },
   { slug: "shibari", name: "Shibari", video_count: 0 },
@@ -202,8 +163,6 @@ const DEFAULT_CATEGORIES: Category[] = [
 
 const STATIC_PAGES = [
   { path: "/", priority: 1.0, changefreq: "daily" },
-  { path: "/bdsm-test", priority: 0.8, changefreq: "monthly" },
-  { path: "/bdsm-meaning", priority: 0.8, changefreq: "monthly" },
   { path: "/contact", priority: 0.5, changefreq: "monthly" },
   { path: "/terms", priority: 0.3, changefreq: "monthly" },
   { path: "/privacy", priority: 0.3, changefreq: "monthly" },
@@ -236,65 +195,21 @@ function escapeXml(str: string): string {
     .replace(/'/g, "&apos;");
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function retryDelayMs(res: Response | null, attempt: number): number {
-  const retryAfter = res?.headers.get("retry-after");
-  if (retryAfter) {
-    const retryAfterSeconds = Number.parseInt(retryAfter, 10);
-    if (Number.isFinite(retryAfterSeconds)) return retryAfterSeconds * 1000;
-
-    const retryAfterDate = Date.parse(retryAfter);
-    if (Number.isFinite(retryAfterDate)) {
-      return Math.max(0, retryAfterDate - Date.now());
-    }
-  }
-
-  return FETCH_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1);
-}
-
 async function fetchJson<T>(endpoint: string): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-  for (let attempt = 1; attempt <= FETCH_RETRIES + 1; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-    try {
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (res.ok) return (await res.json()) as T;
-
-      if (RETRYABLE_STATUS_CODES.has(res.status) && attempt <= FETCH_RETRIES) {
-        const delay = retryDelayMs(res, attempt);
-        console.warn(`  Retrying ${endpoint} after API ${res.status} (${delay}ms)...`);
-        await sleep(delay);
-        continue;
-      }
-
-      throw new Error(`API ${res.status}: ${url}`);
-    } catch (err) {
-      if (attempt <= FETCH_RETRIES) {
-        const delay = retryDelayMs(null, attempt);
-        console.warn(
-          `  Retrying ${endpoint} after ${(err as Error).message} (${delay}ms)...`
-        );
-        await sleep(delay);
-        continue;
-      }
-
-      throw err;
-    } finally {
-      clearTimeout(timer);
-    }
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) throw new Error(`API ${res.status}: ${url}`);
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
   }
-
-  throw new Error(`Could not fetch ${url}`);
 }
 
 /** Run an array of async functions with bounded concurrency. */
