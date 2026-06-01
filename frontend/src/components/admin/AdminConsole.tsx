@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   getAdminImportStatus,
   getAdminContactMessages,
@@ -206,6 +206,20 @@ export default function AdminConsole() {
 
   const isAuthenticated = !!session?.authenticated;
 
+  const loadAiSeoData = useCallback(async (filter = aiSeoFilter, page = aiSeoLogsPage) => {
+    try {
+      const [statusData, logsData] = await Promise.all([
+        getAISEOStatus(),
+        getAISEOLogs(filter, page, 20),
+      ]);
+      setAiSeoStatus(statusData);
+      setAiSeoLogs(logsData.logs);
+      setAiSeoLogsTotal(logsData.total);
+    } catch {
+      // silently ignore
+    }
+  }, [aiSeoFilter, aiSeoLogsPage]);
+
   async function loadAdminData() {
     const [sessionData, settingsData, statsData, categoriesData, importData, messagesData] = await Promise.all([
       getAdminSession(),
@@ -261,7 +275,7 @@ export default function AdminConsole() {
       loadAiSeoData();
     }, 10000);
     return () => clearInterval(interval);
-  }, [activeTab, isAuthenticated]);
+  }, [activeTab, isAuthenticated, loadAiSeoData]);
 
   // Poll dead video cleanup status when on import tab
   useEffect(() => {
@@ -429,20 +443,6 @@ export default function AdminConsole() {
       setNotice(error instanceof Error ? error.message : "Failed to generate SEO metadata.");
     } finally {
       setSeoGenerating(false);
-    }
-  };
-
-  const loadAiSeoData = async (filter = aiSeoFilter, page = aiSeoLogsPage) => {
-    try {
-      const [statusData, logsData] = await Promise.all([
-        getAISEOStatus(),
-        getAISEOLogs(filter, page, 20),
-      ]);
-      setAiSeoStatus(statusData);
-      setAiSeoLogs(logsData.logs);
-      setAiSeoLogsTotal(logsData.total);
-    } catch {
-      // silently ignore
     }
   };
 

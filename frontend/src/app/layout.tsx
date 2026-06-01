@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import ChromeGate from "@/components/ChromeGate";
 import HeaderWrapper from "@/components/HeaderWrapper";
 import Footer from "@/components/Footer";
-import DisclaimerBanner from "@/components/DisclaimerBanner";
 import { PopunderAd, StickyMobileBanner, InPagePush, InterstitialAd, AboveFooterAd } from "@/components/ads";
 import Analytics from "@/components/Analytics";
 import { getPublicSiteSettingsServer } from "@/lib/api";
@@ -112,20 +112,18 @@ export default async function RootLayout({
           content="Sec-CH-UA, Sec-CH-UA-Mobile, Sec-CH-UA-Platform, Sec-CH-UA-Arch, Sec-CH-UA-Model"
         />
         {/* Google Analytics (GA4) */}
-        <script
-          async
+        <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-P4CFF7KKH9"
+          strategy="afterInteractive"
         />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
               gtag('config', 'G-P4CFF7KKH9');
-            `,
-          }}
-        />
+            `}
+        </Script>
         {/* Schema.org WebSite & Organization (Logo snippet) */}
         <script
           type="application/ld+json"
@@ -161,7 +159,6 @@ export default async function RootLayout({
         <ChromeGate
           settings={siteSettings}
           analytics={<Analytics />}
-          disclaimer={<DisclaimerBanner />}
           header={<HeaderWrapper />}
           footer={<Footer />}
           popunder={<PopunderAd />}

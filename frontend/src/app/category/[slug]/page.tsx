@@ -177,6 +177,8 @@ const categoryMeta: Record<string, { title: string; description: string }> = {
 };
 
 const bdsmPillarLinks = [
+  { href: "/bdsm-meaning", label: "BDSM Meaning" },
+  { href: "/bdsm-test", label: "BDSM Test" },
   { href: "/category/bondage", label: "Bondage" },
   { href: "/category/femdom", label: "Femdom" },
   { href: "/category/dominatrix", label: "Dominatrix" },
@@ -483,7 +485,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
               <div>
                 <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-3">
-                  Related BDSM categories
+                  Related BDSM guides and categories
                 </h2>
                 <div className="flex flex-wrap gap-2">
                   {bdsmPillarLinks.map((link) => (

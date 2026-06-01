@@ -127,8 +127,8 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
               <ChevronRight className="w-5 h-5 text-foreground-muted" />
             </Link>
             <Link
-              href="/?sort=latest"
-              onClick={(event) => handleMenuNavigation(event, "/?sort=latest")}
+              href="/"
+              onClick={(event) => handleMenuNavigation(event, "/")}
               className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
             >
               <span className="font-medium">Newest</span>
@@ -140,6 +140,22 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
               className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
             >
               <span className="font-medium">Most Viewed</span>
+              <ChevronRight className="w-5 h-5 text-foreground-muted" />
+            </Link>
+            <Link
+              href="/bdsm-test"
+              onClick={(event) => handleMenuNavigation(event, "/bdsm-test")}
+              className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
+            >
+              <span className="font-medium">BDSM Test</span>
+              <ChevronRight className="w-5 h-5 text-foreground-muted" />
+            </Link>
+            <Link
+              href="/bdsm-meaning"
+              onClick={(event) => handleMenuNavigation(event, "/bdsm-meaning")}
+              className="flex items-center justify-between py-3 text-foreground hover:text-accent transition-colors"
+            >
+              <span className="font-medium">BDSM Meaning</span>
               <ChevronRight className="w-5 h-5 text-foreground-muted" />
             </Link>
           </div>
@@ -230,6 +246,12 @@ export default function Header({ categoryThumbnails = {} }: HeaderProps) {
                 className="text-foreground-muted hover:text-foreground transition-colors text-sm"
               >
                 BDSM
+              </Link>
+              <Link
+                href="/bdsm-test"
+                className="text-foreground-muted hover:text-foreground transition-colors text-sm"
+              >
+                BDSM Test
               </Link>
               <Link
                 href="/category/femdom"

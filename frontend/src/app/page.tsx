@@ -163,6 +163,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             content across 30+ specialist categories.
           </p>
           <p>
+            New to the terms? Start with our{" "}
+            <Link href="/bdsm-meaning" className="text-accent hover:underline">BDSM meaning guide</Link>{" "}
+            or take the private{" "}
+            <Link href="/bdsm-test" className="text-accent hover:underline">BDSM test</Link>{" "}
+            to find which categories match your interests.
+          </p>
+          <p>
             Browse by category:{" "}
             <Link href="/category/bdsm" className="text-accent hover:underline">BDSM Tube</Link>,{" "}
             <Link href="/category/femdom" className="text-accent hover:underline">Femdom</Link>,{" "}

@@ -12,7 +12,6 @@ interface ChromeGateProps {
   children: React.ReactNode;
   header: React.ReactNode;
   footer: React.ReactNode;
-  disclaimer: React.ReactNode;
   popunder: React.ReactNode;
   stickyMobile: React.ReactNode;
   inPagePush: React.ReactNode;
@@ -26,7 +25,6 @@ export default function ChromeGate({
   children,
   header,
   footer,
-  disclaimer,
   popunder,
   stickyMobile,
   inPagePush,
@@ -40,7 +38,6 @@ export default function ChromeGate({
   const siteBody = (
     <>
       {analytics}
-      {settings.content.show_disclaimer ? disclaimer : null}
       {header}
       <main className="flex-1">{children}</main>
       {aboveFooterAd}

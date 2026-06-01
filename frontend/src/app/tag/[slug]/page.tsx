@@ -27,6 +27,7 @@ export async function generateMetadata({ params, searchParams }: TagPageProps): 
   const { slug } = await params;
   const search = await searchParams;
   const page = parseInt(search.page || "1", 10);
+  const hasSort = Boolean(search.sort);
 
   // Convert slug back to readable tag string (e.g., "hardcore-femdom" -> "hardcore femdom")
   const tagName = decodeURIComponent(slug).replace(/-/g, " ");
@@ -41,11 +42,16 @@ export async function generateMetadata({ params, searchParams }: TagPageProps): 
     ? `${titleCaseTag} Videos - Free BDSM Porn - Page ${page}` 
     : `${titleCaseTag} Videos - Free BDSM Porn & Fetish Scenes`;
 
-  // Apply noindex to deep pagination to save crawl budget (Part 5)
-  if (page > 5) {
+  // Tag pages are generated from arbitrary video metadata, so keep page 1 indexable
+  // and prevent pagination/sort variants from competing with the canonical tag URL.
+  if (page > 1 || hasSort) {
     return {
       title,
+      description: `Watch free ${titleCaseTag} BDSM videos on KinkTube. The best extreme fetish and kink porn featuring ${titleCaseTag} updated daily.`,
       robots: { index: false, follow: true },
+      alternates: {
+        canonical: `/tag/${slug}`,
+      },
     };
   }
 

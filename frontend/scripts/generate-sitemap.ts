@@ -172,6 +172,7 @@ interface CategoriesResponse {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CATEGORIES: Category[] = [
+  { slug: "bdsm", name: "BDSM", video_count: 0 },
   { slug: "femdom", name: "Femdom", video_count: 0 },
   { slug: "bondage", name: "Bondage", video_count: 0 },
   { slug: "shibari", name: "Shibari", video_count: 0 },
@@ -201,6 +202,8 @@ const DEFAULT_CATEGORIES: Category[] = [
 
 const STATIC_PAGES = [
   { path: "/", priority: 1.0, changefreq: "daily" },
+  { path: "/bdsm-test", priority: 0.8, changefreq: "monthly" },
+  { path: "/bdsm-meaning", priority: 0.8, changefreq: "monthly" },
   { path: "/contact", priority: 0.5, changefreq: "monthly" },
   { path: "/terms", priority: 0.3, changefreq: "monthly" },
   { path: "/privacy", priority: 0.3, changefreq: "monthly" },

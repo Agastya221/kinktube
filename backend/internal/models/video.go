@@ -48,6 +48,7 @@ type Category struct {
 // GetDefaultCategories returns our curated BDSM categories
 func GetDefaultCategories() []Category {
 	return []Category{
+		{Slug: "bdsm", Name: "BDSM", Description: "BDSM videos, bondage, domination, and fetish scenes"},
 		{Slug: "femdom", Name: "Femdom", Description: "Female domination videos"},
 		{Slug: "bondage", Name: "Bondage", Description: "Rope bondage and restraints"},
 		{Slug: "shibari", Name: "Shibari", Description: "Japanese rope bondage and suspension"},

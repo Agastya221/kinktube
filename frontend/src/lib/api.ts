@@ -19,8 +19,9 @@ import type {
   ContactSubmissionRequest,
   ContactSubmissionsResponse,
 } from "./types";
+import { normalizePublicApiBaseUrl } from "./url";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_BASE_URL = normalizePublicApiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
 const SERVER_API_BASE_URL =
   process.env.API_URL ||
   process.env.INTERNAL_API_URL ||

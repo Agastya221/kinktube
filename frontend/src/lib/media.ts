@@ -1,6 +1,7 @@
 import type { Video } from "./types";
+import { normalizePublicApiBaseUrl } from "./url";
 
-const PUBLIC_API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080").replace(/\/+$/, "");
+const PUBLIC_API_BASE_URL = normalizePublicApiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
 const PLACEHOLDER_THUMBNAIL = "/placeholder-video.svg";
 
 function isEpornerHost(hostname: string): boolean {
