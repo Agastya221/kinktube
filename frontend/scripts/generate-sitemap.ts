@@ -86,10 +86,20 @@ const URLS_PER_SITEMAP = 10_000;
 const API_PAGE_SIZE = 100;
 
 /** How many API requests to run concurrently. */
-const CONCURRENCY = 5;
+const CONCURRENCY = readPositiveIntEnv("SITEMAP_CONCURRENCY", 2);
 
 /** Timeout per fetch request (ms). */
 const FETCH_TIMEOUT_MS = 30_000;
+
+/** Minimum delay between sitemap API requests. Keeps deploy builds under backend rate limits. */
+const REQUEST_DELAY_MS = readPositiveIntEnv("SITEMAP_REQUEST_DELAY_MS", 750);
+
+/** Retry transient API failures, especially Railway/backend 429 rate limits. */
+const FETCH_MAX_RETRIES = readPositiveIntEnv("SITEMAP_FETCH_RETRIES", 4);
+
+let nextFetchAt = 0;
+
+class NonRetryableAPIError extends Error {}
 
 // ---------------------------------------------------------------------------
 // Types (minimal — no import from src/ to keep the script standalone)
@@ -177,6 +187,61 @@ const STATIC_PAGES = [
 // Helpers
 // ---------------------------------------------------------------------------
 
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForFetchSlot(): Promise<void> {
+  if (REQUEST_DELAY_MS <= 0) return;
+
+  const now = Date.now();
+  const waitMs = Math.max(0, nextFetchAt - now);
+  nextFetchAt = Math.max(now, nextFetchAt) + REQUEST_DELAY_MS;
+
+  if (waitMs > 0) {
+    await sleep(waitMs);
+  }
+}
+
+function retryAfterMs(headerValue: string | null): number | null {
+  if (!headerValue) return null;
+
+  const seconds = Number.parseInt(headerValue, 10);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return seconds * 1000;
+  }
+
+  const dateMs = Date.parse(headerValue);
+  if (Number.isFinite(dateMs)) {
+    return Math.max(0, dateMs - Date.now());
+  }
+
+  return null;
+}
+
+function transientRetryDelayMs(status: number, attempt: number, retryAfterHeader?: string | null): number | null {
+  if (status !== 429 && status < 500) return null;
+
+  const retryAfter = retryAfterMs(retryAfterHeader || null);
+  if (retryAfter !== null) {
+    return Math.min(retryAfter, 90_000);
+  }
+
+  if (status === 429) {
+    return Math.min(65_000, 15_000 * attempt);
+  }
+
+  return Math.min(10_000, 1000 * 2 ** (attempt - 1));
+}
+
 function slugify(text: string, maxLength = 80): string {
   return text
     .toLowerCase()
@@ -198,19 +263,56 @@ function escapeXml(str: string): string {
 
 async function fetchJson<T>(endpoint: string): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { "Content-Type": "application/json" },
-    });
-    if (!res.ok) throw new Error(`API ${res.status}: ${url}`);
-    return (await res.json()) as T;
-  } finally {
-    clearTimeout(timer);
+  for (let attempt = 1; attempt <= FETCH_MAX_RETRIES + 1; attempt++) {
+    await waitForFetchSlot();
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (res.ok) {
+        return (await res.json()) as T;
+      }
+
+      const retryDelay = transientRetryDelayMs(res.status, attempt, res.headers.get("retry-after"));
+      if (retryDelay !== null && attempt <= FETCH_MAX_RETRIES) {
+        console.warn(
+          `  ⚠ API ${res.status} for ${endpoint}; retrying in ${(retryDelay / 1000).toFixed(1)}s ` +
+            `(${attempt}/${FETCH_MAX_RETRIES})`
+        );
+        await sleep(retryDelay);
+        continue;
+      }
+
+      throw new NonRetryableAPIError(`API ${res.status}: ${url}`);
+    } catch (err) {
+      if (err instanceof NonRetryableAPIError) {
+        throw err;
+      }
+
+      if (attempt <= FETCH_MAX_RETRIES) {
+        const retryDelay = Math.min(10_000, 1000 * 2 ** (attempt - 1));
+        console.warn(
+          `  ⚠ Request failed for ${endpoint}: ${(err as Error).message}; retrying in ` +
+            `${(retryDelay / 1000).toFixed(1)}s (${attempt}/${FETCH_MAX_RETRIES})`
+        );
+        await sleep(retryDelay);
+        continue;
+      }
+
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
   }
+
+  throw new Error(`API request failed after retries: ${url}`);
 }
 
 /** Run an array of async functions with bounded concurrency. */
