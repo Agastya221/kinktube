@@ -241,7 +241,7 @@ export interface AdminSEOGenerateResponse {
 }
 
 export interface ContactSubmissionRequest {
-  type: "content_removal" | "dmca" | "privacy" | "general";
+  type: "content_removal" | "dmca" | "privacy" | "feedback" | "general";
   name?: string;
   reply_to?: string;
   page_url?: string;
@@ -269,6 +269,18 @@ export interface ContactSubmission {
 
 export interface ContactSubmissionsResponse {
   messages: ContactSubmission[];
+}
+
+export interface VideoComment {
+  id: number;
+  video_id: number;
+  name: string;
+  content: string;
+  created_at: string;
+}
+
+export interface VideoCommentsResponse {
+  comments: VideoComment[];
 }
 
 // RelatedVideosResponse is the API response for related videos

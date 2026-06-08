@@ -1,19 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { User, MessageCircle, Send, Clock } from "lucide-react";
-import { formatRelativeTime } from "@/lib/types";
-
-interface Comment {
-  id: number;
-  video_id: number;
-  name: string;
-  content: string;
-  created_at: string;
-}
+import { addVideoComment, getVideoComments } from "@/lib/api";
+import { formatRelativeTime, type VideoComment } from "@/lib/types";
 
 export default function Comments({ videoId }: { videoId: number }) {
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<VideoComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
   const [name, setName] = useState("");
@@ -26,16 +20,14 @@ export default function Comments({ videoId }: { videoId: number }) {
     const savedName = localStorage.getItem("kinktube_comment_name");
     if (savedName) setName(savedName);
 
-    // Fetch comments
     const fetchComments = async () => {
       if (!videoId) return;
       try {
-        const res = await fetch(`/api/videos/${videoId}/comments?limit=50`);
-        if (!res.ok) throw new Error("Failed to fetch comments");
-        const data = await res.json();
+        const data = await getVideoComments(videoId, 50);
         setComments(data.comments || []);
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error(error);
+        setError(error instanceof Error ? error.message : "Comments are unavailable right now.");
       } finally {
         setLoading(false);
       }
@@ -60,19 +52,12 @@ export default function Comments({ videoId }: { videoId: number }) {
         localStorage.setItem("kinktube_comment_name", currentName);
       }
 
-      const res = await fetch(`/api/videos/${videoId}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: currentName, content }),
-      });
-
-      if (!res.ok) throw new Error("Failed to post comment");
-      const newComment = await res.json();
+      const newComment = await addVideoComment(videoId, { name: currentName, content });
       
       setComments((prev) => [newComment, ...prev]);
       setContent("");
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not save your comment. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -87,7 +72,14 @@ export default function Comments({ videoId }: { videoId: number }) {
 
       {/* Comment Form */}
       <form onSubmit={handleSubmit} className="mb-8 space-y-4">
-        {error && <div className="text-red-500 text-sm bg-red-500/10 p-3 rounded-md">{error}</div>}
+        {error && (
+          <div className="space-y-2 rounded-md bg-red-500/10 p-3 text-sm text-red-400">
+            <p>{error}</p>
+            <Link href="/contact" className="inline-flex font-medium text-accent hover:underline">
+              Help us improve this page
+            </Link>
+          </div>
+        )}
         
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="w-full sm:w-1/3">

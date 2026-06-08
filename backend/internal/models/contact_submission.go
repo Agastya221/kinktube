@@ -49,7 +49,7 @@ func NormalizeContactSubmissionRequest(req *ContactSubmissionRequest) {
 
 func normalizeContactType(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "content_removal", "dmca", "privacy", "general":
+	case "content_removal", "dmca", "privacy", "feedback", "general":
 		return strings.ToLower(strings.TrimSpace(value))
 	default:
 		return "content_removal"

@@ -43,6 +43,7 @@ type Config struct {
 	AIProvider             string
 	OpenAIAPIKey           string
 	OpenRouterAPIKey       string
+	OllamaBaseURL          string
 	AIModel                string
 	AISEOAutoBackfill      bool
 	AISEOBackfillBatchSize int
@@ -82,6 +83,9 @@ func Load() *Config {
 	if useOpenRouterModel {
 		defaultAIModel = "cognitivecomputations/dolphin-mistral-24b-venice-edition:free"
 	}
+	if aiProvider == "ollama" {
+		defaultAIModel = "dolphin3"
+	}
 	// OPENAI_SEO_MODEL works for both providers; AI_MODEL is a legacy fallback
 	aiModel := getEnv("OPENAI_SEO_MODEL", "")
 	if aiModel == "" {
@@ -109,6 +113,7 @@ func Load() *Config {
 		AIProvider:             aiProvider,
 		OpenAIAPIKey:           openAIAPIKey,
 		OpenRouterAPIKey:       openRouterAPIKey,
+		OllamaBaseURL:          getEnv("OLLAMA_BASE_URL", "http://localhost:11434"),
 		AIModel:                aiModel,
 		AISEOAutoBackfill:      aiSEOAutoBackfill,
 		AISEOBackfillBatchSize: aiSEOBackfillBatchSize,

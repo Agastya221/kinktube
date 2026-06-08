@@ -36,7 +36,7 @@ func (h *Handler) GenerateAdminSEO(c *fiber.Ctx) error {
 	if h.ai == nil || !h.ai.IsEnabled() {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error":   "AI SEO is disabled",
-			"message": "Set OPENAI_API_KEY or OPENROUTER_API_KEY to enable AI SEO generation",
+			"message": "Set OPENAI_API_KEY, OPENROUTER_API_KEY, or AI_PROVIDER=ollama to enable AI SEO generation",
 		})
 	}
 
@@ -164,7 +164,7 @@ func (h *Handler) StartAdminSEOBackfill(c *fiber.Ctx) error {
 	if h.ai == nil || !h.ai.IsEnabled() {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error":   "AI SEO is disabled",
-			"message": "Set OPENAI_API_KEY or OPENROUTER_API_KEY to enable AI SEO generation",
+			"message": "Set OPENAI_API_KEY, OPENROUTER_API_KEY, or AI_PROVIDER=ollama to enable AI SEO generation",
 		})
 	}
 

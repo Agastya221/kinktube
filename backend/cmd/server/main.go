@@ -74,11 +74,17 @@ func main() {
 	epornerClient := services.NewEpornerClient(cfg.EpornerBaseURL)
 
 	// Initialize AI description service
-	aiService := services.NewAIDescriptionService(cfg.OpenAIAPIKey, cfg.OpenRouterAPIKey, cfg.AIProvider, cfg.AIModel)
+	aiService := services.NewAIDescriptionService(
+		cfg.OpenAIAPIKey,
+		cfg.OpenRouterAPIKey,
+		cfg.OllamaBaseURL,
+		cfg.AIProvider,
+		cfg.AIModel,
+	)
 	if aiService.IsEnabled() {
 		log.Printf("AI SEO service enabled (provider: %s, model: %s)", aiService.Provider(), aiService.Model())
 	} else {
-		log.Println("AI SEO service disabled (set OPENAI_API_KEY or OPENROUTER_API_KEY to enable)")
+		log.Println("AI SEO service disabled (set OPENAI_API_KEY, OPENROUTER_API_KEY, or AI_PROVIDER=ollama to enable)")
 	}
 
 	// Initialize importer

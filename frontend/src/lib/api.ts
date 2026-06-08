@@ -18,6 +18,8 @@ import type {
   ContactSubmission,
   ContactSubmissionRequest,
   ContactSubmissionsResponse,
+  VideoComment,
+  VideoCommentsResponse,
 } from "./types";
 import { normalizePublicApiBaseUrl } from "./url";
 
@@ -212,6 +214,23 @@ export async function getAffiliateLinks(videoId: string | number, max = 2): Prom
 
 export async function getVideoWithAffiliates(id: string | number): Promise<VideoWithAffiliates> {
   return fetchAPI<VideoWithAffiliates>(`/api/videos/${encodeURIComponent(String(id))}/full`);
+}
+
+export async function getVideoComments(videoId: string | number, limit = 50): Promise<VideoCommentsResponse> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return fetchAPI<VideoCommentsResponse>(
+    `/api/videos/${encodeURIComponent(String(videoId))}/comments?${params.toString()}`
+  );
+}
+
+export async function addVideoComment(
+  videoId: string | number,
+  payload: Pick<VideoComment, "name" | "content">
+): Promise<VideoComment> {
+  return fetchAPI<VideoComment>(`/api/videos/${encodeURIComponent(String(videoId))}/comments`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 // Server-side affiliate fetch

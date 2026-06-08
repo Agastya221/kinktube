@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { submitContactMessage } from "@/lib/api";
 import type { ContactSubmissionRequest } from "@/lib/types";
@@ -8,13 +8,14 @@ import type { ContactSubmissionRequest } from "@/lib/types";
 type ContactType = ContactSubmissionRequest["type"];
 
 const contactTypes: Array<{ value: ContactType; label: string }> = [
+  { value: "feedback", label: "Help improve this site" },
   { value: "content_removal", label: "Content removal" },
   { value: "dmca", label: "DMCA / copyright" },
   { value: "privacy", label: "Privacy request" },
   { value: "general", label: "General message" },
 ];
 
-export default function ContactForm({ defaultType = "content_removal" }: { defaultType?: ContactType }) {
+export default function ContactForm({ defaultType = "feedback" }: { defaultType?: ContactType }) {
   const [form, setForm] = useState<ContactSubmissionRequest>({
     type: defaultType,
     name: "",
@@ -27,6 +28,13 @@ export default function ContactForm({ defaultType = "content_removal" }: { defau
   });
   const [status, setStatus] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setForm((current) => {
+      if (current.page_url || typeof window === "undefined") return current;
+      return { ...current, page_url: window.location.href };
+    });
+  }, []);
 
   const updateField = (key: keyof ContactSubmissionRequest, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -123,6 +131,7 @@ export default function ContactForm({ defaultType = "content_removal" }: { defau
           required
           value={form.subject}
           onChange={(event) => updateField("subject", event.target.value)}
+          placeholder="Broken video, search issue, missing category, or suggestion"
           className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
         />
       </label>
@@ -134,6 +143,7 @@ export default function ContactForm({ defaultType = "content_removal" }: { defau
           rows={7}
           value={form.message}
           onChange={(event) => updateField("message", event.target.value)}
+          placeholder="Tell us what felt broken, confusing, missing, or worth improving."
           className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
         />
       </label>

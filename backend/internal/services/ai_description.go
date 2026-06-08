@@ -15,9 +15,11 @@ import (
 const (
 	openAIResponsesURL = "https://api.openai.com/v1/responses"
 	openRouterAPIURL   = "https://openrouter.ai/api/v1/chat/completions"
+	defaultOllamaURL   = "http://localhost:11434"
 
 	aiProviderOpenAI     = "openai"
 	aiProviderOpenRouter = "openrouter"
+	aiProviderOllama     = "ollama"
 )
 
 // SEOMetadata is the structured result generated for a video page.
@@ -39,6 +41,7 @@ type AIDescriptionService struct {
 	apiKey     string
 	provider   string
 	model      string
+	ollamaURL  string
 	httpClient *http.Client
 	enabled    bool
 
@@ -120,13 +123,30 @@ type openRouterResponse struct {
 	Error *apiError `json:"error,omitempty"`
 }
 
+type ollamaChatRequest struct {
+	Model    string          `json:"model"`
+	Messages []openRouterMsg `json:"messages"`
+	Stream   bool            `json:"stream"`
+	Format   string          `json:"format,omitempty"`
+	Options  map[string]any  `json:"options,omitempty"`
+}
+
+type ollamaChatResponse struct {
+	Message openRouterMsg `json:"message"`
+	Error   string        `json:"error,omitempty"`
+}
+
 // NewAIDescriptionService creates a new AI SEO generator.
 // OpenAI is the primary provider. If OpenAI rejects content, it falls back to
 // OpenRouter with an uncensored model to handle false-positive rejections.
-func NewAIDescriptionService(openAIAPIKey, openRouterAPIKey, provider, model string) *AIDescriptionService {
+func NewAIDescriptionService(openAIAPIKey, openRouterAPIKey, ollamaBaseURL, provider, model string) *AIDescriptionService {
 	provider = strings.ToLower(strings.TrimSpace(provider))
 	openAIAPIKey = strings.TrimSpace(openAIAPIKey)
 	openRouterAPIKey = strings.TrimSpace(openRouterAPIKey)
+	ollamaBaseURL = strings.TrimSpace(ollamaBaseURL)
+	if ollamaBaseURL == "" {
+		ollamaBaseURL = defaultOllamaURL
+	}
 
 	if provider == "" {
 		if openAIAPIKey != "" {
@@ -148,6 +168,10 @@ func NewAIDescriptionService(openAIAPIKey, openRouterAPIKey, provider, model str
 		if strings.TrimSpace(model) == "" {
 			model = "cognitivecomputations/dolphin-mistral-24b-venice-edition:free"
 		}
+	case aiProviderOllama:
+		if strings.TrimSpace(model) == "" {
+			model = "dolphin3"
+		}
 	default:
 		provider = ""
 	}
@@ -165,7 +189,8 @@ func NewAIDescriptionService(openAIAPIKey, openRouterAPIKey, provider, model str
 		apiKey:          apiKey,
 		provider:        provider,
 		model:           strings.TrimSpace(model),
-		enabled:         apiKey != "" && provider != "",
+		ollamaURL:       strings.TrimRight(ollamaBaseURL, "/"),
+		enabled:         provider == aiProviderOllama || (apiKey != "" && provider != ""),
 		fallbackAPIKey:  fallbackKey,
 		fallbackModel:   fallbackModel,
 		fallbackEnabled: fallbackKey != "",
@@ -238,6 +263,8 @@ func (s *AIDescriptionService) GenerateSEOMetadata(ctx context.Context, title st
 		metadata, err = s.generateWithOpenAI(ctx, title, categories, tags)
 	case aiProviderOpenRouter:
 		metadata, err = s.generateWithOpenRouter(ctx, title, categories, tags)
+	case aiProviderOllama:
+		metadata, err = s.generateWithOllama(ctx, title, categories, tags)
 	default:
 		return nil, fmt.Errorf("ai: unsupported provider %q", s.provider)
 	}
@@ -378,6 +405,52 @@ func (s *AIDescriptionService) generateWithOpenRouter(ctx context.Context, title
 	metadata, err := parseSEOMetadata(result.Choices[0].Message.Content)
 	if err != nil {
 		return nil, fmt.Errorf("ai: parse OpenRouter SEO JSON: %w", err)
+	}
+	return metadata.normalize(title, categories, tags), nil
+}
+
+func (s *AIDescriptionService) generateWithOllama(ctx context.Context, title string, categories, tags []string) (*SEOMetadata, error) {
+	reqBody := ollamaChatRequest{
+		Model: s.model,
+		Messages: []openRouterMsg{
+			{Role: "system", Content: seoInstructions(aiProviderOllama) + "\nReturn JSON only."},
+			{Role: "user", Content: seoInputForProvider(aiProviderOllama, title, categories, tags)},
+		},
+		Stream: false,
+		Format: "json",
+		Options: map[string]any{
+			"temperature": 0.55,
+			"num_predict": 750,
+		},
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("ai: marshal Ollama request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.ollamaURL+"/api/chat", bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("ai: create Ollama request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	respBytes, err := s.do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	var result ollamaChatResponse
+	if err := json.Unmarshal(respBytes, &result); err != nil {
+		return nil, fmt.Errorf("ai: parse Ollama response: %w", err)
+	}
+	if strings.TrimSpace(result.Error) != "" {
+		return nil, fmt.Errorf("ai: Ollama error: %s", result.Error)
+	}
+
+	metadata, err := parseSEOMetadata(result.Message.Content)
+	if err != nil {
+		return nil, fmt.Errorf("ai: parse Ollama SEO JSON: %w", err)
 	}
 	return metadata.normalize(title, categories, tags), nil
 }
