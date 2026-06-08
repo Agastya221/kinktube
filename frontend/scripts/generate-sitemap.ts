@@ -33,9 +33,10 @@ import * as path from "path";
 // ---------------------------------------------------------------------------
 
 const isRailway = process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_PROJECT_ID;
-const RAILWAY_PUBLIC_API_URL = process.env.SITEMAP_API_URL;
+const RAILWAY_PUBLIC_API_URL =
+  process.env.SITEMAP_API_URL?.trim().replace(/\/+$/, "") || null;
 
-function normalizeApiUrl(rawUrl?: string): string | null {
+function normalizeApiUrl(rawUrl?: string | null): string | null {
   const url = rawUrl?.trim();
   if (!url) return null;
 
