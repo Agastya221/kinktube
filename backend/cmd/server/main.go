@@ -169,19 +169,6 @@ func main() {
 		log.Printf("Import cron scheduled: %s", cfg.ImportSchedule)
 	}
 
-	// Daily dead-video cleanup: runs at 08:00 UTC (3 AM EST, off-peak US/Germany)
-	// Uses StartDeadVideoCleanup which has atomic locking (no overlaps) and a 2-hour safety timeout
-	_, err = cronScheduler.AddFunc("0 8 * * *", func() {
-		log.Println("Cron: starting daily dead-video cleanup...")
-		if err := importer.StartDeadVideoCleanup(); err != nil {
-			log.Printf("Cron: dead-video cleanup skipped: %v", err)
-		}
-	})
-	if err != nil {
-		log.Printf("Warning: Failed to setup dead-video cleanup cron: %v", err)
-	} else {
-		log.Println("Dead-video cleanup cron scheduled: daily at 08:00 UTC")
-	}
 
 	// Run startup tasks (initial import or cache refresh)
 	go func() {
@@ -228,6 +215,11 @@ func main() {
 			log.Fatalf("Server error: %v", err)
 		}
 	}()
+
+	// Start the removed-video ticker: runs an immediate startup purge (before first user request
+	// is served from the DB) then repeats every 30 minutes. Completely non-blocking.
+	importer.StartRemovedVideoTicker(ctx, 30*time.Minute)
+	log.Println("Removed-video ticker started: immediate startup purge + repeats every 30 min")
 
 	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)

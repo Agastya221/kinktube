@@ -293,6 +293,10 @@ func (i *Importer) invalidateCache(ctx context.Context) error {
 		return err
 	}
 
+	if i.cache == nil {
+		return nil
+	}
+
 	// Clear all video-related cache keys
 	patterns := []string{
 		"videos:*",
@@ -512,8 +516,10 @@ func (i *Importer) BackfillMissingDescriptions(ctx context.Context, limit int, d
 				})
 			} else {
 				video.Description = metadata.Description
-				_ = i.cache.Delete(ctx, database.VideoCacheKey(video.ID))
-				_ = i.cache.Delete(ctx, database.VideoExternalCacheKey(video.ExternalID))
+				if i.cache != nil {
+					_ = i.cache.Delete(ctx, database.VideoCacheKey(video.ID))
+					_ = i.cache.Delete(ctx, database.VideoExternalCacheKey(video.ExternalID))
+				}
 				stats.Updated++
 
 				// Log the successful update with a description preview
@@ -833,10 +839,12 @@ func (i *Importer) CleanupStartedAt() time.Time {
 	return i.cleanupStartedAt
 }
 
-// CleanDeadVideos validates every video in the DB against the Eporner API
-// and marks unavailable ones so they disappear from all listings.
-// Uses keyset pagination (WHERE id > lastSeenID) to guarantee zero skips.
-// Safe to call from cron or admin UI — guarded by an atomic lock.
+// CleanDeadVideos fetches the complete list of removed video IDs from Eporner in a single
+// API call, then batch-marks them as unavailable in the database. This replaces the old
+// one-by-one per-video check which took hours and hammered the Eporner API.
+//
+// Typical runtime: ~2 seconds (one HTTP call + a few batch SQL updates).
+// Safe to call concurrently — guarded by an atomic lock.
 func (i *Importer) CleanDeadVideos(ctx context.Context) {
 	if !i.cleanupRunning.CompareAndSwap(false, true) {
 		log.Println("CleanDeadVideos: already running, skipping")
@@ -844,101 +852,68 @@ func (i *Importer) CleanDeadVideos(ctx context.Context) {
 	}
 	defer i.cleanupRunning.Store(false)
 
-	log.Println("Starting dead video cleanup scan...")
+	start := time.Now()
+	log.Println("CleanDeadVideos: fetching removed video IDs from Eporner...")
 
-	const batchSize = 50
-	const delayBetweenChecks = 1 * time.Second     // 1s between each API call to be gentle
-	const delayBetweenBatches = 5 * time.Second     // 5s pause between batches
-	const backoffPause = 60 * time.Second           // 60s pause when rate-limited
-	const consecutiveErrorThreshold = 5             // trigger backoff after 5 errors in a row
+	// Single HTTP call — returns all removed IDs across the entire Eporner catalog.
+	fetchCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	removedIDs, err := i.eporner.GetRemovedVideoIDs(fetchCtx)
+	cancel()
 
-	var lastSeenID int64
-	totalMarked := 0
-	totalChecked := 0
-	totalSkipped := 0
-	consecutiveErrors := 0
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.Printf("Dead video cleanup cancelled/timed-out after checking %d, marking %d, skipping %d",
-				totalChecked, totalMarked, totalSkipped)
-			return
-		default:
-		}
-
-		rows, err := i.db.ListVideosForValidation(ctx, lastSeenID, batchSize)
-		if err != nil {
-			log.Printf("CleanDeadVideos: failed to list videos after id=%d: %v", lastSeenID, err)
-			break
-		}
-		if len(rows) == 0 {
-			break
-		}
-
-		for _, row := range rows {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
-			// Always advance the cursor so we never re-check the same row
-			lastSeenID = row.ID
-			totalChecked++
-
-			checkCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-			exists, apiErr := i.eporner.VideoExists(checkCtx, row.ExternalID)
-			cancel()
-
-			if apiErr != nil {
-				// Network/rate-limit error — skip this video, do NOT mark unavailable
-				totalSkipped++
-				consecutiveErrors++
-				if totalSkipped <= 10 {
-					log.Printf("CleanDeadVideos: skipping video id=%d (API error: %v)", row.ID, apiErr)
-				}
-
-				// If we're getting hammered with errors, back off significantly
-				if consecutiveErrors >= consecutiveErrorThreshold {
-					log.Printf("CleanDeadVideos: %d consecutive API errors, backing off for %v...", consecutiveErrors, backoffPause)
-					select {
-					case <-ctx.Done():
-						return
-					case <-time.After(backoffPause):
-					}
-					consecutiveErrors = 0 // reset after cooldown
-				}
-				continue
-			}
-
-			// Successful API call — reset the error streak
-			consecutiveErrors = 0
-
-			if !exists {
-				log.Printf("CleanDeadVideos: marking video id=%d external=%q as unavailable", row.ID, row.ExternalID)
-				if err := i.db.MarkVideoUnavailable(ctx, row.ID); err != nil {
-					log.Printf("CleanDeadVideos: failed to mark video %d: %v", row.ID, err)
-				} else {
-					totalMarked++
-				}
-			}
-
-			time.Sleep(delayBetweenChecks)
-		}
-
-		if len(rows) < batchSize {
-			break
-		}
-		time.Sleep(delayBetweenBatches)
+	if err != nil {
+		log.Printf("CleanDeadVideos: failed to fetch removed IDs (will retry next tick): %v", err)
+		return
 	}
 
-	log.Printf("Dead video cleanup complete: checked %d, marked %d unavailable, skipped %d (API errors)",
-		totalChecked, totalMarked, totalSkipped)
+	if len(removedIDs) == 0 {
+		log.Println("CleanDeadVideos: removed IDs list was empty — skipping DB update")
+		return
+	}
 
-	if totalMarked > 0 {
+	log.Printf("CleanDeadVideos: received %d removed IDs from Eporner, running batch DB update...", len(removedIDs))
+
+	// Batch-update the database — a few SQL statements at most.
+	marked, err := i.db.MarkVideosUnavailableByExternalIDs(ctx, removedIDs)
+	if err != nil {
+		log.Printf("CleanDeadVideos: batch DB update failed: %v", err)
+		return
+	}
+
+	log.Printf("CleanDeadVideos: done in %v — checked %d Eporner IDs, marked %d videos unavailable",
+		time.Since(start).Round(time.Millisecond), len(removedIDs), marked)
+
+	if marked > 0 {
 		if err := i.invalidateCache(ctx); err != nil {
 			log.Printf("CleanDeadVideos: cache invalidation failed: %v", err)
 		}
 	}
+}
+
+// StartRemovedVideoTicker runs CleanDeadVideos immediately (startup purge) and then
+// repeats every `interval`. It is completely non-blocking — all work happens in a
+// background goroutine so the HTTP server is unaffected.
+//
+// Call this once from main after the database and Eporner client are initialised.
+func (i *Importer) StartRemovedVideoTicker(ctx context.Context, interval time.Duration) {
+	if interval <= 0 {
+		interval = 30 * time.Minute
+	}
+
+	go func() {
+		// Run immediately on startup so the catalog is clean before the first user arrives.
+		i.CleanDeadVideos(ctx)
+
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("CleanDeadVideos ticker stopped (context cancelled)")
+				return
+			case <-ticker.C:
+				i.CleanDeadVideos(ctx)
+			}
+		}
+	}()
 }

@@ -525,6 +525,73 @@ func (c *EpornerClient) VideoExists(ctx context.Context, externalID string) (boo
 	return false, nil
 }
 
+// epornerRemovedEntry is the JSON shape of each item in the /api/v2/video/removed/ response.
+type epornerRemovedEntry struct {
+	ID string `json:"id"`
+}
+
+// GetRemovedVideoIDs fetches all video IDs that have been removed from Eporner in a single
+// API call. This is the most efficient way to keep the local catalog clean — one HTTP request
+// instead of per-video checks.
+//
+// The endpoint returns a (potentially multi-megabyte) JSON array like:
+//
+//	[{"id":"5UF0dWoWUdR"},{"id":"ez8cbX4tDtd"},...]
+//
+// Returns a flat slice of external ID strings. On any network / parse error the caller
+// should log and retry later rather than treating all videos as deleted.
+func (c *EpornerClient) GetRemovedVideoIDs(ctx context.Context) ([]string, error) {
+	params := url.Values{}
+	params.Set("format", "json")
+
+	requestURL := fmt.Sprintf("%s/video/removed/?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create removed-videos request: %w", err)
+	}
+	req.Header.Set("User-Agent", "KinkTube/1.0")
+	req.Header.Set("Accept", "application/json")
+
+	// The removed list can be several megabytes — use a dedicated client with a longer timeout.
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch removed-videos list: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= http.StatusInternalServerError {
+		return nil, fmt.Errorf("eporner removed-videos API returned status %d (rate-limited or server error)", resp.StatusCode)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("eporner removed-videos API returned unexpected status %d", resp.StatusCode)
+	}
+
+	// Limit body to 50 MB as a safety guard against absurdly large responses.
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 50*1024*1024))
+	if err != nil {
+		return nil, fmt.Errorf("read removed-videos response: %w", err)
+	}
+
+	if len(body) == 0 {
+		return nil, fmt.Errorf("eporner removed-videos API returned an empty body")
+	}
+
+	var entries []epornerRemovedEntry
+	if err := json.Unmarshal(body, &entries); err != nil {
+		return nil, fmt.Errorf("parse removed-videos JSON: %w", err)
+	}
+
+	ids := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if e.ID != "" {
+			ids = append(ids, e.ID)
+		}
+	}
+	return ids, nil
+}
+
 // containsAnyStrongBDSM returns true if the text contains at least one strong BDSM term.
 func containsAnyStrongBDSM(text string) bool {
 	for _, term := range bdsmStrongTerms {

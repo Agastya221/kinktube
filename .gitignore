@@ -8,6 +8,7 @@ frontend/.next/
 frontend/sitemap-build-*/
 frontend/out/
 backend/.gocache
+backend/.gocache-worker/
 frontend/public/sitemap-videos-*.xml.gz
 frontend/public/*.xml.gz
 frontend/public/sitemap-manifest.json
@@ -19,6 +20,7 @@ frontend/public/sitemap-videos-*.xml
 
 # Environment files
 .env
+.env.worker
 .env.local
 .env.*.local
 

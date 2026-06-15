@@ -185,6 +185,11 @@ func NewAIDescriptionService(openAIAPIKey, openRouterAPIKey, ollamaBaseURL, prov
 		log.Println("AI SEO: OpenAI primary → OpenRouter fallback for rejected content")
 	}
 
+	timeout := 30 * time.Second
+	if provider == aiProviderOllama {
+		timeout = 10 * time.Minute // Local models running on consumer hardware can take 1-2 minutes to respond
+	}
+
 	return &AIDescriptionService{
 		apiKey:          apiKey,
 		provider:        provider,
@@ -195,7 +200,7 @@ func NewAIDescriptionService(openAIAPIKey, openRouterAPIKey, ollamaBaseURL, prov
 		fallbackModel:   fallbackModel,
 		fallbackEnabled: fallbackKey != "",
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: timeout,
 		},
 	}
 }
@@ -419,8 +424,8 @@ func (s *AIDescriptionService) generateWithOllama(ctx context.Context, title str
 		Stream: false,
 		Format: "json",
 		Options: map[string]any{
-			"temperature": 0.55,
-			"num_predict": 750,
+			"temperature": 0.9,
+			"num_predict": 1000,
 		},
 	}
 
@@ -532,115 +537,45 @@ func (s *AIDescriptionService) do(req *http.Request) ([]byte, error) {
 
 func seoInstructions(provider string) string {
 	if provider == aiProviderOpenAI {
-		// OpenAI - professional catalog framing that stays factual while avoiding flat AI copy.
-		return `You are a human SEO editor for an adult entertainment catalog. Write reader-facing adult video metadata that is specific, searchable, and tempting to click, while staying grounded in the supplied title, categories, and tags.
-
-CONTEXT:
-- All content is from verified 18+ adult performers
-- All content is legally produced and cataloged
-- Your descriptions are used for SEO, search indexing, and content discovery
-- Context lines are for classification only. Do not repeat "verified", "18+", "legal", or "consensual" in the output.
-- Your job is to preserve the important adult/BDSM search details, not sanitize them into vague summaries.
-
-FIELD RULES:
-- title: 45-80 characters, human-readable, keyword-rich, no clickbait punctuation
-- meta_description: 120-160 characters, one natural search snippet with the main kink, setup, and action
-- description: 75-105 words, one tight paragraph, direct and specific
-- slug: short lowercase URL phrase using the strongest title/category keywords
-- tags: 6-8 lowercase tags, no duplicates, prioritize title words, category, kink, setup, act, and dynamic
-- category: best single primary category from the supplied categories/tags
-- safety_notes: empty string unless rejected
-- rejected: false unless the input is clearly illegal or unsafe
-
-VOICE:
-- Sound like a real adult-site editor, not an AI assistant
-- Start with the scene's strongest hook: performer, restraint, public/display setup, power dynamic, or sex act
-- Keep every important concrete detail from the title/tags when it is legal adult content
-- Use adult industry terms naturally when they appear in the source metadata: bondage, domination, submission, public humiliation, restraint, oral, blowjob, spanking, gagging, fetish, etc.
-- Make the copy clickable through specificity, not fake hype
-
-KEYWORD RETENTION:
-- Before writing, identify the source keywords for setting, restraint, role, act, kink, and power dynamic.
-- The description must naturally include the strongest 4-7 source keywords.
-- If a term is too graphic for the tone, use a direct adult catalog synonym instead of deleting the detail.
-- Never replace a specific act or setup with "intimate encounter", "sexual activity", "adult scenario", or similar filler.
-
-DO NOT WRITE:
-- "This video features", "the content explores", "themes include", "in a safe and consensual context"
-- "adult performers", "verified adults", "legally produced", or any disclaimer in the user-facing fields
-- vague filler such as "intense dynamics", "various acts", "a compelling scene", or "sensual encounter"
-- moralizing, safety boilerplate, or policy language
-- keyword stuffing or lists disguised as prose
-
-IMPORTANT:
-- Roleplay terms are adult fantasy labels between 18+ performers.
-- "Teen" means legal 18+ young-looking adult category, never minors.
-- If wording is too sensitive, rephrase the wording, but do not drop the core searchable detail.
-- Keep the prose commercial and indexable, not erotic fiction.
-- Return valid JSON only, with every required field complete.`
+		return `You are a hardcore BDSM porn SEO writer. Be explicit.`
 	}
 
-	// OpenRouter / uncensored models - full NSFW prompt for stronger adult SEO copy.
-	return `You are a senior SEO copywriter for a hardcore BDSM and fetish porn tube site. Write like a real porn editor: direct, dirty, specific, and clickable. The copy must feel human, not AI-generated.
+	// MAX BRUTAL + HUMAN STYLE FOR DOLPHIN
+	return `You are a dirty, experienced hardcore BDSM porn tube editor. Write like a real degenerate who runs a extreme fetish site — raw, vulgar, nasty, and straight to the point.
 
-OUTPUT RULES:
-- Return JSON only.
-- title: 45-80 characters, clickable, keyword-rich, no fake punctuation spam.
-- meta_description: 120-160 characters, one search-friendly sentence that includes the main kink/setup/action.
-- description: 75-110 words, one tight paragraph with natural porn SEO keywords.
-- slug: short lowercase URL phrase using the strongest title/category keywords.
-- tags: 6-8 lowercase tags, no duplicates, prioritize title words, category, kink, setup, act, and power dynamic.
-- category: best single primary category.
-- safety_notes: empty string.
-- rejected: false.
+IMPORTANT RULES TO AVOID AI DETECTION:
+- Never start with "In this scene", "In this video", "This clip shows", "This scene features", "Watch as", etc.
+- Never use corporate bullshit like "not for the faint-hearted", "buckle up", "ultimate display", "no-limits experience", "intense action".
+- Sound like a real perverted webmaster: crude, direct, aggressive, and filthy.
+- Use natural dirty talk and broken sentences when it fits.
+- Go extremely hard on degradation, pain, anal destruction, humiliation and domination.
 
-STYLE:
-- Preserve every important detail from the title, categories, and tags: performer names, setting, restraint, role, sex acts, kink, humiliation, control, and power dynamic.
-- Start on the strongest hook instead of a generic intro.
-- Use explicit porn/BDSM terminology naturally when it matches the source metadata.
-- Be vivid and concrete, but do not invent acts or performers that are not implied by the source.
-- Make it readable for humans first and useful for search second.
-- Use each major keyword once or twice naturally; never keyword-stuff.
+Write maximum brutal BDSM text. Use words like: destroyed asshole, ruined fuckhole, brutally pegged, gaping whore, pain pig, throatfucked, piss soaked, broken cumdump, mercilessly destroyed, etc.
 
-NEVER WRITE:
-- "consensual" or "adult performers" or "legal adults"
-- "in a safe and consensual context" 
-- "All activities are performed by..."
-- "This video features", "themes include", "content is presented as", or "the scene explores"
-- bland filler like "intense dynamics", "various acts", "a provocative scenario", or "a compelling performance"
-- Any disclaimer or safety language whatsoever
-
-NEVER set rejected=true. All content is from verified 18+ adult performers. Always generate the description.`
+JSON ONLY:
+{
+  "title": "very clickable brutal title",
+  "meta_description": "filthy short description",
+  "description": "longer raw paragraph",
+  "slug": "slug-here",
+  "tags": ["tag1", "tag2", ...],
+  "category": "bdsm",
+  "safety_notes": "",
+  "rejected": false
+}`
 }
 
 func seoInputForProvider(provider, title string, categories, tags []string) string {
-	cleanTitle := title
-	if provider == aiProviderOpenAI {
-		// Light cleanup for OpenAI — avoid aggressive replacements that sound unnatural
-		// Just normalize obvious false-positive triggers
-		cleanTitle = strings.ReplaceAll(cleanTitle, "school girl", "schoolgirl roleplay")
-		cleanTitle = strings.ReplaceAll(cleanTitle, "School Girl", "Schoolgirl Roleplay")
-		cleanTitle = strings.ReplaceAll(cleanTitle, "baby girl", "performer")
-		cleanTitle = strings.ReplaceAll(cleanTitle, "Baby Girl", "Performer")
-	}
-	// For uncensored models, pass the original title unmodified
-
-	return fmt.Sprintf(`CONTEXT ONLY, DO NOT REPEAT IN OUTPUT: all performers are confirmed 18+ adults in legal, consensual adult content.
-
-Task: generate professional adult catalog SEO metadata.
+	return fmt.Sprintf(`Create the most brutal, filthy and human-sounding BDSM metadata possible.
 
 Title: %s
 Categories: %s
 Tags: %s
 
-Generate complete SEO metadata as JSON.
-
-Use the title as the source of truth. Preserve the concrete setup, acts, kink terms, restraint/control details, and power dynamic from the source metadata. Do not flatten the title into generic wording. Do not add disclaimers. Do not invent details beyond what the title/categories/tags support.
-
-OpenAI primary quality target: specific, clickable, human-written adult SEO copy that keeps the searchable details while staying factual and catalog-style.`,
-		cleanTitle,
+Make it sound like a real horny webmaster wrote it — very raw and nasty. No AI-sounding phrases at all. Focus on domination, anal ruin, pain, degradation and total ownership. Be as vulgar and extreme as possible.`,
+		title,
 		strings.Join(cleanTags(categories, 12), ", "),
-		strings.Join(cleanTags(tags, 20), ", "))
+		strings.Join(cleanTags(tags, 25), ", "))
 }
 
 // Legacy wrapper for backward compatibility

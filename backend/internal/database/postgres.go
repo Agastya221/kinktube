@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -484,6 +485,8 @@ func (db *PostgresDB) UpdateVideoDescription(ctx context.Context, id int64, desc
 
 // ListVideosMissingDescriptions returns visible videos that still need cached AI SEO text.
 // It excludes videos that have already been rejected by the AI pipeline to avoid infinite retry loops.
+// If AI_SEO_FORCE_REGENERATE is true, it instead selects videos that have not yet been processed
+// in the current run (by excluding videos that already have an entry in ai_seo_logs).
 func (db *PostgresDB) ListVideosMissingDescriptions(ctx context.Context, limit int) ([]models.Video, error) {
 	if limit < 1 {
 		limit = 25
@@ -492,7 +495,8 @@ func (db *PostgresDB) ListVideosMissingDescriptions(ctx context.Context, limit i
 		limit = 500
 	}
 
-	rows, err := db.pool.Query(ctx, `
+	forceRegen := os.Getenv("AI_SEO_FORCE_REGENERATE") == "true"
+	query := `
 		SELECT id, external_id, title, description, duration, duration_str,
 			views, rating, thumbnail, thumbnail_lg, embed_url, source_url,
 			tags, categories, keywords, added_at, published_at, last_updated_at
@@ -505,7 +509,25 @@ func (db *PostgresDB) ListVideosMissingDescriptions(ctx context.Context, limit i
 		)
 		ORDER BY added_at DESC
 		LIMIT $1
-	`, limit)
+	`
+
+	if forceRegen {
+		query = `
+			SELECT id, external_id, title, description, duration, duration_str,
+				views, rating, thumbnail, thumbnail_lg, embed_url, source_url,
+				tags, categories, keywords, added_at, published_at, last_updated_at
+			FROM videos
+			WHERE is_english = TRUE
+			AND is_available = TRUE
+			AND id NOT IN (
+				SELECT DISTINCT video_id FROM ai_seo_logs
+			)
+			ORDER BY added_at DESC
+			LIMIT $1
+		`
+	}
+
+	rows, err := db.pool.Query(ctx, query, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -867,6 +889,41 @@ func (db *PostgresDB) MarkVideoUnavailable(ctx context.Context, videoID int64) e
 	)
 	return err
 }
+
+// MarkVideosUnavailableByExternalIDs bulk-marks a list of videos as unavailable using
+// Eporner external IDs. Uses a single SQL statement with ANY($1) to be fast and safe.
+// Processes in chunks of 1000 to avoid PostgreSQL parameter limits.
+// Returns the total number of rows that were actually changed (i.e. were previously available).
+func (db *PostgresDB) MarkVideosUnavailableByExternalIDs(ctx context.Context, externalIDs []string) (int64, error) {
+	if len(externalIDs) == 0 {
+		return 0, nil
+	}
+
+	const chunkSize = 1000
+	var totalMarked int64
+
+	for i := 0; i < len(externalIDs); i += chunkSize {
+		end := i + chunkSize
+		if end > len(externalIDs) {
+			end = len(externalIDs)
+		}
+		chunk := externalIDs[i:end]
+
+		tag, err := db.pool.Exec(ctx,
+			`UPDATE videos
+			 SET is_available = FALSE, last_updated_at = NOW()
+			 WHERE external_id = ANY($1) AND is_available = TRUE`,
+			chunk,
+		)
+		if err != nil {
+			return totalMarked, fmt.Errorf("batch mark unavailable (chunk %d-%d): %w", i, end, err)
+		}
+		totalMarked += tag.RowsAffected()
+	}
+
+	return totalMarked, nil
+}
+
 
 // DeleteUnavailableVideos permanently removes all videos flagged as unavailable.
 // Can be run periodically as a maintenance task.
