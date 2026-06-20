@@ -843,7 +843,7 @@ func (i *Importer) CleanupStartedAt() time.Time {
 // API call, then batch-marks them as unavailable in the database. This replaces the old
 // one-by-one per-video check which took hours and hammered the Eporner API.
 //
-// Typical runtime: ~2 seconds (one HTTP call + a few batch SQL updates).
+// Runtime depends on catalog size: removed-list cleanup is fast, then validation scans visible rows gently.
 // Safe to call concurrently — guarded by an atomic lock.
 func (i *Importer) CleanDeadVideos(ctx context.Context) {
 	if !i.cleanupRunning.CompareAndSwap(false, true) {
@@ -853,38 +853,98 @@ func (i *Importer) CleanDeadVideos(ctx context.Context) {
 	defer i.cleanupRunning.Store(false)
 
 	start := time.Now()
+	var totalMarked int64
 	log.Println("CleanDeadVideos: fetching removed video IDs from Eporner...")
 
-	// Single HTTP call — returns all removed IDs across the entire Eporner catalog.
+	// Single HTTP call - returns all removed IDs across the entire Eporner catalog.
 	fetchCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	removedIDs, err := i.eporner.GetRemovedVideoIDs(fetchCtx)
 	cancel()
 
 	if err != nil {
-		log.Printf("CleanDeadVideos: failed to fetch removed IDs (will retry next tick): %v", err)
-		return
+		log.Printf("CleanDeadVideos: failed to fetch removed IDs (continuing with direct validation): %v", err)
+	} else if len(removedIDs) == 0 {
+		log.Println("CleanDeadVideos: removed IDs list was empty - continuing with direct validation")
+	} else {
+		log.Printf("CleanDeadVideos: received %d removed IDs from Eporner, running batch DB update...", len(removedIDs))
+
+		// Batch-update the database - a few SQL statements at most.
+		marked, err := i.db.MarkVideosUnavailableByExternalIDs(ctx, removedIDs)
+		if err != nil {
+			log.Printf("CleanDeadVideos: batch DB update failed: %v", err)
+		} else {
+			totalMarked += marked
+			log.Printf("CleanDeadVideos: removed-list update marked %d videos unavailable", marked)
+		}
 	}
 
-	if len(removedIDs) == 0 {
-		log.Println("CleanDeadVideos: removed IDs list was empty — skipping DB update")
-		return
-	}
+	verified, verifiedMarked := i.cleanDeadVideosByValidation(ctx)
+	totalMarked += verifiedMarked
 
-	log.Printf("CleanDeadVideos: received %d removed IDs from Eporner, running batch DB update...", len(removedIDs))
+	log.Printf("CleanDeadVideos: done in %v - checked %d removed IDs + verified %d live rows, marked %d videos unavailable",
+		time.Since(start).Round(time.Millisecond), len(removedIDs), verified, totalMarked)
 
-	// Batch-update the database — a few SQL statements at most.
-	marked, err := i.db.MarkVideosUnavailableByExternalIDs(ctx, removedIDs)
-	if err != nil {
-		log.Printf("CleanDeadVideos: batch DB update failed: %v", err)
-		return
-	}
-
-	log.Printf("CleanDeadVideos: done in %v — checked %d Eporner IDs, marked %d videos unavailable",
-		time.Since(start).Round(time.Millisecond), len(removedIDs), marked)
-
-	if marked > 0 {
+	if totalMarked > 0 {
 		if err := i.invalidateCache(ctx); err != nil {
 			log.Printf("CleanDeadVideos: cache invalidation failed: %v", err)
+		}
+	}
+}
+
+func (i *Importer) cleanDeadVideosByValidation(ctx context.Context) (int64, int64) {
+	var checked int64
+	var marked int64
+	var afterID int64
+	const batchSize = 100
+	const requestDelay = 250 * time.Millisecond
+
+	log.Println("CleanDeadVideos: validating currently visible videos against Eporner video/get...")
+
+	for {
+		if err := ctx.Err(); err != nil {
+			log.Printf("CleanDeadVideos: validation stopped: %v", err)
+			return checked, marked
+		}
+
+		videos, err := i.db.ListVideosForValidation(ctx, afterID, batchSize)
+		if err != nil {
+			log.Printf("CleanDeadVideos: validation DB scan failed: %v", err)
+			return checked, marked
+		}
+		if len(videos) == 0 {
+			return checked, marked
+		}
+
+		missingIDs := make([]string, 0, len(videos))
+		for _, video := range videos {
+			afterID = video.ID
+			checked++
+
+			checkCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+			exists, err := i.eporner.VideoExists(checkCtx, video.ExternalID)
+			cancel()
+
+			if err != nil {
+				log.Printf("CleanDeadVideos: skipped %s during validation: %v", video.ExternalID, err)
+			} else if !exists {
+				missingIDs = append(missingIDs, video.ExternalID)
+			}
+
+			select {
+			case <-ctx.Done():
+				return checked, marked
+			case <-time.After(requestDelay):
+			}
+		}
+
+		if len(missingIDs) > 0 {
+			batchMarked, err := i.db.MarkVideosUnavailableByExternalIDs(ctx, missingIDs)
+			if err != nil {
+				log.Printf("CleanDeadVideos: validation mark failed: %v", err)
+			} else {
+				marked += batchMarked
+				log.Printf("CleanDeadVideos: validation marked %d/%d missing videos unavailable", batchMarked, len(missingIDs))
+			}
 		}
 	}
 }
