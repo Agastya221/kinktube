@@ -94,12 +94,22 @@ func NewPostgresDB(ctx context.Context, databaseURL string) (*PostgresDB, error)
 		KeepAlive: 5 * time.Minute,
 	}).DialContext
 	if os.Getenv("POSTGRES_FORCE_IPV6") != "true" {
-		baseDial := config.ConnConfig.DialFunc
-		config.ConnConfig.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
-			if network == "tcp" {
-				network = "tcp4"
+		config.ConnConfig.LookupFunc = func(ctx context.Context, host string) ([]string, error) {
+			ips, err := net.DefaultResolver.LookupIP(ctx, "ip4", host)
+			if err != nil {
+				return nil, err
 			}
-			return baseDial(ctx, network, address)
+
+			addrs := make([]string, 0, len(ips))
+			for _, ip := range ips {
+				if ipv4 := ip.To4(); ipv4 != nil {
+					addrs = append(addrs, ipv4.String())
+				}
+			}
+			if len(addrs) == 0 {
+				return nil, fmt.Errorf("no IPv4 addresses found for %s", host)
+			}
+			return addrs, nil
 		}
 	}
 
