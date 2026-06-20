@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -88,6 +89,19 @@ func NewPostgresDB(ctx context.Context, databaseURL string) (*PostgresDB, error)
 	config.MinConns = 10
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = 30 * time.Minute
+	config.ConnConfig.DialFunc = (&net.Dialer{
+		Timeout:   10 * time.Second,
+		KeepAlive: 5 * time.Minute,
+	}).DialContext
+	if os.Getenv("POSTGRES_FORCE_IPV6") != "true" {
+		baseDial := config.ConnConfig.DialFunc
+		config.ConnConfig.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+			if network == "tcp" {
+				network = "tcp4"
+			}
+			return baseDial(ctx, network, address)
+		}
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
