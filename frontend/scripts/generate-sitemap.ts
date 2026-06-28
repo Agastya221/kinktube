@@ -82,12 +82,6 @@ const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
 /** Max URLs per individual sitemap file (Google limit: 50,000; we use 10k for safety). */
 const URLS_PER_SITEMAP = 10_000;
 
-/** How many videos to fetch per API call. The public /api/videos endpoint caps this at 100. */
-const API_PAGE_SIZE = 100;
-
-/** How many API requests to run concurrently. */
-const CONCURRENCY = readPositiveIntEnv("SITEMAP_CONCURRENCY", 2);
-
 /** Timeout per fetch request (ms). */
 const FETCH_TIMEOUT_MS = 30_000;
 
@@ -118,16 +112,10 @@ interface Video {
   added_at: string;
 }
 
-interface VideoListResponse {
+interface SitemapVideoResponse {
   videos: Video[];
-  total: number;
-  page: number;
-  per_page: number;
-  total_pages: number;
-}
-
-interface StatsResponse {
-  total_videos: number;
+  next_cursor: number;
+  has_more: boolean;
 }
 
 interface Category {
@@ -174,6 +162,8 @@ const DEFAULT_CATEGORIES: Category[] = [
 
 const STATIC_PAGES = [
   { path: "/", priority: 1.0, changefreq: "daily" },
+  { path: "/bdsm-test", priority: 0.9, changefreq: "weekly" },
+  { path: "/bdsm-meaning", priority: 0.9, changefreq: "weekly" },
   { path: "/contact", priority: 0.5, changefreq: "monthly" },
   { path: "/terms", priority: 0.3, changefreq: "monthly" },
   { path: "/privacy", priority: 0.3, changefreq: "monthly" },
@@ -315,27 +305,6 @@ async function fetchJson<T>(endpoint: string): Promise<T> {
   throw new Error(`API request failed after retries: ${url}`);
 }
 
-/** Run an array of async functions with bounded concurrency. */
-async function runWithConcurrency<T>(
-  tasks: (() => Promise<T>)[],
-  concurrency: number
-): Promise<T[]> {
-  const results: T[] = new Array(tasks.length);
-  let idx = 0;
-
-  async function worker() {
-    while (idx < tasks.length) {
-      const i = idx++;
-      results[i] = await tasks[i]();
-    }
-  }
-
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker())
-  );
-  return results;
-}
-
 function writeXml(filename: string, content: string): void {
   const filepath = path.join(PUBLIC_DIR, filename);
   const trimmedContent = content.trim();
@@ -426,15 +395,6 @@ function buildSitemapIndexXml(
 // Data fetching
 // ---------------------------------------------------------------------------
 
-async function fetchTotalVideos(): Promise<number> {
-  try {
-    const stats = await fetchJson<StatsResponse>("/api/stats");
-    return stats.total_videos || 0;
-  } catch (err) {
-    throw new Error(`Could not fetch /api/stats: ${(err as Error).message}`);
-  }
-}
-
 async function fetchCategories(): Promise<Category[]> {
   try {
     const data = await fetchJson<CategoriesResponse>("/api/categories");
@@ -445,34 +405,28 @@ async function fetchCategories(): Promise<Category[]> {
   return DEFAULT_CATEGORIES;
 }
 
-async function fetchAllVideos(totalVideos: number): Promise<Video[]> {
-  if (totalVideos === 0) return [];
+async function fetchAllVideos(): Promise<Video[]> {
+  const videos: Video[] = [];
+  let cursor = 0;
+  let page = 1;
 
-  const totalApiPages = Math.ceil(totalVideos / API_PAGE_SIZE);
-  console.log(`  Fetching ${totalVideos} videos across ${totalApiPages} API pages (concurrency=${CONCURRENCY})...`);
+  console.log(`  Fetching videos from /api/sitemap/videos in ${URLS_PER_SITEMAP}-row batches...`);
 
-  const tasks: (() => Promise<Video[]>)[] = [];
+  for (;;) {
+    const data = await fetchJson<SitemapVideoResponse>(
+      `/api/sitemap/videos?cursor=${cursor}&limit=${URLS_PER_SITEMAP}`
+    );
+    const batch = data.videos || [];
+    videos.push(...batch);
 
-  for (let page = 1; page <= totalApiPages; page++) {
-    tasks.push(async () => {
-      const data = await fetchJson<VideoListResponse>(
-        `/api/videos?page=${page}&per_page=${API_PAGE_SIZE}&sort=latest`
-      );
-      return data.videos || [];
-    });
-  }
+    console.log(`  ✓ batch ${page}: ${batch.length} videos`);
 
-  const batches = await runWithConcurrency(tasks, CONCURRENCY);
-  const videos = batches.flat();
-
-  if (totalVideos > 0) {
-    const coverage = videos.length / totalVideos;
-    if (coverage < 0.9) {
-      throw new Error(
-        `Generated sitemap only fetched ${videos.length}/${totalVideos} videos ` +
-          `(${(coverage * 100).toFixed(1)}%). Refusing to ship an incomplete sitemap.`
-      );
+    if (!data.has_more || batch.length === 0) {
+      break;
     }
+
+    cursor = data.next_cursor;
+    page++;
   }
 
   return videos;
@@ -523,8 +477,7 @@ async function main() {
 
   // ── 3. Video sitemaps (paginated) ──────────────────────────────────────
   console.log("[3/4] Generating video sitemaps...");
-  const totalVideos = await fetchTotalVideos();
-  const videos = await fetchAllVideos(totalVideos);
+  const videos = await fetchAllVideos();
 
   const videoSitemapFiles: string[] = [];
 

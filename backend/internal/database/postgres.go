@@ -73,8 +73,16 @@ type CategoryMenuThumbnailCache struct {
 
 // SitemapVideo is the minimal shape needed by offline sitemap generation.
 type SitemapVideo struct {
-	ID           int64     `json:"id"`
-	LastModified time.Time `json:"last_modified"`
+	ID            int64     `json:"id"`
+	ExternalID    string    `json:"external_id"`
+	Title         string    `json:"title"`
+	Description   string    `json:"description"`
+	Thumbnail     string    `json:"thumbnail"`
+	ThumbnailLg   string    `json:"thumbnail_lg"`
+	Duration      int       `json:"duration"`
+	EmbedURL      string    `json:"embed_url"`
+	AddedAt       time.Time `json:"added_at"`
+	LastUpdatedAt time.Time `json:"last_updated_at"`
 }
 
 // NewPostgresDB creates a new database connection pool
@@ -808,7 +816,8 @@ func (db *PostgresDB) ListSitemapVideos(ctx context.Context, afterID int64, limi
 	}
 
 	rows, err := db.pool.Query(ctx, `
-		SELECT id, COALESCE(last_updated_at, added_at, NOW()) AS last_modified
+		SELECT id, external_id, title, description, thumbnail, thumbnail_lg,
+			duration, embed_url, added_at, COALESCE(last_updated_at, added_at, NOW()) AS last_updated_at
 		FROM videos
 		WHERE is_english = TRUE
 		AND is_available = TRUE
@@ -824,9 +833,24 @@ func (db *PostgresDB) ListSitemapVideos(ctx context.Context, afterID int64, limi
 	videos := make([]SitemapVideo, 0, limit)
 	for rows.Next() {
 		var video SitemapVideo
-		if err := rows.Scan(&video.ID, &video.LastModified); err != nil {
+		var description sql.NullString
+		var thumbnailLg sql.NullString
+		if err := rows.Scan(
+			&video.ID,
+			&video.ExternalID,
+			&video.Title,
+			&description,
+			&video.Thumbnail,
+			&thumbnailLg,
+			&video.Duration,
+			&video.EmbedURL,
+			&video.AddedAt,
+			&video.LastUpdatedAt,
+		); err != nil {
 			return nil, err
 		}
+		video.Description = nullString(description)
+		video.ThumbnailLg = nullString(thumbnailLg)
 		videos = append(videos, video)
 	}
 
@@ -947,7 +971,6 @@ func (db *PostgresDB) MarkVideosUnavailableByExternalIDs(ctx context.Context, ex
 
 	return totalMarked, nil
 }
-
 
 // DeleteUnavailableVideos permanently removes all videos flagged as unavailable.
 // Can be run periodically as a maintenance task.
